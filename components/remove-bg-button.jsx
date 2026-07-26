@@ -1,0 +1,66 @@
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { Wand2, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// ============================================================================
+// Botón de "Quitar fondo con IA" — usa @imgly/background-removal (100% cliente,
+// modelo ONNX corriendo en el navegador, MIT license, sin API pagas).
+// ============================================================================
+
+export function RemoveBgButton({ imageUrl, onDone, disabled }) {
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const run = async () => {
+    setRunning(true);
+    setProgress(0);
+    try {
+      // Dynamic import: el paquete pesa ~40MB (modelo ONNX) por lo que se
+      // carga sólo cuando el usuario decide usarlo. El navegador cachea el
+      // modelo después de la primera ejecución.
+      const { removeBackground } = await import('@imgly/background-removal');
+      const blob = await removeBackground(imageUrl, {
+        progress: (key, current, total) => {
+          const p = Math.round((current / total) * 100);
+          setProgress(p);
+        },
+      });
+
+      // Subir el resultado transparente al servidor
+      const fd = new FormData();
+      fd.append('file', blob, 'bg-removed.png');
+      const r = await fetch('/api/uploads/design', { method: 'POST', body: fd });
+      if (!r.ok) throw new Error('upload falló');
+      const data = await r.json();
+
+      onDone?.(data);
+      toast.success('Fondo eliminado ✨', { description: `${data.widthPx}×${data.heightPx}px, transparente` });
+    } catch (e) {
+      console.error(e);
+      toast.error('No se pudo quitar el fondo', { description: e.message });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={run}
+      disabled={disabled || running}
+      className="text-fuchsia-600 hover:text-fuchsia-700 hover:bg-fuchsia-50 border-fuchsia-200"
+    >
+      {running ? (
+        <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />IA {progress}%</>
+      ) : (
+        <><Wand2 className="h-3.5 w-3.5 mr-1" />Quitar fondo IA</>
+      )}
+    </Button>
+  );
+}
+
+export default RemoveBgButton;

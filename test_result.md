@@ -298,6 +298,116 @@ agent_communication:
          - Happy path: lengthMm=530, total=$7568 ✓
          - Minimum length: lengthMm=300, total=$3570 ✓
          - Express surcharge: +30% applied correctly, total=$9839 ✓
+
+# ============================================================================
+# ITERATION 2 — Kanban + Inventario + AI Background Removal (main agent)
+# ============================================================================
+
+backend_v2:
+  - task: "Production queue enriched endpoint"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET /api/production/queue joins production_queue with orders (batched find with $in). Optional ?printer=X filter. Returns items enriched with order.{orderNumber, customerName, channel, total, createdAt}. Verified via curl."
+
+  - task: "Production move (Kanban DnD backend)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/production/move with {id, toStatus}. Validates toStatus ∈ {received, printing, curing, ready}. Auto-sets startedAt when going to printing, completedAt when going to ready. Cascades to update parent order.productionStatus. When ALL queue items for an order reach ready, sets order.status='ready'. Verified via curl: moved item to printing successfully."
+
+  - task: "Inventory adjust with audit log"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/inventory/adjust with {itemType, itemId, delta, reason}. Validates itemType ∈ {supply, commercial}, non-zero delta. Prevents negative stock with clear error. Updates lastRestockAt when supply is topped up. Logs to stock_movements collection with type (supply_in/supply_out/commercial_in/commercial_out), balanceAfter, reason. Verified: +20 on Film PET → 120→140. -9999 correctly rejected."
+
+  - task: "MongoDB connection race condition fix"
+    implemented: true
+    working: true
+    file: "lib/mongo.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "main"
+        comment: "Original getDb() had race condition: parallel requests could pass !client check, both create clients, one returns db before it's set. Caused intermittent 500 errors during Promise.all fetches on inventory page load."
+      - working: true
+        agent: "main"
+        comment: "Fixed by caching the connection promise itself (dbPromise) instead of the resolved db. All parallel callers await the same Promise. On error, reset dbPromise to allow retries. Increased maxPoolSize to 20."
+
+frontend_v2:
+  - task: "Kanban de Producción (drag & drop functional)"
+    implemented: true
+    working: true
+    file: "app/kanban/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Full DnD kanban with @dnd-kit/core. 4 status columns (Recibido / En Impresión / Curado / Listo). Tab filter by printer (Todas + 3 printers with color chips). Cards show orderNumber, customerName, length cm, timeAgo, total CLP, printer badge, EXPRÉS orange badge for priority. Optimistic UI update on drag, rollback on API error. Verified via screenshot: 5 orders correctly distributed, EXPRÉS badge visible."
+
+  - task: "Inventario Dual funcional (2 tabs con dialog de ajuste)"
+    implemented: true
+    working: true
+    file: "app/inventario/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Two tabs: Insumos de Producción (grid of cards with color-coded icons per supply type — cyan/magenta/yellow/black inks, teal Film UV, gradient Varnish, orange Poliamida) and Stock Comercial (table with variants). Live search. AdjustDialog with +/- buttons, delta input, reason field. Alerts: 'Bajo' badge amber, 'Crítico' badge rose. Progress bars: green normal, amber near min, rose critical. Verified via screenshots: Tinta Blanca correctly showing 'Bajo' (200ml vs min 300ml), Poleron L/Negro showing red alert in commercial table."
+
+  - task: "AI Background Removal (client-side, self-hosted)"
+    implemented: true
+    working: "NA"
+    file: "components/remove-bg-button.jsx, app/gang-sheet/page.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Uses @imgly/background-removal (MIT license) with dynamic import — 40MB ONNX model loads only when button is clicked, runs 100% in browser (WebGL). Progress callback shows 0-100%. Result blob is uploaded back to /api/uploads/design and replaces the design's imageUrl + HTMLImageElement in the store. Button only appears when a design is selected. Not yet tested with real image due to complexity of automating file upload + AI inference; needs manual QA."
+
+agent_communication_v2:
+  - agent: "main"
+    message: |
+      Iteration 2 complete. Full operational loop now works:
+      Gang Sheet Builder (customer) → Order created → Kanban (operator drags cards) → Inventory adjusted → Reports (future).
+
+      New endpoints (smoke-tested via curl, not full deep-test yet):
+      - GET /api/production/queue (enriched with order data)
+      - POST /api/production/move (with cascading updates to order status)
+      - POST /api/inventory/adjust (with stock_movements audit trail)
+      - GET /api/stock-movements (bitácora)
+
+      Fixed a real race condition in lib/mongo.js that was causing intermittent 500s on paginated pages (Inventario had 3 parallel requests).
+
+      AI background removal integrated but NOT smoke-tested (needs real image + WebGL runtime). The dynamic import pattern ensures the 40MB model only loads on-demand.
+
          - Rejects design exceeding canvas width (400) ✓
          - Rejects canvas exceeding printer max (400) ✓
          - Rejects empty designs (400) ✓

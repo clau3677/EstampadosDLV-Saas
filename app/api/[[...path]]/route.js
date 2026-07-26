@@ -464,6 +464,142 @@ async function handle(request, { params }) {
       return cors(NextResponse.json(PRICING));
     }
 
+    // ------------------------------------------------------------
+    // GET /api/production/queue  — cola enriquecida con datos de la orden
+    // ------------------------------------------------------------
+    if (route === '/production/queue' && method === 'GET') {
+      const url = new URL(request.url);
+      const printerFilter = url.searchParams.get('printer');
+      const q = printerFilter && printerFilter !== 'all' ? { printer: printerFilter } : {};
+
+      const items = await db.collection(COLLECTIONS.PRODUCTION_QUEUE)
+        .find(q).sort({ createdAt: -1 }).limit(500).toArray();
+
+      const orderIds = [...new Set(items.map(i => i.orderId).filter(Boolean))];
+      const orders = orderIds.length
+        ? await db.collection(COLLECTIONS.ORDERS).find({ id: { $in: orderIds } }).toArray()
+        : [];
+      const ordersMap = Object.fromEntries(orders.map(o => [o.id, o]));
+
+      const enriched = items.map(i => {
+        const o = ordersMap[i.orderId];
+        return {
+          ...i,
+          order: o ? {
+            orderNumber: o.orderNumber,
+            customerName: o.customerSnapshot?.name,
+            channel: o.channel,
+            total: o.total,
+            createdAt: o.createdAt,
+          } : null,
+        };
+      });
+      return cors(NextResponse.json(strip(enriched)));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/production/move  — cambia el estado de un item de cola
+    // ------------------------------------------------------------
+    if (route === '/production/move' && method === 'POST') {
+      const { id, toStatus } = await request.json();
+      const valid = ['received', 'printing', 'curing', 'ready'];
+      if (!id || !valid.includes(toStatus)) {
+        return cors(NextResponse.json({ error: 'parámetros inválidos' }, { status: 400 }));
+      }
+
+      const now = new Date();
+      const setFields = { status: toStatus };
+      if (toStatus === 'printing') setFields.startedAt = now;
+      if (toStatus === 'ready') setFields.completedAt = now;
+
+      const result = await db.collection(COLLECTIONS.PRODUCTION_QUEUE)
+        .findOneAndUpdate({ id }, { $set: setFields }, { returnDocument: 'after' });
+      const item = result?.value || result;
+      if (!item) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+
+      // Actualizar productionStatus del pedido padre
+      if (item.orderId) {
+        await db.collection(COLLECTIONS.ORDERS).updateOne(
+          { id: item.orderId },
+          { $set: { productionStatus: toStatus } }
+        );
+
+        // Si todos los items de la orden están ready, marcar la orden como ready
+        if (toStatus === 'ready') {
+          const pending = await db.collection(COLLECTIONS.PRODUCTION_QUEUE)
+            .countDocuments({ orderId: item.orderId, status: { $ne: 'ready' } });
+          if (pending === 0) {
+            await db.collection(COLLECTIONS.ORDERS).updateOne(
+              { id: item.orderId },
+              { $set: { status: 'ready' } }
+            );
+          }
+        }
+      }
+
+      return cors(NextResponse.json({ ok: true, item: strip(item) }));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/inventory/adjust  — ajuste manual de stock/insumo
+    // ------------------------------------------------------------
+    if (route === '/inventory/adjust' && method === 'POST') {
+      const { itemType, itemId, delta, reason } = await request.json();
+      const numDelta = Number(delta);
+      if (!itemType || !itemId || isNaN(numDelta) || numDelta === 0) {
+        return cors(NextResponse.json({ error: 'parámetros inválidos' }, { status: 400 }));
+      }
+      if (!['supply', 'commercial'].includes(itemType)) {
+        return cors(NextResponse.json({ error: 'itemType inválido' }, { status: 400 }));
+      }
+
+      const collName = itemType === 'supply' ? COLLECTIONS.PRODUCTION_SUPPLIES : COLLECTIONS.COMMERCIAL_STOCK;
+      const qtyField = itemType === 'supply' ? 'currentQuantity' : 'quantity';
+
+      const doc = await db.collection(collName).findOne({ id: itemId });
+      if (!doc) return cors(NextResponse.json({ error: 'item no encontrado' }, { status: 404 }));
+
+      const currentQty = doc[qtyField] || 0;
+      const newQty = currentQty + numDelta;
+      if (newQty < 0) {
+        return cors(NextResponse.json({ error: `Stock no puede quedar negativo (${currentQty} + ${numDelta})` }, { status: 400 }));
+      }
+
+      const now = new Date();
+      const updateSet = { [qtyField]: newQty, updatedAt: now };
+      if (itemType === 'supply' && numDelta > 0) updateSet.lastRestockAt = now;
+
+      await db.collection(collName).updateOne({ id: itemId }, { $set: updateSet });
+
+      // Registrar movimiento en la bitácora
+      await db.collection(COLLECTIONS.STOCK_MOVEMENTS).insertOne({
+        id: uuidv4(),
+        type: itemType === 'supply'
+          ? (numDelta > 0 ? 'supply_in' : 'supply_out')
+          : (numDelta > 0 ? 'commercial_in' : 'commercial_out'),
+        reference: 'manual',
+        referenceId: itemId,
+        itemType: itemType === 'supply' ? 'supply' : 'product_variant',
+        itemId,
+        quantity: numDelta,
+        balanceAfter: newQty,
+        operatorId: null,
+        reason: reason || 'Ajuste manual',
+        createdAt: now,
+      });
+
+      return cors(NextResponse.json({ ok: true, newQuantity: newQty, previousQuantity: currentQty }));
+    }
+
+    // ------------------------------------------------------------
+    // GET /api/stock-movements  — bitácora de movimientos
+    // ------------------------------------------------------------
+    if (route === '/stock-movements' && method === 'GET') {
+      const rows = await db.collection(COLLECTIONS.STOCK_MOVEMENTS)
+        .find({}).sort({ createdAt: -1 }).limit(200).toArray();
+      return cors(NextResponse.json(strip(rows)));
+    }
+
     // 404
     return cors(NextResponse.json({ error: `Route ${route} not found` }, { status: 404 }));
 

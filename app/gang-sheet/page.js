@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import GangSheetCanvas from '@/components/gang-sheet-canvas-wrapper';
+import { RemoveBgButton } from '@/components/remove-bg-button';
 import { useGangSheet } from '@/lib/gang-sheet-store';
 import { PRICING } from '@/lib/pricing';
 import { formatCLP, formatNumber } from '@/lib/format';
@@ -266,6 +267,23 @@ export default function GangSheetPage() {
                   </Badge>
                 )}
                 <div className="ml-auto flex items-center gap-1">
+                  <RemoveBgButton
+                    imageUrl={selected.imageUrl}
+                    onDone={(data) => {
+                      // Cargar la nueva imagen (sin fondo) y reemplazar en el diseño seleccionado
+                      const img = new window.Image();
+                      img.crossOrigin = 'anonymous';
+                      img.onload = () => {
+                        useGangSheet.getState().updateDesign(selected.id, {
+                          imageUrl: data.url,
+                          srcWidthPx: data.widthPx,
+                          srcHeightPx: data.heightPx,
+                          image: img,
+                        });
+                      };
+                      img.src = data.url;
+                    }}
+                  />
                   <Button variant="outline" size="sm" onClick={() => rotate90(selected.id)}>
                     <RotateCw className="h-3.5 w-3.5 mr-1" />90°
                   </Button>
