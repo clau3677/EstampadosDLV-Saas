@@ -465,6 +465,156 @@ async function handle(request, { params }) {
     }
 
     // ------------------------------------------------------------
+    // POST /api/inventory/supplies  — crear nuevo insumo de producción
+    // ------------------------------------------------------------
+    if (route === '/inventory/supplies' && method === 'POST') {
+      const body = await request.json();
+      const { code, name, type, unit, currentQuantity, minAlert, cost, supplier } = body;
+      if (!name || !type || !unit) {
+        return cors(NextResponse.json({ error: 'name, type y unit son requeridos' }, { status: 400 }));
+      }
+      const now = new Date();
+      const doc = {
+        id: uuidv4(),
+        code: code || `SUP-${Date.now()}`,
+        name,
+        type,
+        unit,
+        currentQuantity: Number(currentQuantity) || 0,
+        minAlert: Number(minAlert) || 0,
+        cost: Number(cost) || 0,
+        supplier: supplier || '',
+        lastRestockAt: Number(currentQuantity) > 0 ? now : null,
+        updatedAt: now,
+      };
+      await db.collection(COLLECTIONS.PRODUCTION_SUPPLIES).insertOne(doc);
+      // Registrar movimiento inicial si hay stock
+      if (doc.currentQuantity > 0) {
+        await db.collection(COLLECTIONS.STOCK_MOVEMENTS).insertOne({
+          id: uuidv4(),
+          type: 'supply_in',
+          reference: 'manual',
+          referenceId: doc.id,
+          itemType: 'supply',
+          itemId: doc.id,
+          quantity: doc.currentQuantity,
+          balanceAfter: doc.currentQuantity,
+          operatorId: null,
+          reason: 'Creación inicial de insumo',
+          createdAt: now,
+        });
+      }
+      return cors(NextResponse.json(strip(doc)));
+    }
+
+    // ------------------------------------------------------------
+    // PATCH /api/inventory/supplies  — actualizar metadata del insumo
+    // ------------------------------------------------------------
+    if (route === '/inventory/supplies' && method === 'PATCH') {
+      const body = await request.json();
+      const { id, ...updates } = body;
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      // No permitir cambiar cantidad por acá (usar /adjust)
+      delete updates.currentQuantity;
+      delete updates.id;
+      updates.updatedAt = new Date();
+      await db.collection(COLLECTIONS.PRODUCTION_SUPPLIES).updateOne({ id }, { $set: updates });
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/products  — crear nuevo producto con variantes
+    // Auto-crea commercial_stock por cada variante.
+    // ------------------------------------------------------------
+    if (route === '/products' && method === 'POST') {
+      const body = await request.json();
+      const { name, sku, category, subcategory, description, basePrice, cost, variants } = body;
+      if (!name || !category) {
+        return cors(NextResponse.json({ error: 'name y category son requeridos' }, { status: 400 }));
+      }
+      const now = new Date();
+      const productId = uuidv4();
+      const slug = (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const baseSku = sku || `PRD-${Date.now()}`;
+      const processedVariants = (Array.isArray(variants) && variants.length > 0 ? variants : [
+        { name: 'Único', attributes: {}, initialStock: 0 },
+      ]).map((v, i) => ({
+        id: uuidv4(),
+        name: v.name || `Variante ${i + 1}`,
+        sku: v.sku || `${baseSku}-${i + 1}`,
+        price: Number(v.price) || Number(basePrice) || 0,
+        attributes: v.attributes || {},
+        _initialStock: Number(v.initialStock) || 0,
+      }));
+
+      const productDoc = {
+        id: productId,
+        sku: baseSku,
+        name,
+        slug,
+        category,
+        subcategory: subcategory || '',
+        description: description || '',
+        images: [],
+        basePrice: Number(basePrice) || 0,
+        cost: Number(cost) || 0,
+        variants: processedVariants.map(({ _initialStock, ...v }) => v),
+        active: true,
+        seoMeta: { title: name, description: description || '', keywords: [] },
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.collection(COLLECTIONS.PRODUCTS).insertOne(productDoc);
+
+      // Crear commercial_stock por cada variante
+      const stockRows = processedVariants.map(v => ({
+        id: uuidv4(),
+        productId,
+        variantId: v.id,
+        quantity: v._initialStock || 0,
+        reservedQuantity: 0,
+        location: 'Bodega Principal',
+        minStockAlert: 5,
+        updatedAt: now,
+      }));
+      if (stockRows.length > 0) {
+        await db.collection(COLLECTIONS.COMMERCIAL_STOCK).insertMany(stockRows);
+        // Registrar movimientos iniciales
+        for (const s of stockRows) {
+          if (s.quantity > 0) {
+            await db.collection(COLLECTIONS.STOCK_MOVEMENTS).insertOne({
+              id: uuidv4(),
+              type: 'commercial_in',
+              reference: 'manual',
+              referenceId: s.id,
+              itemType: 'product_variant',
+              itemId: s.variantId,
+              quantity: s.quantity,
+              balanceAfter: s.quantity,
+              operatorId: null,
+              reason: `Creación inicial de "${name}"`,
+              createdAt: now,
+            });
+          }
+        }
+      }
+
+      return cors(NextResponse.json({ ok: true, product: strip(productDoc), stockRows: stockRows.length }));
+    }
+
+    // ------------------------------------------------------------
+    // DELETE /api/products  — eliminar producto (soft con active=false)
+    // ------------------------------------------------------------
+    if (route === '/products' && method === 'DELETE') {
+      const body = await request.json();
+      const { id } = body;
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      await db.collection(COLLECTIONS.PRODUCTS).updateOne({ id }, { $set: { active: false, updatedAt: new Date() } });
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
     // GET /api/production/queue  — cola enriquecida con datos de la orden
     // ------------------------------------------------------------
     if (route === '/production/queue' && method === 'GET') {

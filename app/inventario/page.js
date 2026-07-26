@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { NewSupplyDialog } from '@/components/new-supply-dialog';
+import { NewProductDialog } from '@/components/new-product-dialog';
 import { formatCLP, formatDateTime, formatNumber } from '@/lib/format';
 
 // ============================================================================
@@ -257,6 +259,10 @@ export default function InventarioPage() {
               <AlertTriangle className="h-3 w-3 mr-1" />{suppliesCritical} en alerta
             </Badge>
           )}
+          {tab === 'supplies'
+            ? <NewSupplyDialog onCreated={load} />
+            : <NewProductDialog onCreated={load} />
+          }
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />Actualizar
           </Button>
