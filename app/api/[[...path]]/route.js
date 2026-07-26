@@ -21,6 +21,7 @@ import handlePrinters     from '@/lib/api/printers';
 import handlePos          from '@/lib/api/pos';
 import handleTickets      from '@/lib/api/tickets';
 import handleUsers        from '@/lib/api/users';
+import handleWhatsapp     from '@/lib/api/whatsapp';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -38,6 +39,7 @@ const HANDLERS = [
   handlePos,
   handleTickets,
   handleUsers,
+  handleWhatsapp,
   handleSeed,         // pesado, poco frecuente
 ];
 

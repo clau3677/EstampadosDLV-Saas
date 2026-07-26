@@ -7,7 +7,17 @@ const nextConfig = {
     ],
   },
   // Renamed from experimental.serverComponentsExternalPackages in Next 15
-  serverExternalPackages: ['mongodb', 'sharp'],
+  serverExternalPackages: [
+    'mongodb', 'sharp',
+    // Baileys y WebSocket → mantener como externals para que use los binarios nativos
+    // (`bufferutil`, `utf-8-validate`) sin que webpack los rompa
+    '@whiskeysockets/baileys',
+    'ws',
+    'bufferutil',
+    'utf-8-validate',
+    'pino',
+    'pino-pretty',
+  ],
   webpack(config, { dev, isServer }) {
     if (dev) {
       // Reduce CPU/memory from file watching
