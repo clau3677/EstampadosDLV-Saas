@@ -401,10 +401,16 @@ metadata:
   created_by: "main_agent"
   version: "1.0"
   test_sequence: 10
-  run_ui: true
+  run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "POS module: /api/pos/sessions CRUD (open/close/current/list/detail)"
+    - "POS sales with mixed payments (cash+card+transfer) + vuelto calculation"
+    - "PDF tickets: /api/tickets/[id]?format=thermal & format=a4"
+    - "/api/users?role= endpoint"
+    - "Stock decrement (real, not reserved) on POS sale"
+    - "pos_sessions counters increment"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -1343,3 +1349,223 @@ metadata:
       3. Callback from PrintersManager after CRUD operations
       
       Ready for production use.
+
+# ============================================================================
+# ITERATION 5 — POS MODULE (Punto de Venta) - Testing Agent
+# ============================================================================
+
+backend_pos:
+  - task: "/api/users endpoint with role filtering"
+    implemented: true
+    working: true
+    file: "lib/api/users.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 5. GET /api/users returns all users (strips passwordHash and _id). Supports ?role=X filter (admin/operator/customer). Used by POS to get operator list."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive testing (4 test cases): (A1) GET /api/users → 200, 3 users (admin, operator, customer from seed), no passwordHash or _id ✓ (A2) GET /api/users?role=operator → 200, 1 operator (Carla Muñoz) ✓ (A3) GET /api/users?role=admin → 200, 1 admin (Diego López) ✓ (A4) GET /api/users?role=nonexistent → 200, empty array ✓. All responses correctly strip sensitive fields."
+
+  - task: "POS Sessions CRUD (open/close/current/list/detail)"
+    implemented: true
+    working: true
+    file: "lib/api/pos.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 5. Full POS session management: POST /api/pos/sessions/open (validates operator, prevents duplicate open sessions, initializes counters), POST /api/pos/sessions/close (calculates arqueo difference, updates status), GET /api/pos/sessions/current?operatorId=X (returns active session or null), GET /api/pos/sessions (list with optional ?operatorId filter), GET /api/pos/sessions/<id> (detail with sales array). New collection: pos_sessions."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive testing (7 test cases): (B1) GET /api/pos/sessions/current → null when no open session ✓ (B2) POST /api/pos/sessions/open → 200, session created with id (UUID), status=open, operatorName populated, salesCount=0, totalCash=0, openingCash=50000 ✓ (B3) POST duplicate open → 409 'Ya tienes una caja abierta' ✓ (B4) Validations: no operatorId → 400 ✓, negative openingCash → 400 ✓, nonexistent operatorId → 404 ✓ (B5) GET /api/pos/sessions/current → 200, returns active session ✓ (B6) GET /api/pos/sessions → 200, array with sessions, filter by operatorId works ✓ (B7) GET /api/pos/sessions/<id> → 200, session with sales array (empty for new session) ✓. All validations working correctly."
+
+  - task: "POS Sales with mixed payments (cash+card+transfer) + vuelto"
+    implemented: true
+    working: true
+    file: "lib/api/pos.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 5. POST /api/pos/sales creates order with channel=pos, validates session is open, resolves products+variants, checks stock availability, calculates totals (subtotal net, IVA 19%), supports mixed payments (cash+card+transfer), calculates vuelto (change), decrements stock (real, not reserved), logs to stock_movements (type=commercial_out, reference=pos_sale), updates session counters (salesCount, totalSales, totalCash, totalCard, totalTransfer), generates orderNumber DLV-POS-XXXXXX. GET /api/pos/sales?sessionId=X lists sales for session."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive testing (8 test cases + validations): (C1) Sale with cash only (exact amount) → 200, order DLV-POS-000505, total=$11980, change=$0, channel=pos, status=paid, 1 payment (cash), 1 order item ✓ (C2) Sale with mixed payment (cash $8000 + card $5000) → 200, order DLV-POS-000506, paid=$13000, change=$7010 (correct vuelto calculation), 2 payments with cardBrand=visa, last4=1234 ✓ (C3) Sale with transfer → 200, order DLV-POS-000507, paymentMethod=transfer, reference=12345 ✓ (C4) Session counters after 3 sales: salesCount=3, totalSales=$23960, totalCash=$12970, totalCard=$5000, totalTransfer=$5990 (all correct) ✓ (C5) Stock decremented: 4 units less (2+1+1 from 3 sales) ✓ (C6) Stock movements created: 3 movements with type=commercial_out, reference=pos_sale ✓ (C7) Validations: no sessionId → 400 ✓, nonexistent sessionId → 404 ✓, closed session → 400 ✓, empty items → 400 ✓, empty payments → 400 ✓, invalid payment method → 400 ✓, insufficient payment → 400 ✓, insufficient stock → 400 ✓ (C8) GET /api/pos/sales?sessionId=X → 200, 3 sales with correct channel=pos and posSessionId ✓. All payment methods working, vuelto calculation correct, stock decrement working, counters updating correctly."
+
+  - task: "POS Session closure with arqueo (cash reconciliation)"
+    implemented: true
+    working: true
+    file: "lib/api/pos.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 5. POST /api/pos/sessions/close validates session exists and is open, calculates expectedCash (openingCash + totalCash), calculates difference (closingCash - expectedCash), updates status to closed, sets closedAt timestamp, appends notes. Prevents closing already closed sessions."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive testing (4 test cases): (D1) GET session for closure → openingCash=$50000, totalCash=$12970, expectedCash=$62970 ✓ (D2) POST /api/pos/sessions/close with correct cash → 200, status=closed, closedAt set, difference=$0 (arqueo correcto), expectedCash=$62970, closingCash=$62970 ✓ (D3) POST duplicate close → 400 'sesión ya está cerrada' ✓ (D4) GET /api/pos/sessions/current → 200, null (no open session after closure) ✓. Arqueo calculation working correctly, closure validations working."
+
+  - task: "PDF Tickets generation (thermal 80mm + A4)"
+    implemented: true
+    working: true
+    file: "lib/api/tickets.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 5. GET /api/tickets/<orderId>?format=thermal generates 80mm thermal receipt PDF (dynamic height based on items, includes header, order info, items detail, totals, payments with vuelto, footer). GET /api/tickets/<orderId>?format=a4 generates A4 boleta PDF (full page with company header, customer/operator info, items table, totals, payments, footer disclaimer). Uses pdf-lib for server-side PDF generation. Default format is thermal if not specified. Returns 404 for nonexistent orders."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive testing (4 test cases): (E1) GET /api/tickets/<orderId>?format=thermal → 200, Content-Type=application/pdf, 9160 bytes (valid PDF size) ✓ (E2) GET /api/tickets/<orderId>?format=a4 → 200, Content-Type=application/pdf, 2244 bytes ✓ (E3) GET /api/tickets/nonexistent → 404 ✓ (E4) GET /api/tickets/<orderId> (no format) → 200, 9161 bytes (defaults to thermal) ✓. Both PDF formats generating correctly, file sizes reasonable, default format working."
+
+  - task: "POS module regression tests"
+    implemented: true
+    working: true
+    file: "lib/api/*.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Regression suite to ensure POS module doesn't break existing endpoints: GET /api/products, GET /api/orders (should include POS orders with channel=pos), POST /api/orders/public (web orders), POST /api/gang-sheets."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Regression testing (4 test cases): (F1) GET /api/products → 200, 4 products ✓ (F2) GET /api/orders → 200, 8 orders (4 POS orders with channel=pos, 4 web orders) ✓ (F3) POST /api/orders/public → 200, order DLV-2025-000308 (web order still working) ✓ (F4) POST /api/gang-sheets → 200, order DLV-2025-000209 (gang sheet creation still working) ✓. All previous endpoints working correctly, no regressions detected."
+
+metadata_pos:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 11
+  run_ui: false
+  test_date: "2025-01-27"
+
+test_plan_pos:
+  current_focus:
+    - "All POS module tests completed"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication_pos:
+  - agent: "testing"
+    message: |
+      # POS MODULE BACKEND TESTING COMPLETE ✅ (27-ene-2025)
+      
+      Completed comprehensive backend testing of the NEW POS (Punto de Venta) module as requested.
+      
+      ## Test Results: 31+ TEST CASES - ALL PASSED ✅
+      
+      ### A) /api/users ENDPOINT (4/4 PASS) ✅
+      1. ✅ GET /api/users → 200, 3 users (admin, operator, customer), no passwordHash or _id
+      2. ✅ GET /api/users?role=operator → 200, 1 operator (Carla Muñoz)
+      3. ✅ GET /api/users?role=admin → 200, 1 admin (Diego López)
+      4. ✅ GET /api/users?role=nonexistent → 200, empty array
+      
+      ### B) POS SESSIONS CRUD (7/7 PASS) ✅
+      1. ✅ GET /api/pos/sessions/current → null when no open session
+      2. ✅ POST /api/pos/sessions/open → 200, session created (UUID id, status=open, operatorName, counters=0)
+      3. ✅ POST duplicate open → 409 "Ya tienes una caja abierta"
+      4. ✅ Validations: no operatorId → 400, negative cash → 400, nonexistent operator → 404
+      5. ✅ GET /api/pos/sessions/current → 200, returns active session
+      6. ✅ GET /api/pos/sessions → 200, list with ?operatorId filter
+      7. ✅ GET /api/pos/sessions/<id> → 200, detail with sales array
+      
+      ### C) POS SALES WITH MIXED PAYMENTS (8/8 PASS + VALIDATIONS) ✅
+      1. ✅ Sale with cash only (exact) → 200, order DLV-POS-000505, change=$0
+      2. ✅ Sale with mixed payment (cash+card) → 200, order DLV-POS-000506, paid=$13000, change=$7010 (vuelto correct)
+      3. ✅ Sale with transfer → 200, order DLV-POS-000507, paymentMethod=transfer
+      4. ✅ Session counters after 3 sales: salesCount=3, totalSales=$23960, totalCash=$12970, totalCard=$5000, totalTransfer=$5990
+      5. ✅ Stock decremented: 4 units less (2+1+1 from sales)
+      6. ✅ Stock movements created: 3 movements with type=commercial_out, reference=pos_sale
+      7. ✅ Validations: no sessionId → 400, nonexistent session → 404, closed session → 400, empty items → 400, empty payments → 400, invalid method → 400, insufficient payment → 400, insufficient stock → 400
+      8. ✅ GET /api/pos/sales?sessionId=X → 200, 3 sales
+      
+      ### D) SESSION CLOSURE WITH ARQUEO (4/4 PASS) ✅
+      1. ✅ GET session for closure → openingCash=$50000, totalCash=$12970, expectedCash=$62970
+      2. ✅ POST /api/pos/sessions/close → 200, status=closed, difference=$0 (arqueo correcto)
+      3. ✅ POST duplicate close → 400 "sesión ya está cerrada"
+      4. ✅ GET /api/pos/sessions/current → 200, null (no open session)
+      
+      ### E) PDF TICKETS (4/4 PASS) ✅
+      1. ✅ GET /api/tickets/<orderId>?format=thermal → 200, PDF 9160 bytes
+      2. ✅ GET /api/tickets/<orderId>?format=a4 → 200, PDF 2244 bytes
+      3. ✅ GET /api/tickets/nonexistent → 404
+      4. ✅ GET /api/tickets/<orderId> (no format) → 200, defaults to thermal
+      
+      ### F) REGRESSION TESTS (4/4 PASS) ✅
+      1. ✅ GET /api/products → 200, 4 products
+      2. ✅ GET /api/orders → 200, 8 orders (4 POS orders with channel=pos)
+      3. ✅ POST /api/orders/public → 200, web order still working
+      4. ✅ POST /api/gang-sheets → 200, gang sheet creation still working
+      
+      ## Key Findings:
+      
+      ### ✅ NO CRITICAL ISSUES FOUND
+      
+      All POS module functionality working correctly:
+      - Users endpoint with role filtering (admin/operator/customer)
+      - Session open/close with strict validations (prevents duplicate open sessions)
+      - Sales with mixed payments (cash+card+transfer) working perfectly
+      - Vuelto (change) calculation accurate
+      - Stock decrement (real, not reserved) working correctly
+      - Stock movements logging (type=commercial_out, reference=pos_sale)
+      - Session counters (salesCount, totalSales, totalCash, totalCard, totalTransfer) updating correctly
+      - Arqueo (cash reconciliation) calculation accurate (difference = closingCash - expectedCash)
+      - PDF ticket generation (thermal 80mm and A4) working, reasonable file sizes
+      - Order number format DLV-POS-XXXXXX correct
+      - All orders have channel=pos, status=paid, posSessionId populated
+      - All previous endpoints still working (no regressions)
+      
+      ### Data Integrity:
+      - All responses use UUID v4 ids (no MongoDB _id leakage)
+      - All sensitive fields stripped (passwordHash from users)
+      - All validations working correctly (400, 404, 409 status codes)
+      - Chilean data format correct (CLP amounts, RUT format)
+      
+      ### Business Logic:
+      - Only one open session per operator (409 on duplicate)
+      - Session must be open to create sales (400 if closed)
+      - Stock validation prevents overselling (400 if insufficient)
+      - Payment validation ensures sufficient amount (400 if insufficient)
+      - Vuelto only given in cash (deducted from totalCash counter)
+      - Session counters accurately track cash flow by payment method
+      - Arqueo difference calculation helps detect cash discrepancies
+      
+      ## Test File:
+      - /app/backend_test_pos.py (31+ comprehensive test cases)
+      - Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
+      - All tests passed in single run (no flakiness)
+      
+      ## Conclusion:
+      **✅ POS MODULE IS PRODUCTION-READY**
+      
+      The POS module implementation is complete and working correctly:
+      - All endpoints functional and validated
+      - All business rules enforced
+      - All data integrity checks passing
+      - No regressions in existing functionality
+      - Ready for physical store operations
+      
+      The module successfully handles:
+      - Multiple payment methods (cash, card, transfer)
+      - Mixed payments with accurate change calculation
+      - Real-time stock decrement
+      - Session-based cash flow tracking
+      - PDF receipt generation for customers
+      - Cash reconciliation (arqueo) at end of shift
+      
+      No blocking issues found. Ready for production deployment.
+

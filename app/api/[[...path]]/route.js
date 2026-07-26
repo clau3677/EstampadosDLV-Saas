@@ -18,6 +18,9 @@ import handleProduction   from '@/lib/api/production';
 import handleTaxonomies   from '@/lib/api/taxonomies';
 import handleLandings     from '@/lib/api/landings';
 import handlePrinters     from '@/lib/api/printers';
+import handlePos          from '@/lib/api/pos';
+import handleTickets      from '@/lib/api/tickets';
+import handleUsers        from '@/lib/api/users';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -32,7 +35,10 @@ const HANDLERS = [
   handleTaxonomies,
   handleLandings,
   handlePrinters,
-  handleSeed,        // pesado, poco frecuente
+  handlePos,
+  handleTickets,
+  handleUsers,
+  handleSeed,         // pesado, poco frecuente
 ];
 
 export async function OPTIONS() {
