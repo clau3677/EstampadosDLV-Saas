@@ -7,8 +7,8 @@ const nextConfig = {
     ],
   },
   // Renamed from experimental.serverComponentsExternalPackages in Next 15
-  serverExternalPackages: ['mongodb'],
-  webpack(config, { dev }) {
+  serverExternalPackages: ['mongodb', 'sharp'],
+  webpack(config, { dev, isServer }) {
     if (dev) {
       // Reduce CPU/memory from file watching
       config.watchOptions = {
@@ -16,6 +16,14 @@ const nextConfig = {
         aggregateTimeout: 300, // wait before rebuilding
         ignored: ['**/node_modules'],
       };
+    }
+    // Konva intenta cargar node-canvas en SSR; lo aliaseamos a false para que use
+    // solamente la implementación del browser (Konva ya trae fallback).
+    config.resolve = config.resolve || {};
+    config.resolve.alias = { ...(config.resolve.alias || {}), canvas: false, encoding: false };
+    if (isServer) {
+      // Excluir konva/react-konva del bundle server-side por completo
+      config.externals = [...(config.externals || []), 'konva', 'react-konva', 'canvas'];
     }
     return config;
   },

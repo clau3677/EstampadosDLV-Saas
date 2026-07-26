@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+import sharp from 'sharp';
 import { getDb } from '@/lib/mongo';
 import {
   COLLECTIONS, PRINTERS, PRINTER_SPECS, ROLES, SUPPLY_TYPE,
   PRODUCT_CATEGORY, ORDER_STATUS, PRODUCTION_STATUS, PRIORITY,
   SALES_CHANNEL, PAYMENT_METHOD, strip,
 } from '@/lib/models';
+import { PRICING, quote } from '@/lib/pricing';
+
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'designs');
 
 const cors = (res) => {
   res.headers.set('Access-Control-Allow-Origin', process.env.CORS_ORIGINS || '*');
@@ -288,6 +294,174 @@ async function handle(request, { params }) {
     if (route === '/orders' && method === 'GET') {
       const rows = await db.collection(COLLECTIONS.ORDERS).find({}).sort({ createdAt: -1 }).limit(200).toArray();
       return cors(NextResponse.json(strip(rows)));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/uploads/design  — sube imagen, extrae metadata (DPI real)
+    // ------------------------------------------------------------
+    if (route === '/uploads/design' && method === 'POST') {
+      const formData = await request.formData();
+      const file = formData.get('file');
+      if (!file) return cors(NextResponse.json({ error: 'file requerido' }, { status: 400 }));
+
+      await mkdir(UPLOAD_DIR, { recursive: true });
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const id = uuidv4();
+      const filename = `${id}.${ext}`;
+      const filepath = path.join(UPLOAD_DIR, filename);
+      await writeFile(filepath, buffer);
+
+      // Leer metadata con Sharp (dimensiones + DPI real)
+      let meta = {};
+      try {
+        meta = await sharp(buffer).metadata();
+      } catch (e) {
+        console.error('sharp metadata failed', e);
+      }
+      const dpi = Math.round(meta.density || 72);
+      const url = `/uploads/designs/${filename}`;
+
+      return cors(NextResponse.json({
+        id,
+        url,
+        originalName: file.name,
+        widthPx: meta.width || 0,
+        heightPx: meta.height || 0,
+        format: meta.format,
+        dpi,
+        sizeBytes: buffer.length,
+      }));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/gang-sheets  — persiste pliego y crea pedido
+    // ------------------------------------------------------------
+    if (route === '/gang-sheets' && method === 'POST') {
+      const body = await request.json();
+      const { mode, canvasWidthMm, express = false, designs = [] } = body;
+      if (!mode || !PRICING[mode]) return cors(NextResponse.json({ error: 'modo inválido' }, { status: 400 }));
+      if (!designs.length) return cors(NextResponse.json({ error: 'sin diseños' }, { status: 400 }));
+
+      const cfg = PRICING[mode];
+
+      // Validación estricta de hardware
+      if (mode !== 'dtf_uv' && canvasWidthMm / 10 > cfg.canvasWidthCm) {
+        return cors(NextResponse.json({ error: `Ancho excede ${cfg.canvasWidthCm}cm para ${cfg.label}` }, { status: 400 }));
+      }
+      for (const d of designs) {
+        if (d.xMm + d.widthMm > canvasWidthMm) {
+          return cors(NextResponse.json({ error: `Diseño "${d.name}" excede el ancho del lienzo` }, { status: 400 }));
+        }
+      }
+
+      // Cotización server-side (verdad autoritativa)
+      const maxBottom = designs.reduce((m, d) => Math.max(m, d.yMm + d.heightMm), 0);
+      const lengthMm = Math.max(maxBottom + 20, 300);
+      const q = quote({ mode, lengthMm, express });
+
+      const db = await getDb();
+      const now = new Date();
+
+      // Crear gang sheet
+      const gangSheetId = uuidv4();
+      const gangSheet = {
+        id: gangSheetId,
+        orderId: null,
+        userId: null,
+        type: mode === 'dtf_uv' ? 'dtf_uv' : 'dtf_textil',
+        printerTarget: cfg.printer,
+        canvasWidthCm: cfg.canvasWidthCm,
+        canvasLengthMm: lengthMm,
+        designs: designs.map(d => ({
+          id: uuidv4(),
+          imageUrl: d.imageUrl,
+          name: d.name,
+          srcWidthPx: d.srcWidthPx,
+          srcHeightPx: d.srcHeightPx,
+          xMm: d.xMm, yMm: d.yMm, widthMm: d.widthMm, heightMm: d.heightMm,
+          rotation: d.rotation || 0,
+          dpi: Math.round(d.srcWidthPx / (d.widthMm / 25.4)),
+        })),
+        exportedPngUrl: null,
+        exportedTiffUrl: null,
+        exportStatus: 'draft',
+        hotFolderPath: null,
+        createdAt: now,
+        exportedAt: null,
+      };
+      await db.collection(COLLECTIONS.GANG_SHEETS).insertOne(gangSheet);
+
+      // Crear orden (canal web por defecto)
+      const orderCount = await db.collection(COLLECTIONS.ORDERS).countDocuments({});
+      const orderNumber = `DLV-2025-${String(orderCount + 200).padStart(6, '0')}`;
+      const orderId = uuidv4();
+      const order = {
+        id: orderId,
+        orderNumber,
+        channel: SALES_CHANNEL.WEB,
+        customerId: null,
+        customerSnapshot: { name: 'Cliente Web', email: '', phone: '', rut: '' },
+        status: ORDER_STATUS.PENDING,
+        productionStatus: PRODUCTION_STATUS.NOT_STARTED,
+        priority: express ? PRIORITY.EXPRESS : PRIORITY.NORMAL,
+        subtotal: q.subtotal,
+        discount: 0,
+        tax: q.tax,
+        shipping: 0,
+        total: q.total,
+        paymentMethod: null,
+        paymentStatus: 'pending',
+        boleta: null,
+        deliveryMethod: 'pickup',
+        shippingAddress: null,
+        notes: '',
+        createdAt: now,
+        paidAt: null,
+        deliveredAt: null,
+      };
+      await db.collection(COLLECTIONS.ORDERS).insertOne(order);
+
+      // Crear order item
+      await db.collection(COLLECTIONS.ORDER_ITEMS).insertOne({
+        id: uuidv4(),
+        orderId,
+        type: 'gang_sheet',
+        gangSheetId,
+        name: `${cfg.label} · ${(lengthMm/10).toFixed(1)} cm`,
+        quantity: 1,
+        unitPrice: q.netAmount,
+        discount: 0,
+        totalPrice: q.netAmount,
+        gangSheetSpec: {
+          printerType: cfg.printer,
+          widthCm: cfg.canvasWidthCm,
+          lengthMm,
+          designsCount: designs.length,
+        },
+      });
+
+      // Vincular gang sheet a la orden
+      await db.collection(COLLECTIONS.GANG_SHEETS).updateOne({ id: gangSheetId }, { $set: { orderId } });
+
+      return cors(NextResponse.json({
+        ok: true,
+        gangSheetId,
+        orderId,
+        orderNumber,
+        printerLabel: PRINTER_SPECS[cfg.printer].name,
+        printer: cfg.printer,
+        lengthMm,
+        total: q.total,
+        quote: q,
+      }));
+    }
+
+    // ------------------------------------------------------------
+    // GET /api/pricing — expone tarifas al frontend
+    // ------------------------------------------------------------
+    if (route === '/pricing' && method === 'GET') {
+      return cors(NextResponse.json(PRICING));
     }
 
     // 404
