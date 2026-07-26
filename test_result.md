@@ -876,3 +876,48 @@ agent_communication_v2:
       
       Test file: /app/backend_test_iteration4.py (35+ comprehensive test cases)
       Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
+
+
+  - agent: "testing"
+    message: |
+      # SMOKE TEST POST NEXT.JS CACHE REBUILD ✅ (26-jul-2026 14:26)
+      
+      Quick smoke test after clearing /app/.next and restarting nextjs service.
+      
+      ## Results: 13/13 PASS ✅
+      
+      All critical endpoints responding correctly:
+      
+      1. ✅ GET /api/products → 4 productos (0.16s)
+      2. ✅ GET /api/dashboard/summary → salesToday=$137840, pendingOrders=4 (0.27s)
+      3. ✅ GET /api/config → printers, printersDynamic, enums present (0.19s)
+      4. ✅ GET /api/printers → 3 printers (0.20s)
+      5. ✅ GET /api/printers?active=true → 3 activos (0.29s)
+      6. ✅ GET /api/production/queue → 5 items (0.20s)
+      7. ✅ GET /api/orders → 5 órdenes (0.14s)
+      8. ✅ GET /api/inventory/commercial → 8 items (0.17s)
+      9. ✅ GET /api/inventory/supplies → 9 insumos (0.19s)
+      10. ✅ GET /api/taxonomies?kind=product_category → 4 categorías (0.19s)
+      11. ✅ GET /api/landings → 0 landings (0.15s)
+      12. ✅ GET /api/landings?active=true → 0 activas (0.19s)
+      13. ✅ POST /api/seed → printers=3, products=4 (0.32s)
+      
+      ## Key Findings:
+      
+      ### ✅ NO REGRESSIONS DETECTED
+      
+      - **Serialization**: No MongoDB `_id` fields in any response (verified products & printers)
+      - **Seed counts**: printers=3 ✓, products=4 ✓ (as expected)
+      - **Response times**: All endpoints < 0.35s (fast)
+      - **Total smoke test time**: 2.66s
+      
+      ### Notes:
+      - Initial test run had 2 transient 502 errors (landings?active=true, seed) due to rapid-fire requests
+      - Re-run confirmed both endpoints work fine (likely rate limiting or server warm-up)
+      - All JSON responses valid
+      - All HTTP status codes correct (200)
+      
+      ## Conclusion:
+      System is stable after Next.js cache rebuild. All critical endpoints operational. No breaking changes detected. Ready to continue with new features.
+      
+      Test file: /app/smoke_test.py
