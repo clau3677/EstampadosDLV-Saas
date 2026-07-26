@@ -255,11 +255,43 @@ async function handle(request, { params }) {
       await db.collection(COLLECTIONS.ORDER_ITEMS).insertMany(orderItems);
       await db.collection(COLLECTIONS.PRODUCTION_QUEUE).insertMany(queue);
 
+      // TAXONOMIES (categorías, tipos de insumo, unidades, proveedores)
+      const taxonomies = [
+        // Product categories
+        { id: uuidv4(), kind: 'product_category', code: 'apparel',   label: 'Prendas (poleras, hoodies)',      extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'product_category', code: 'dtf_meter', label: 'DTF por metro',                   extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'product_category', code: 'accessory', label: 'Accesorios (parches, stickers)',  extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'product_category', code: 'other',     label: 'Otro',                            extras: {}, createdAt: now },
+        // Supply types (con unidad sugerida)
+        { id: uuidv4(), kind: 'supply_type', code: 'film_pet',    label: 'Film PET (DTF Textil)',       extras: { unit: 'meter' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'film_uv',     label: 'Film UV (Adhesivo)',          extras: { unit: 'meter' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_cyan',    label: 'Tinta Cyan',                  extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_magenta', label: 'Tinta Magenta',               extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_yellow',  label: 'Tinta Yellow',                extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_black',   label: 'Tinta Black',                 extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_white',   label: 'Tinta Blanca',                extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'ink_varnish', label: 'Tinta Barniz (UV)',           extras: { unit: 'ml' }, createdAt: now },
+        { id: uuidv4(), kind: 'supply_type', code: 'poliamida',   label: 'Poliamida (adhesivo termofusible)', extras: { unit: 'kg' }, createdAt: now },
+        // Units
+        { id: uuidv4(), kind: 'unit', code: 'meter', label: 'metros (m)',      extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'unit', code: 'ml',    label: 'mililitros (ml)', extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'unit', code: 'liter', label: 'litros (L)',      extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'unit', code: 'kg',    label: 'kilogramos (kg)', extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'unit', code: 'gram',  label: 'gramos (g)',      extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'unit', code: 'unit',  label: 'unidades (un)',   extras: {}, createdAt: now },
+        // Suppliers
+        { id: uuidv4(), kind: 'supplier', code: 'dtf_chile',   label: 'DTF Chile SPA', extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'supplier', code: 'inkpro',      label: 'InkPro Chile',  extras: {}, createdAt: now },
+        { id: uuidv4(), kind: 'supplier', code: 'uv_supplies', label: 'UV Supplies',   extras: {}, createdAt: now },
+      ];
+      await db.collection(COLLECTIONS.TAXONOMIES).insertMany(taxonomies);
+
       return cors(NextResponse.json({
         ok: true,
         seeded: {
           users: 3, products: products.length, commercialStock: commercialStock.length,
           supplies: supplies.length, orders: orders.length, orderItems: orderItems.length, productionQueue: queue.length,
+          taxonomies: taxonomies.length,
         },
       }));
     }
@@ -612,6 +644,256 @@ async function handle(request, { params }) {
       if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
       await db.collection(COLLECTIONS.PRODUCTS).updateOne({ id }, { $set: { active: false, updatedAt: new Date() } });
       return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
+    // TAXONOMÍAS — categorías, tipos de insumo, unidades, proveedores (editables)
+    // ------------------------------------------------------------
+    if (route === '/taxonomies' && method === 'GET') {
+      const url = new URL(request.url);
+      const kind = url.searchParams.get('kind');
+      const q = kind ? { kind } : {};
+      const rows = await db.collection(COLLECTIONS.TAXONOMIES).find(q).sort({ label: 1 }).toArray();
+      return cors(NextResponse.json(strip(rows)));
+    }
+
+    if (route === '/taxonomies' && method === 'POST') {
+      const { kind, code, label, extras } = await request.json();
+      if (!kind || !label) return cors(NextResponse.json({ error: 'kind y label son requeridos' }, { status: 400 }));
+      const validKinds = ['product_category', 'supply_type', 'unit', 'supplier'];
+      if (!validKinds.includes(kind)) return cors(NextResponse.json({ error: 'kind inválido' }, { status: 400 }));
+
+      const finalCode = (code || label).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      const existing = await db.collection(COLLECTIONS.TAXONOMIES).findOne({ kind, code: finalCode });
+      if (existing) return cors(NextResponse.json({ error: 'Ya existe con ese código', existing: strip(existing) }, { status: 409 }));
+
+      const doc = { id: uuidv4(), kind, code: finalCode, label, extras: extras || {}, createdAt: new Date() };
+      await db.collection(COLLECTIONS.TAXONOMIES).insertOne(doc);
+      return cors(NextResponse.json(strip(doc)));
+    }
+
+    if (route === '/taxonomies' && method === 'PATCH') {
+      const { id, label, extras } = await request.json();
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      const updates = { updatedAt: new Date() };
+      if (label !== undefined) updates.label = label;
+      if (extras !== undefined) updates.extras = extras;
+      await db.collection(COLLECTIONS.TAXONOMIES).updateOne({ id }, { $set: updates });
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    if (route === '/taxonomies' && method === 'DELETE') {
+      const { id } = await request.json();
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      await db.collection(COLLECTIONS.TAXONOMIES).deleteOne({ id });
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
+    // PATCH /api/products — editar producto (con reemplazo de variantes)
+    // ------------------------------------------------------------
+    if (route === '/products' && method === 'PATCH') {
+      const body = await request.json();
+      const { id, variants, ...rest } = body;
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+
+      const existing = await db.collection(COLLECTIONS.PRODUCTS).findOne({ id });
+      if (!existing) return cors(NextResponse.json({ error: 'producto no encontrado' }, { status: 404 }));
+
+      const updates = { ...rest, updatedAt: new Date() };
+      // No permitir cambiar id/createdAt
+      delete updates.createdAt;
+
+      // Manejo de variantes: reemplazar completamente si vienen
+      if (Array.isArray(variants)) {
+        const newVariants = variants.map((v, i) => ({
+          id: v.id || uuidv4(),  // preservar id si es variante existente
+          name: v.name || `Variante ${i + 1}`,
+          sku: v.sku || `${rest.sku || existing.sku}-${i + 1}`,
+          price: Number(v.price) || Number(rest.basePrice) || existing.basePrice,
+          attributes: v.attributes || {},
+        }));
+        updates.variants = newVariants;
+
+        // Sincronizar commercial_stock:
+        // - Nuevas variantes → crear stock row
+        // - Variantes existentes preservan su stock
+        // - Variantes eliminadas → borrar su stock row
+        const existingVariantIds = new Set(existing.variants.map(v => v.id));
+        const newVariantIds = new Set(newVariants.map(v => v.id));
+
+        // Borrar stock de variantes eliminadas
+        const toDelete = [...existingVariantIds].filter(vid => !newVariantIds.has(vid));
+        if (toDelete.length) {
+          await db.collection(COLLECTIONS.COMMERCIAL_STOCK).deleteMany({
+            productId: id, variantId: { $in: toDelete }
+          });
+        }
+
+        // Crear stock para variantes nuevas
+        const toCreate = newVariants.filter(v => !existingVariantIds.has(v.id));
+        if (toCreate.length) {
+          const rows = toCreate.map(v => ({
+            id: uuidv4(),
+            productId: id,
+            variantId: v.id,
+            quantity: Number(v._initialStock) || 0,
+            reservedQuantity: 0,
+            location: 'Bodega Principal',
+            minStockAlert: 5,
+            updatedAt: new Date(),
+          }));
+          await db.collection(COLLECTIONS.COMMERCIAL_STOCK).insertMany(rows);
+        }
+      }
+
+      await db.collection(COLLECTIONS.PRODUCTS).updateOne({ id }, { $set: updates });
+      const updated = await db.collection(COLLECTIONS.PRODUCTS).findOne({ id });
+      return cors(NextResponse.json({ ok: true, product: strip(updated) }));
+    }
+
+    // ------------------------------------------------------------
+    // DELETE /api/products — borrado real con cascada
+    // ------------------------------------------------------------
+    if (route === '/products' && method === 'DELETE') {
+      const body = await request.json();
+      const { id, hard = false } = body;
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      if (hard) {
+        // Verificar que no tenga movimientos en pedidos
+        const orderItems = await db.collection(COLLECTIONS.ORDER_ITEMS).countDocuments({ productId: id });
+        if (orderItems > 0) {
+          return cors(NextResponse.json({
+            error: `No se puede eliminar: tiene ${orderItems} línea(s) de pedido asociada(s). Puedes desactivarlo en su lugar.`
+          }, { status: 400 }));
+        }
+        await db.collection(COLLECTIONS.PRODUCTS).deleteOne({ id });
+        await db.collection(COLLECTIONS.COMMERCIAL_STOCK).deleteMany({ productId: id });
+      } else {
+        // Soft delete
+        await db.collection(COLLECTIONS.PRODUCTS).updateOne({ id }, { $set: { active: false, updatedAt: new Date() } });
+      }
+      return cors(NextResponse.json({ ok: true, mode: hard ? 'hard' : 'soft' }));
+    }
+
+    // ------------------------------------------------------------
+    // DELETE /api/inventory/supplies — borrado de insumo
+    // ------------------------------------------------------------
+    if (route === '/inventory/supplies' && method === 'DELETE') {
+      const { id } = await request.json();
+      if (!id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      // No permitir borrar si tiene stock > 0 (obligar ajuste a 0 primero)
+      const doc = await db.collection(COLLECTIONS.PRODUCTION_SUPPLIES).findOne({ id });
+      if (!doc) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+      if (doc.currentQuantity > 0) {
+        return cors(NextResponse.json({
+          error: `No se puede eliminar: aún hay ${doc.currentQuantity} ${doc.unit} en stock. Ajusta a 0 primero.`
+        }, { status: 400 }));
+      }
+      await db.collection(COLLECTIONS.PRODUCTION_SUPPLIES).deleteOne({ id });
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/products/bulk — import masivo de productos (desde CSV)
+    // ------------------------------------------------------------
+    if (route === '/products/bulk' && method === 'POST') {
+      const body = await request.json();
+      const { items } = body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return cors(NextResponse.json({ error: 'items requerido (array)' }, { status: 400 }));
+      }
+      const now = new Date();
+      let created = 0;
+      const errors = [];
+
+      for (const item of items) {
+        try {
+          if (!item.name || !item.category) {
+            errors.push({ item: item.name || '(sin nombre)', error: 'name y category requeridos' });
+            continue;
+          }
+          const productId = uuidv4();
+          const slug = (item.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const baseSku = item.sku || `PRD-${Date.now()}-${created}`;
+          const rawVariants = Array.isArray(item.variants) && item.variants.length > 0
+            ? item.variants
+            : [{ name: 'Único', attributes: {}, initialStock: 0 }];
+          const processedVariants = rawVariants.map((v, i) => ({
+            id: uuidv4(),
+            name: v.name || `Variante ${i + 1}`,
+            sku: v.sku || `${baseSku}-${i + 1}`,
+            price: Number(v.price) || Number(item.basePrice) || 0,
+            attributes: v.attributes || {},
+            _initialStock: Number(v.initialStock) || 0,
+          }));
+
+          await db.collection(COLLECTIONS.PRODUCTS).insertOne({
+            id: productId, sku: baseSku, name: item.name, slug,
+            category: item.category, subcategory: item.subcategory || '',
+            description: item.description || '', images: item.images || [],
+            basePrice: Number(item.basePrice) || 0, cost: Number(item.cost) || 0,
+            variants: processedVariants.map(({ _initialStock, ...v }) => v),
+            active: true,
+            seoMeta: { title: item.name, description: item.description || '', keywords: [] },
+            createdAt: now, updatedAt: now,
+          });
+
+          const stockRows = processedVariants.map(v => ({
+            id: uuidv4(), productId, variantId: v.id,
+            quantity: v._initialStock, reservedQuantity: 0,
+            location: 'Bodega Principal', minStockAlert: 5, updatedAt: now,
+          }));
+          if (stockRows.length) await db.collection(COLLECTIONS.COMMERCIAL_STOCK).insertMany(stockRows);
+          created++;
+        } catch (e) {
+          errors.push({ item: item.name || '?', error: e.message });
+        }
+      }
+
+      return cors(NextResponse.json({ ok: true, created, errors, total: items.length }));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/inventory/supplies/bulk — import masivo de insumos
+    // ------------------------------------------------------------
+    if (route === '/inventory/supplies/bulk' && method === 'POST') {
+      const body = await request.json();
+      const { items } = body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return cors(NextResponse.json({ error: 'items requerido (array)' }, { status: 400 }));
+      }
+      const now = new Date();
+      let created = 0;
+      const errors = [];
+
+      for (const item of items) {
+        try {
+          if (!item.name || !item.type || !item.unit) {
+            errors.push({ item: item.name || '(sin nombre)', error: 'name, type y unit requeridos' });
+            continue;
+          }
+          const doc = {
+            id: uuidv4(),
+            code: item.code || `SUP-${Date.now()}-${created}`,
+            name: item.name, type: item.type, unit: item.unit,
+            currentQuantity: Number(item.currentQuantity) || 0,
+            minAlert: Number(item.minAlert) || 0,
+            cost: Number(item.cost) || 0,
+            supplier: item.supplier || '',
+            lastRestockAt: Number(item.currentQuantity) > 0 ? now : null,
+            updatedAt: now,
+          };
+          await db.collection(COLLECTIONS.PRODUCTION_SUPPLIES).insertOne(doc);
+          created++;
+        } catch (e) {
+          errors.push({ item: item.name || '?', error: e.message });
+        }
+      }
+
+      return cors(NextResponse.json({ ok: true, created, errors, total: items.length }));
     }
 
     // ------------------------------------------------------------

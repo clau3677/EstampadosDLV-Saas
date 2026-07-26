@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
-  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer,
+  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -42,6 +42,12 @@ const SECTIONS = [
       { href: '/clientes',     label: 'Clientes',          icon: Users },
       { href: '/reportes',     label: 'Reportes',          icon: LineChart },
       { href: '/mantenimiento',label: 'Mantenimiento',     icon: Wrench },
+    ],
+  },
+  {
+    label: 'Sistema',
+    items: [
+      { href: '/configuracion', label: 'Configuración', icon: Settings2 },
     ],
   },
 ];

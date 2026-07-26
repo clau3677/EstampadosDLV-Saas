@@ -13,17 +13,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { TaxonomySelect } from '@/components/taxonomy-select';
+import { ProductImagesUpload } from '@/components/product-images-upload';
 import { formatCLP } from '@/lib/format';
 
-const CATEGORIES = [
-  { value: 'apparel',   label: 'Prendas (poleras, hoodies)' },
-  { value: 'dtf_meter', label: 'DTF por metro' },
-  { value: 'accessory', label: 'Accesorios (parches, stickers)' },
-  { value: 'other',     label: 'Otro' },
-];
-
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const COMMON_COLORS = ['Negro', 'Blanco', 'Gris', 'Azul', 'Rojo', 'Verde'];
+const COMMON_COLORS = ['Negro', 'Blanco', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Naranjo'];
 
 const emptyVariant = () => ({
   name: '', size: '', color: '', price: '', initialStock: 0,
@@ -34,22 +29,19 @@ export function NewProductDialog({ onCreated, trigger }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '', sku: '', category: '', subcategory: '',
-    description: '', basePrice: '', cost: '',
+    description: '', basePrice: '', cost: '', images: [],
   });
   const [variants, setVariants] = useState([emptyVariant()]);
 
   useEffect(() => {
     if (open) {
-      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '' });
+      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '', images: [] });
       setVariants([emptyVariant()]);
     }
   }, [open]);
 
-  const updateVariant = (i, patch) =>
-    setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
-
+  const updateVariant = (i, patch) => setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   const removeVariant = (i) => setVariants((vs) => vs.filter((_, idx) => idx !== i));
-
   const addVariant = () => setVariants((vs) => [...vs, emptyVariant()]);
 
   const submit = async () => {
@@ -60,9 +52,9 @@ export function NewProductDialog({ onCreated, trigger }) {
         .filter(v => v.name || v.size || v.color)
         .map((v) => {
           const attrs = {};
-          if (v.size) attrs.size = v.size;
+          if (v.size && v.size !== 'none') attrs.size = v.size;
           if (v.color) attrs.color = v.color;
-          const label = v.name || [v.size, v.color].filter(Boolean).join(' / ') || 'Único';
+          const label = v.name || [v.size, v.color].filter(Boolean).filter(x => x !== 'none').join(' / ') || 'Único';
           return {
             name: label,
             price: Number(v.price) || Number(form.basePrice) || 0,
@@ -75,20 +67,15 @@ export function NewProductDialog({ onCreated, trigger }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: form.name,
-          sku: form.sku,
-          category: form.category,
-          subcategory: form.subcategory,
-          description: form.description,
-          basePrice: Number(form.basePrice) || 0,
-          cost: Number(form.cost) || 0,
-          variants: preparedVariants,
+          name: form.name, sku: form.sku, category: form.category, subcategory: form.subcategory,
+          description: form.description, basePrice: Number(form.basePrice) || 0, cost: Number(form.cost) || 0,
+          images: form.images, variants: preparedVariants,
         }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'error');
       toast.success('Producto creado', {
-        description: `${data.product.name} · ${data.stockRows} variante${data.stockRows !== 1 ? 's' : ''} en stock`,
+        description: `${data.product.name} · ${data.stockRows} variante${data.stockRows !== 1 ? 's' : ''}`,
       });
       setOpen(false);
       onCreated?.(data);
@@ -111,73 +98,84 @@ export function NewProductDialog({ onCreated, trigger }) {
           <DialogTitle>Nuevo producto</DialogTitle>
         </DialogHeader>
 
-        {/* Info general */}
         <div className="space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Información general</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Nombre *</Label>
-              <Input
-                placeholder="Ej: Polera Algodón Premium"
-                value={form.name}
-                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">SKU base (opcional)</Label>
-              <Input
-                placeholder="POL-PREM"
-                value={form.sku}
-                onChange={(e) => setForm(f => ({ ...f, sku: e.target.value.toUpperCase() }))}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Categoría *</Label>
-              <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Precio base (CLP)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                <Input type="number" min="0" className="pl-6 font-mono" value={form.basePrice}
-                  onChange={(e) => setForm(f => ({ ...f, basePrice: e.target.value }))} />
+          {/* Info general */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Información general</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Nombre *</Label>
+                <Input
+                  placeholder="Ej: Polera Algodón Premium"
+                  value={form.name}
+                  onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+                />
               </div>
-            </div>
-            <div>
-              <Label className="text-xs">Costo (CLP)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                <Input type="number" min="0" className="pl-6 font-mono" value={form.cost}
-                  onChange={(e) => setForm(f => ({ ...f, cost: e.target.value }))} />
+              <div>
+                <Label className="text-xs">SKU base (opcional)</Label>
+                <Input
+                  placeholder="POL-PREM"
+                  value={form.sku}
+                  onChange={(e) => setForm(f => ({ ...f, sku: e.target.value.toUpperCase() }))}
+                />
               </div>
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="text-xs">Descripción</Label>
-              <Textarea rows={2} placeholder="Detalles del producto para la tienda web…" value={form.description}
-                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+              <div>
+                <Label className="text-xs">Categoría *</Label>
+                <TaxonomySelect
+                  kind="product_category"
+                  value={form.category}
+                  onChange={(v) => setForm(f => ({ ...f, category: v }))}
+                  placeholder="Elige o crea…"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Precio base (CLP)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <Input type="number" min="0" className="pl-6 font-mono" value={form.basePrice}
+                    onChange={(e) => setForm(f => ({ ...f, basePrice: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Costo (CLP)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <Input type="number" min="0" className="pl-6 font-mono" value={form.cost}
+                    onChange={(e) => setForm(f => ({ ...f, cost: e.target.value }))} />
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Descripción</Label>
+                <Textarea rows={2} placeholder="Detalles del producto para la tienda web…" value={form.description}
+                  onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
             </div>
           </div>
 
+          {/* Fotos */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Fotos ({form.images.length}/8)</div>
+            <ProductImagesUpload
+              value={form.images}
+              onChange={(images) => setForm(f => ({ ...f, images }))}
+            />
+          </div>
+
           {/* Variantes */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Variantes ({variants.length})</div>
               <Button variant="outline" size="sm" onClick={addVariant}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Agregar variante
               </Button>
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="space-y-2">
               {variants.map((v, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="col-span-3">
                     <Label className="text-[10px]">Talla</Label>
-                    <Select value={v.size} onValueChange={(size) => updateVariant(i, { size })}>
+                    <Select value={v.size || undefined} onValueChange={(size) => updateVariant(i, { size })}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">— sin talla</SelectItem>
@@ -193,14 +191,13 @@ export function NewProductDialog({ onCreated, trigger }) {
                   </div>
                   <div className="col-span-3">
                     <Label className="text-[10px]">Precio (CLP)</Label>
-                    <Input type="number" className="h-9 font-mono" min="0"
-                      placeholder={form.basePrice || '0'}
+                    <Input type="number" className="h-9 font-mono" min="0" placeholder={form.basePrice || '0'}
                       value={v.price} onChange={(e) => updateVariant(i, { price: e.target.value })} />
                   </div>
                   <div className="col-span-2">
                     <Label className="text-[10px]">Stock inicial</Label>
-                    <Input type="number" className="h-9 font-mono" min="0"
-                      value={v.initialStock} onChange={(e) => updateVariant(i, { initialStock: e.target.value })} />
+                    <Input type="number" className="h-9 font-mono" min="0" value={v.initialStock}
+                      onChange={(e) => updateVariant(i, { initialStock: e.target.value })} />
                   </div>
                   <div className="col-span-1">
                     <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
@@ -211,9 +208,6 @@ export function NewProductDialog({ onCreated, trigger }) {
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500">
-              Deja los campos vacíos si el producto no tiene variantes — se creará una variante "Único".
             </div>
           </div>
         </div>
