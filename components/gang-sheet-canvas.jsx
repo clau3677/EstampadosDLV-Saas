@@ -12,7 +12,8 @@ import { useGangSheet } from '@/lib/gang-sheet-store';
 
 const RULER_H = 24;
 const RULER_W = 28;
-const MAX_H = 620;
+const MAX_H = 620;              // altura del contenedor visible (scroll interno si el pliego es mayor)
+const MIN_SCALE = 0.4;          // escala mínima aceptable
 
 export default function GangSheetCanvas() {
   const containerRef = useRef(null);
@@ -27,11 +28,12 @@ export default function GangSheetCanvas() {
   const { canvasWidthMm, designs, selectedId, select, updateDesign, computedLengthMm, designWarnings } = store;
   const canvasLengthMm = computedLengthMm();
 
-  // ---- Escala ----
+  // ---- Escala: se ajusta al ancho disponible; si el pliego es más alto que MAX_H, aparece scroll ----
   const availW = Math.max(400, containerW - 24);
   const scaleX = (availW - RULER_W - 20) / canvasWidthMm;
-  const scaleY = (MAX_H - RULER_H - 20) / canvasLengthMm;
-  const scale = Math.min(scaleX, scaleY, 3);
+  const scaleYFit = (MAX_H - RULER_H - 20) / canvasLengthMm;
+  // Priorizar escalado horizontal para llenar el ancho; permitir scroll vertical si es necesario
+  const scale = Math.min(Math.max(scaleX, MIN_SCALE), 3);
   const stageW = RULER_W + canvasWidthMm * scale + 10;
   const stageH = RULER_H + canvasLengthMm * scale + 10;
   const offX = RULER_W;
@@ -262,12 +264,19 @@ export default function GangSheetCanvas() {
   }, [designs, selectedId, scale, offX, offY, canvasWidthMm, canvasLengthMm, designWarnings]);
 
   return (
-    <div ref={containerRef} className="relative w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="relative w-full bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="absolute top-3 left-3 z-10 bg-slate-900/90 text-white text-[11px] px-2.5 py-1 rounded-md font-mono font-semibold shadow-lg pointer-events-none">
         {(canvasWidthMm/10).toFixed(0)} × {(canvasLengthMm/10).toFixed(1)} cm
       </div>
       <div className="absolute top-3 right-3 z-10 bg-white/95 text-slate-700 text-[11px] px-2.5 py-1 rounded-md font-medium ring-1 ring-slate-200 shadow-sm pointer-events-none">
         {designs.length} diseño{designs.length === 1 ? '' : 's'}
+      </div>
+      {stageH > MAX_H && (
+        <div className="absolute bottom-3 right-3 z-10 bg-orange-500/90 text-white text-[10px] px-2 py-0.5 rounded-md font-semibold shadow-lg pointer-events-none">
+          ↕ Scroll vertical
+        </div>
+      )}
+      <div ref={containerRef} className="w-full overflow-y-auto overflow-x-hidden rounded-xl" style={{ maxHeight: MAX_H + 20 }}>
       </div>
     </div>
   );

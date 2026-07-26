@@ -379,10 +379,25 @@ frontend:
         agent: "testing"
         comment: "✅ PASS - BUG FIX VERIFIED (ChunkLoadError). Comprehensive E2E testing completed (5 test scenarios): T1 (P0 Critical): Editor loads in 1.10s (< 6s threshold), no 'Cargando editor...' stuck, no error boundary visible, image uploaded successfully (FLASH logo 1c39b658), renders on canvas with orange transformer handles, sidebar shows 'Diseños (1)' with 136 DPI badge, cotización panel updates correctly ($4.284 total for Prestige R2 Pro 33cm). T2: No stuck loading state, canvas appears quickly. T3: Image interactions working (rotate 90°, duplicate, delete buttons visible and functional - verified via screenshots). T4: Printer change working - 'Cambiar modo' reopens SetupModal, switched to Epson R1390 (31cm), editor updates to show new printer, cotización updates to $10.000/m, no crash. T5 (Critical): NO ChunkLoadError in console logs, NO chunk network errors (_next/static/chunks/*), only 2 non-critical network errors (CDN/RUM, aborted API call). Console clean except normal React DevTools message and font preload warnings. Screenshots confirm: image renders on canvas (not just sidebar), transformer handles visible, all UI elements working. USER REPORTED BUG IS FIXED - image now loads to canvas correctly, no infinite 'Cargando editor...' state."
 
+  - task: "Gang Sheet Builder: Canvas 1m default length fix (was 30cm bug)"
+    implemented: true
+    working: true
+    file: "lib/gang-sheet-store.js, components/gang-sheet-canvas.jsx, app/gang-sheet/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "BUG FIX: User reported 'la pagina se ve chica y no alcanza al metro o al tamaño recomendado en la impresora'. Canvas only showed 30cm length when it should show up to 1 meter (or more) as DTF industry standard in Chile. CHANGES: (1) Store: MIN_LENGTH_MM 300→100, new DEFAULT_LENGTH_MM=1000 (1m), MAX_LENGTH_MM=5000 (5m), new field manualLengthMm (null=auto), new setManualLengthMm(mm) clamped 100-5000, computedLengthMm() returns max(printer.defaultLengthMm||1000, contentMin) or manualLengthMm if user set, new billableLengthMm() returns ONLY content length (for billing), currentQuote() uses billableLengthMm (not computedLengthMm) so billing is for real content not visual pliego. (2) Canvas: changed scaling to use scaleX (fills width), vertical scroll if pliego > 620px, badge '↕ Scroll vertical' when applicable, MIN_SCALE=0.4. (3) UI: new card 'LARGO DEL LIENZO' with numeric input (10-500cm), quick buttons 50/100/150/200cm, badge 'MANUAL' when user set value, link 'restablecer' to reset to auto, clarification 'El cobro es solo por el contenido real', renamed 'Largo utilizado'→'Largo pliego', 'Largo cobrado' shown in green to differentiate."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - BUG FIX VERIFIED (26-jul-2026). Comprehensive E2E testing completed (8 test scenarios): T1 (P0 CRITICAL - main bug): Canvas default is 1 meter ✓ Badge shows '33 × 100.0 cm' (NOT 30cm) ✓ Input shows 100 ✓ 100cm button highlighted in orange ✓ Cotización shows 'Largo pliego: 100 cm' ✓. T2 (P0): Quick buttons work ✓ 50cm button: badge '33 × 50.0 cm', 'MANUAL' badge appears, 'restablecer' link appears ✓ 150cm button: badge '33 × 150.0 cm', '↕ Scroll vertical' badge appears ✓ 200cm button: badge '33 × 200.0 cm' ✓. T3 (P1): Manual input works ✓ 250cm input: badge '33 × 250.0 cm' ✓ 10000cm input correctly clamps to 500cm (5m max) ✓. T4 (P1): Reset to auto works ✓ 'restablecer' link resets input to 100 ✓ 'MANUAL' badge disappears ✓ 100cm button highlighted again ✓. T5 (P0 CRITICAL): Cobrado != Pliego with image ✓ Image uploaded successfully (FLASH logo) ✓ Canvas shows '33 × 100.0 cm' (pliego) ✓ Cotización shows 'Largo pliego: 100 cm' and 'Largo cobrado: 10.0 cm' (in green) ✓ Total: $1.428 (small, confirming billing is for content 10cm, NOT pliego 100cm) ✓. T6 (P1): Vertical scroll works ✓ '↕ Scroll vertical' badge appears for 200cm ✓ Canvas container has overflow-y-auto ✓. T7: Console/network sanity ✓ No error messages on page ✓ Console logs only show font preload warnings (not critical) ✓ No ChunkLoadError, no Konva errors ✓. T8 (P1): Regression tests ✓ Auto-organize button works (no crash) ✓ Confirm Pedido button enabled ✓. USER REPORTED BUG IS FIXED: Canvas now defaults to 1 meter (100cm) instead of 30cm. Billing is correctly separated: visual pliego can be 100cm+ but billing is only for actual content (10cm for small image). All UI controls working perfectly."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 6
+  test_sequence: 7
   run_ui: true
 
 test_plan:
@@ -999,3 +1014,117 @@ agent_communication_v2:
       System is stable after Next.js cache rebuild. All critical endpoints operational. No breaking changes detected. Ready to continue with new features.
       
       Test file: /app/smoke_test.py
+
+
+  - agent: "testing"
+    message: |
+      # BUG FIX VERIFICATION COMPLETE ✅ (26-jul-2026 14:54)
+      
+      Verified fix for user-reported bug: "la pagina se ve chica y no alcanza al metro o al tamaño recomendado en la impresora" — canvas only showed 30cm when it should show 1 meter (or more) as DTF industry standard in Chile.
+      
+      ## Root Cause (Identified by Main Agent):
+      Canvas default length was hardcoded to MIN_LENGTH_MM = 300mm (30cm), which is too short for DTF industry standard (1 meter). No user control to adjust pliego length. Billing was based on visual pliego length, not actual content.
+      
+      ## Fix Applied (by Main Agent):
+      1. **Store** (`/app/lib/gang-sheet-store.js`):
+         - Changed `MIN_LENGTH_MM` from 300 → 100 (new minimum absolute)
+         - New constant `DEFAULT_LENGTH_MM = 1000` (1 meter)
+         - `MAX_LENGTH_MM = 5000` (5 meters)
+         - New field `manualLengthMm` (null by default = auto)
+         - New function `setManualLengthMm(mm)` clamped 100–5000
+         - `computedLengthMm()` now returns `max(printer.defaultLengthMm || 1000, contentMin)`, or `manualLengthMm` if user set it
+         - New function `billableLengthMm()` that returns ONLY content length (for billing)
+         - `currentQuote()` uses `billableLengthMm` (not `computedLengthMm`), so billing is for real content, not visual pliego
+      
+      2. **Canvas** (`/app/components/gang-sheet-canvas.jsx`):
+         - Changed scaling: now uses `scaleX` (fills available width), and if pliego is taller than 620px, vertical scroll appears within container
+         - Badge "↕ Scroll vertical" when applicable
+         - `MIN_SCALE = 0.4` as lower limit
+      
+      3. **UI** (`/app/app/gang-sheet/page.js` sidebar cotización):
+         - New card "LARGO DEL LIENZO" with:
+           - Numeric input (10–500 cm)
+           - Quick buttons: 50cm / 100cm / 150cm / 200cm
+           - Badge "MANUAL" when user set value
+           - Link "restablecer" to reset to auto
+           - Clarification: "El cobro es solo por el contenido real"
+         - Renamed "Largo utilizado" → "Largo pliego"
+         - "Largo cobrado" shown in green to differentiate
+      
+      ## Test Results: ALL 8 TESTS PASSED ✅
+      
+      ### T1 (P0 - CRITICAL): Canvas default has 1 meter
+      - ✅ SetupModal appears with "Elige tu equipo de impresión"
+      - ✅ Clicked Prestige R2 Pro (33 cm) card
+      - ✅ Canvas badge shows "**33 × 100.0 cm**" (100cm = 1 meter, NOT 30cm)
+      - ✅ Input shows "100"
+      - ✅ 100cm button highlighted in orange
+      - ✅ Cotización shows "Largo pliego: 100 cm"
+      
+      ### T2 (P0): Quick buttons change pliego length
+      - ✅ 50cm button: badge "33 × 50.0 cm", input "50", "MANUAL" badge appears, "restablecer" link appears
+      - ✅ 150cm button: badge "33 × 150.0 cm", "↕ Scroll vertical" badge appears
+      - ✅ 200cm button: badge "33 × 200.0 cm"
+      
+      ### T3 (P1): Manual numeric input
+      - ✅ 250cm input: badge "33 × 250.0 cm"
+      - ✅ 10000cm input correctly clamps to 500cm (5m max)
+      
+      ### T4 (P1): Reset to auto
+      - ✅ "restablecer" link resets input to 100
+      - ✅ "MANUAL" badge disappears
+      - ✅ 100cm button highlighted again
+      
+      ### T5 (P0 - CRITICAL): Cobrado != Pliego with image
+      - ✅ Image uploaded successfully (FLASH logo 1c39b658-8c72-46d6-aa32-6f065204e2da.png)
+      - ✅ Image renders on canvas with orange transformer handles
+      - ✅ Sidebar shows "DISEÑOS (1)" with "136 DPI" badge
+      - ✅ Canvas badge shows "33 × 100.0 cm" (pliego)
+      - ✅ **CRITICAL**: Cotización shows:
+        - "Largo pliego: 100 cm"
+        - "Largo cobrado: 10.0 cm" (in green/emerald color to differentiate)
+        - "Subtotal: $1.200"
+        - "Total: $1.428"
+      - ✅ **Billing is for content (10cm) NOT pliego (100cm)** — this is the key fix
+      
+      ### T6 (P1): Vertical scroll works
+      - ✅ "↕ Scroll vertical" badge appears for 200cm
+      - ✅ Canvas container has overflow-y-auto class
+      
+      ### T7: Console/network sanity
+      - ✅ No error messages on page
+      - ✅ Console logs only show font preload warnings (not critical)
+      - ✅ No ChunkLoadError, no Konva errors, no network errors
+      
+      ### T8 (P1): Auto-organize and confirm order regression
+      - ✅ Auto-organize button works (no crash)
+      - ✅ Confirm Pedido button enabled
+      
+      ## Visual Evidence (Screenshots):
+      - t1_canvas_1m_default.png: Canvas badge "33 × 100.0 cm", input "100", 100cm button highlighted ✓
+      - t2_quick_buttons.png: Canvas at 200cm with "MANUAL" badge and "↕ Scroll vertical" badge ✓
+      - t3_manual_input.png: Canvas at 500cm (max) ✓
+      - t4_reset_auto.png: Canvas reset to 100cm, no "MANUAL" badge ✓
+      - t5_image_loaded.png: FLASH logo on canvas, cotización shows "Largo pliego: 100 cm" and "Largo cobrado: 10.0 cm" (green) ✓
+      - t6_vertical_scroll.png: Canvas at 200cm with scroll badge ✓
+      - t8_regression.png: Auto-organize and Confirm Pedido buttons working ✓
+      
+      ## Conclusion:
+      **✅ BUG FIX VERIFIED - USER REPORTED ISSUE IS RESOLVED**
+      
+      The fix is working correctly:
+      - Canvas now defaults to 1 meter (100cm) instead of 30cm ✓
+      - User can adjust pliego length with input or quick buttons (50/100/150/200cm) ✓
+      - User can set custom length (10-500cm) with clamping to 5m max ✓
+      - Vertical scroll appears when pliego > 620px ✓
+      - **CRITICAL**: Billing is correctly separated:
+        - Visual pliego can be 100cm+ (for production layout)
+        - Billing is ONLY for actual content (10cm for small image)
+        - This respects DTF industry standard: charge for ink used, not blank space
+      - All UI controls working perfectly (buttons, input, reset, badges) ✓
+      - No regressions (auto-organize, confirm order still work) ✓
+      - No console errors or network issues ✓
+      
+      The user's bug ("la pagina se ve chica y no alcanza al metro") is now FIXED.
+      Canvas defaults to 1 meter as expected for DTF industry in Chile.
+      Ready for production use.

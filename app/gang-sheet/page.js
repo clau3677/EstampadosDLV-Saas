@@ -156,8 +156,10 @@ function Uploader({ onFile }) {
 export default function GangSheetPage() {
   const {
     mode, printerCode, printerData, canvasWidthMm, designs, selectedId, express,
+    manualLengthMm,
     setMode, addDesign, removeDesign, duplicate, rotate90,
     select, setExpress, autoArrange, currentQuote, effectiveDpi, designWarnings,
+    computedLengthMm, setManualLengthMm,
   } = useGangSheet();
 
   const [uploading, setUploading] = useState(0);
@@ -402,17 +404,67 @@ export default function GangSheetPage() {
 
               {q ? (
                 <>
+                  {/* Control de largo del lienzo */}
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-2.5 mb-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Largo del lienzo</span>
+                        {manualLengthMm && <span className="text-[9px] bg-orange-100 text-orange-700 rounded px-1 font-mono">MANUAL</span>}
+                      </div>
+                      {manualLengthMm && (
+                        <button
+                          type="button"
+                          onClick={() => setManualLengthMm(null)}
+                          className="text-[10px] text-slate-500 hover:text-orange-600 underline underline-offset-2"
+                        >
+                          restablecer
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={10}
+                        max={500}
+                        step={5}
+                        value={Math.round(computedLengthMm() / 10)}
+                        onChange={(e) => setManualLengthMm(parseInt(e.target.value || '0', 10) * 10)}
+                        className="w-20 h-8 rounded-md border border-slate-300 px-2 text-sm font-mono focus:outline-none focus:border-orange-400"
+                      />
+                      <span className="text-xs text-slate-600">cm</span>
+                      <div className="flex-1 flex gap-1 justify-end">
+                        {[50, 100, 150, 200].map(cm => (
+                          <button
+                            key={cm}
+                            type="button"
+                            onClick={() => setManualLengthMm(cm * 10)}
+                            className={`h-6 px-1.5 text-[10px] rounded border transition-all font-mono ${
+                              Math.round(computedLengthMm() / 10) === cm
+                                ? 'border-orange-500 bg-orange-50 text-orange-700'
+                                : 'border-slate-200 hover:border-slate-400 text-slate-600'
+                            }`}
+                          >
+                            {cm}cm
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">
+                      Ajusta el pliego según tu producción. <b>El cobro es solo por el contenido real</b> abajo.
+                    </p>
+                  </div>
+
                   <div className="flex items-center justify-between text-sm text-slate-600">
                     <span>Ancho útil</span>
                     <span className="font-mono font-semibold">{(canvasWidthMm/10).toFixed(0)} cm</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600 mt-1">
-                    <span>Largo utilizado</span>
-                    <span className="font-mono font-semibold">{(q.lengthMm/10).toFixed(1)} cm</span>
+                    <span>Largo pliego</span>
+                    <span className="font-mono font-semibold">{(computedLengthMm()/10).toFixed(0)} cm</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600 mt-1">
                     <span>Largo cobrado {q.billableMm > q.lengthMm && <span className="text-[10px] text-amber-600">(mín.)</span>}</span>
-                    <span className="font-mono font-semibold">{(q.billableMm/10).toFixed(1)} cm</span>
+                    <span className="font-mono font-semibold text-emerald-700">{(q.billableMm/10).toFixed(1)} cm</span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600 mt-1">
                     <span>Tarifa</span>
