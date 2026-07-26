@@ -24,8 +24,8 @@ const cors = (res) => {
 export async function OPTIONS() { return cors(new NextResponse(null, { status: 200 })); }
 
 async function handle(request, { params }) {
-  const { path = [] } = await params;
-  const route = '/' + path.join('/');
+  const { path: routePath = [] } = await params;
+  const route = '/' + routePath.join('/');
   const method = request.method;
 
   try {
