@@ -47,8 +47,9 @@ const SECTIONS = [
   {
     label: 'Sistema',
     items: [
-      { href: '/landings',      label: 'Landings SEO',   icon: Globe },
-      { href: '/configuracion', label: 'Configuración',  icon: Settings2 },
+      { href: '/usuarios',      label: 'Usuarios / Cajeros', icon: Users },
+      { href: '/landings',      label: 'Landings SEO',       icon: Globe },
+      { href: '/configuracion', label: 'Configuración',      icon: Settings2 },
     ],
   },
 ];

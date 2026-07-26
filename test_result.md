@@ -400,17 +400,11 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 10
+  test_sequence: 12
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "POS module: /api/pos/sessions CRUD (open/close/current/list/detail)"
-    - "POS sales with mixed payments (cash+card+transfer) + vuelto calculation"
-    - "PDF tickets: /api/tickets/[id]?format=thermal & format=a4"
-    - "/api/users?role= endpoint"
-    - "Stock decrement (real, not reserved) on POS sale"
-    - "pos_sessions counters increment"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -1370,6 +1364,22 @@ backend_pos:
         agent: "testing"
         comment: "✅ PASS - Comprehensive testing (4 test cases): (A1) GET /api/users → 200, 3 users (admin, operator, customer from seed), no passwordHash or _id ✓ (A2) GET /api/users?role=operator → 200, 1 operator (Carla Muñoz) ✓ (A3) GET /api/users?role=admin → 200, 1 admin (Diego López) ✓ (A4) GET /api/users?role=nonexistent → 200, empty array ✓. All responses correctly strip sensitive fields."
 
+  - task: "/api/users CRUD endpoints (POST/PATCH/DELETE)"
+    implemented: true
+    working: true
+    file: "lib/api/users.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EXTENDED in Iteration 6. Full CRUD for users collection: POST /api/users (validates fullName, email format, role, checks duplicate email case-insensitive), PATCH /api/users (partial update with validations, prevents duplicate email), DELETE /api/users (prevents deletion if user has POS sessions → 409 with descriptive message). Email normalized to lowercase. All use UUID v4, strip passwordHash and _id from responses."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive CRUD testing (32 test cases): (A) GET regression: 4/4 PASS - GET /api/users → 6 users, no passwordHash or _id ✓, GET ?role=operator/admin/customer → correct filtering ✓. (B) POST: 8/8 PASS - Happy path → 200 with UUID id, active:true, createdAt, no passwordHash ✓, Validations: no fullName → 400 'Nombre completo es obligatorio' ✓, no email → 400 'Email es obligatorio' ✓, invalid email 'bademail' → 400 'Email inválido' ✓, no role → 400 'role inválido' ✓, invalid role 'boss' → 400 ✓, duplicate email (exact) → 409 'Ya existe un usuario con ese email' ✓, duplicate email (case insensitive QA@ESTAMPADOSDLV.CL) → 409 ✓. (C) PATCH: 9/9 PASS - Change fullName & phone → 200 ✓, Change role operator→admin → 200 ✓, Toggle active false→true → 200 ✓, Validations: no id → 400 'id requerido' ✓, nonexistent id → 404 'usuario no encontrado' ✓, duplicate email → 409 'Otro usuario ya usa ese email' ✓, invalid email → 400 ✓, invalid role → 400 ✓, empty body → 400 'nada que actualizar' ✓. (D) DELETE Scenario A (no POS sessions): 3/3 PASS - DELETE user → 200 {ok:true} ✓, Verify removed from GET ✓, Second DELETE → 404 ✓. (D) DELETE Scenario B (WITH POS sessions): 5/5 PASS - Get admin from seed ✓, Open POS session with admin operatorId ✓, Try DELETE → 409 'No se puede eliminar: tiene 5 sesión(es) POS asociada(s). Desactívalo (toggle active) para ocultarlo sin borrar historial.' ✓, Verify user still exists ✓, Close session ✓. (E) REGRESSION: 3/3 PASS - Create new user ✓, Open POS session with new user operatorId → 200 ✓, POST /api/orders/public → 200 order DLV-2025-000310 ✓. All validations working correctly. Email case-insensitive duplicate detection working. DELETE protection working. No MongoDB _id or passwordHash leakage."
+
+
   - task: "POS Sessions CRUD (open/close/current/list/detail)"
     implemented: true
     working: true
@@ -1566,6 +1576,120 @@ agent_communication_pos:
       - Session-based cash flow tracking
       - PDF receipt generation for customers
       - Cash reconciliation (arqueo) at end of shift
+      
+      No blocking issues found. Ready for production deployment.
+
+
+  - agent: "testing"
+    message: |
+      # /api/users CRUD TESTING COMPLETE ✅ (27-jan-2026)
+      
+      Tested complete CRUD operations for /api/users endpoint as requested.
+      
+      ## Test Results: 32/32 PASS ✅
+      
+      ### A) GET /api/users - REGRESSION (4/4 PASS) ✅
+      1. ✅ GET /api/users → 200, 6 users, no passwordHash or _id
+      2. ✅ GET /api/users?role=operator → 200, correct filtering
+      3. ✅ GET /api/users?role=admin → 200, correct filtering
+      4. ✅ GET /api/users?role=customer → 200, correct filtering
+      
+      ### B) POST /api/users - CREATE (8/8 PASS) ✅
+      1. ✅ Happy path with all fields → 200, UUID id, active:true, createdAt, no passwordHash
+      2. ✅ Validation: no fullName → 400 "Nombre completo es obligatorio"
+      3. ✅ Validation: no email → 400 "Email es obligatorio"
+      4. ✅ Validation: invalid email "bademail" → 400 "Email inválido"
+      5. ✅ Validation: no role → 400 "role inválido"
+      6. ✅ Validation: invalid role "boss" → 400 "role inválido"
+      7. ✅ Validation: duplicate email (exact) → 409 "Ya existe un usuario con ese email"
+      8. ✅ Validation: duplicate email (case insensitive QA@ESTAMPADOSDLV.CL) → 409
+      
+      ### C) PATCH /api/users - UPDATE (9/9 PASS) ✅
+      1. ✅ Change fullName and phone → 200, fields updated
+      2. ✅ Change role from operator to admin → 200, role updated
+      3. ✅ Toggle active false → 200, then back to true → 200
+      4. ✅ Validation: no id → 400 "id requerido"
+      5. ✅ Validation: nonexistent id → 404 "usuario no encontrado"
+      6. ✅ Validation: duplicate email with another user → 409 "Otro usuario ya usa ese email"
+      7. ✅ Validation: invalid email → 400 "Email inválido"
+      8. ✅ Validation: invalid role → 400 "role inválido"
+      9. ✅ Validation: empty body (only id) → 400 "nada que actualizar"
+      
+      ### D) DELETE /api/users - SCENARIO A: User without POS sessions (3/3 PASS) ✅
+      1. ✅ DELETE newly created user → 200 {ok:true}
+      2. ✅ Verify user no longer appears in GET /api/users
+      3. ✅ DELETE same id again → 404 "usuario no encontrado"
+      
+      ### D) DELETE /api/users - SCENARIO B: User WITH POS sessions (5/5 PASS) ✅
+      1. ✅ Get admin user from seed (Diego López)
+      2. ✅ Open POS session with admin operatorId → 200
+      3. ✅ Try to DELETE user with POS session → 409 "No se puede eliminar: tiene 5 sesión(es) POS asociada(s). Desactívalo (toggle active) para ocultarlo sin borrar historial."
+      4. ✅ Verify user still exists in GET /api/users
+      5. ✅ Close POS session successfully
+      
+      ### E) REGRESSION TESTS (3/3 PASS) ✅
+      1. ✅ Create new user for regression tests → 200
+      2. ✅ POST /api/pos/sessions/open with new user operatorId → 200
+      3. ✅ POST /api/orders/public → 200, order DLV-2025-000310 created
+      
+      ## Key Findings:
+      
+      ### ✅ NO CRITICAL ISSUES FOUND
+      
+      All CRUD operations working correctly:
+      - POST creates users with proper validation
+      - PATCH updates users with proper validation
+      - DELETE removes users with protection for users with POS sessions
+      - GET filtering by role working correctly
+      - Email normalization to lowercase working
+      - Case-insensitive duplicate email detection working
+      - All validations returning correct status codes (400, 404, 409)
+      - No passwordHash or _id leakage in responses
+      - All responses use UUID v4 ids
+      
+      ### Validation Coverage:
+      - ✅ Required fields: fullName, email, role
+      - ✅ Email format validation (regex)
+      - ✅ Role validation (admin/operator/customer only)
+      - ✅ Duplicate email detection (case-insensitive)
+      - ✅ Empty body detection (PATCH)
+      - ✅ Nonexistent id detection (PATCH/DELETE)
+      
+      ### Business Logic:
+      - ✅ DELETE protection: Users with POS sessions cannot be deleted (409)
+      - ✅ Email normalization: All emails stored in lowercase
+      - ✅ Active toggle: Users can be deactivated instead of deleted
+      - ✅ Integration: New users can immediately open POS sessions
+      - ✅ Integration: Public orders still work (no regressions)
+      
+      ### Data Integrity:
+      - ✅ All responses strip passwordHash field
+      - ✅ All responses strip MongoDB _id field
+      - ✅ All responses use UUID v4 ids
+      - ✅ All timestamps (createdAt) present
+      - ✅ All required fields populated
+      
+      ## Test File:
+      - /app/backend_test_users_crud.py (32 comprehensive test cases)
+      - Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
+      - All tests passed in single run (no flakiness)
+      
+      ## Conclusion:
+      **✅ /api/users CRUD IS PRODUCTION-READY**
+      
+      The users CRUD implementation is complete and working correctly:
+      - All endpoints functional and validated
+      - All business rules enforced (DELETE protection)
+      - All data integrity checks passing
+      - No regressions in existing functionality (POS, orders)
+      - Ready for user management operations
+      
+      The module successfully handles:
+      - Creating users (admins, operators, customers)
+      - Updating user information (name, email, role, active status)
+      - Deleting users (with protection for users with POS sessions)
+      - Filtering users by role
+      - Email normalization and duplicate detection
       
       No blocking issues found. Ready for production deployment.
 
