@@ -18,10 +18,10 @@ import { useCart, cartSubtotal } from '@/lib/cart-store';
 import { formatCLP, validateRut, formatRut } from '@/lib/format';
 
 const PAYMENT_METHODS = [
-  { key: 'transfer',    label: 'Transferencia Bancaria', icon: Wallet,     desc: 'Enviamos datos por email' },
-  { key: 'webpay',      label: 'WebPay Plus',            icon: CreditCard, desc: 'Tarjetas Transbank' },
-  { key: 'mercadopago', label: 'MercadoPago',            icon: CreditCard, desc: 'Tarjetas / débito' },
-  { key: 'cash',        label: 'Efectivo al retirar',    icon: Banknote,   desc: 'Solo con retiro en local' },
+  { key: 'transfer',    label: 'Transferencia Bancaria', icon: Wallet,     desc: 'Enviamos los datos al confirmar', enabled: true },
+  { key: 'cash',        label: 'Efectivo al retirar',    icon: Banknote,   desc: 'Solo con retiro en local',        enabled: true },
+  { key: 'webpay',      label: 'WebPay Plus',            icon: CreditCard, desc: 'Próximamente',                    enabled: false },
+  { key: 'mercadopago', label: 'MercadoPago',            icon: CreditCard, desc: 'Próximamente',                    enabled: false },
 ];
 
 export default function CheckoutPage() {
@@ -65,6 +65,10 @@ export default function CheckoutPage() {
     }
     if (paymentMethod === 'cash' && deliveryMethod !== 'pickup') {
       return toast.error('Efectivo solo disponible con retiro en local');
+    }
+    const method = PAYMENT_METHODS.find(m => m.key === paymentMethod);
+    if (!method || method.enabled === false) {
+      return toast.error('Método de pago no disponible aún');
     }
 
     setSubmitting(true);
@@ -194,21 +198,34 @@ export default function CheckoutPage() {
             <CardContent className="p-6">
               <h2 className="font-bold text-slate-900 mb-4">Método de pago</h2>
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PAYMENT_METHODS.map((m) => (
-                  <label key={m.key} className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${paymentMethod === m.key ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <RadioGroupItem value={m.key} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <m.icon className="h-4 w-4 text-slate-500" />
-                        <span className="font-semibold text-sm">{m.label}</span>
+                {PAYMENT_METHODS.map((m) => {
+                  const disabled = m.enabled === false;
+                  return (
+                    <label
+                      key={m.key}
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-all ${
+                        disabled
+                          ? 'border-slate-100 bg-slate-50 cursor-not-allowed opacity-60'
+                          : paymentMethod === m.key
+                            ? 'border-orange-500 bg-orange-50 cursor-pointer'
+                            : 'border-slate-200 hover:border-slate-300 cursor-pointer'
+                      }`}
+                    >
+                      <RadioGroupItem value={m.key} disabled={disabled} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <m.icon className="h-4 w-4 text-slate-500" />
+                          <span className="font-semibold text-sm">{m.label}</span>
+                          {disabled && <span className="text-[10px] rounded-full bg-slate-200 text-slate-700 px-1.5 py-0.5 font-semibold uppercase tracking-wider">Próximo release</span>}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">{m.desc}</p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{m.desc}</p>
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </RadioGroup>
               <div className="mt-3 text-[11px] text-slate-500 italic">
-                (Integración con WebPay / MercadoPago se activará en el siguiente release. Por ahora recibirás los datos de transferencia por email.)
+                Actualmente aceptamos <b>transferencia bancaria</b> (te mostraremos los datos al confirmar) y <b>efectivo al retirar</b>. WebPay Plus y MercadoPago se habilitarán próximamente.
               </div>
             </CardContent>
           </Card>

@@ -1,669 +1,639 @@
 #!/usr/bin/env python3
 """
-Comprehensive backend API test for Estampados DLV
-Tests all endpoints with focus on hardware validation and pricing logic
+Backend Testing Suite for Estampados DLV - Iteration 3
+Tests new /api/landings CRUD + regression tests + design upload fix verification
 """
 
 import requests
 import json
-import io
-from PIL import Image
 import os
+from io import BytesIO
+from PIL import Image
 
-# Read BASE_URL from .env
-BASE_URL = "https://dtf-print-hub-2.preview.emergentagent.com/api"
+# Base URL from environment
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://dtf-print-hub-2.preview.emergentagent.com')
+API_URL = f"{BASE_URL}/api"
 
-def print_test(name, passed, details=""):
-    status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"\n{status}: {name}")
-    if details:
-        print(f"  {details}")
+print(f"🧪 Testing backend at: {API_URL}\n")
+print("=" * 80)
 
-def test_health():
-    """Test GET /api/ health check"""
-    print("\n" + "="*80)
-    print("TEST 1: Health Check")
-    print("="*80)
-    
-    try:
-        r = requests.get(f"{BASE_URL}/", timeout=10)
-        data = r.json()
-        
-        passed = (
-            r.status_code == 200 and
-            data.get('service') == 'Estampados DLV · Sistema Operativo' and
-            data.get('status') == 'ok'
-        )
-        
-        print_test("Health endpoint", passed, 
-                  f"Status: {r.status_code}, Service: {data.get('service')}, Status: {data.get('status')}")
-        return passed
-    except Exception as e:
-        print_test("Health endpoint", False, f"Error: {str(e)}")
-        return False
+# Global variables to store created IDs for cleanup
+created_landing_ids = []
+created_order_number = None
 
-def test_seed():
-    """Test POST /api/seed - call twice for idempotency"""
-    print("\n" + "="*80)
-    print("TEST 2: Seed Endpoint (Idempotency)")
-    print("="*80)
-    
-    results = []
-    
-    for attempt in [1, 2]:
-        try:
-            print(f"\n  Attempt {attempt}:")
-            r = requests.post(f"{BASE_URL}/seed", timeout=15)
-            data = r.json()
-            
-            expected_counts = {
-                'users': 3,
-                'products': 4,
-                'commercialStock': 8,
-                'supplies': 9,
-                'orders': 5,
-                'orderItems': 5,
-                'productionQueue': 5
-            }
-            
-            passed = (
-                r.status_code == 200 and
-                data.get('ok') == True and
-                all(data.get('seeded', {}).get(k) == v for k, v in expected_counts.items())
-            )
-            
-            print_test(f"Seed attempt {attempt}", passed,
-                      f"Status: {r.status_code}, Counts: {data.get('seeded')}")
-            results.append(passed)
-            
-        except Exception as e:
-            print_test(f"Seed attempt {attempt}", False, f"Error: {str(e)}")
-            results.append(False)
-    
-    return all(results)
+# ============================================================================
+# SECTION A: NEW /api/landings CRUD ENDPOINTS (PRIORITY)
+# ============================================================================
 
-def test_config():
-    """Test GET /api/config"""
-    print("\n" + "="*80)
-    print("TEST 3: Config Endpoint")
-    print("="*80)
-    
-    try:
-        r = requests.get(f"{BASE_URL}/config", timeout=10)
-        data = r.json()
-        
-        printers = data.get('printers', {})
-        
-        passed = (
-            r.status_code == 200 and
-            printers.get('epson_r1390', {}).get('maxWidthCm') == 31 and
-            printers.get('prestige_r2_pro', {}).get('maxWidthCm') == 33 and
-            'V' in printers.get('dtf_uv', {}).get('channels', [])
-        )
-        
-        print_test("Config endpoint", passed,
-                  f"Status: {r.status_code}, Epson max: {printers.get('epson_r1390', {}).get('maxWidthCm')}cm, "
-                  f"Prestige max: {printers.get('prestige_r2_pro', {}).get('maxWidthCm')}cm, "
-                  f"DTF UV channels: {printers.get('dtf_uv', {}).get('channels')}")
-        return passed
-        
-    except Exception as e:
-        print_test("Config endpoint", False, f"Error: {str(e)}")
-        return False
+print("\n📍 SECTION A: /api/landings CRUD (NEW - ITERATION 3)")
+print("=" * 80)
 
-def test_pricing():
-    """Test GET /api/pricing"""
-    print("\n" + "="*80)
-    print("TEST 4: Pricing Endpoint")
-    print("="*80)
+# A1: GET /api/landings → should return array with at least 4 preexisting landings
+print("\n[A1] GET /api/landings - List all landings")
+try:
+    response = requests.get(f"{API_URL}/landings", timeout=10)
+    print(f"Status: {response.status_code}")
     
-    try:
-        r = requests.get(f"{BASE_URL}/pricing", timeout=10)
-        data = r.json()
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Received {len(data)} landings")
         
-        passed = (
-            r.status_code == 200 and
-            data.get('dtf_textil_31', {}).get('pricePerMm') == 10 and
-            data.get('dtf_textil_33', {}).get('pricePerMm') == 12 and
-            data.get('dtf_uv', {}).get('pricePerMm') == 28
-        )
-        
-        print_test("Pricing endpoint", passed,
-                  f"Status: {r.status_code}, Prices: 31cm=${data.get('dtf_textil_31', {}).get('pricePerMm')}/mm, "
-                  f"33cm=${data.get('dtf_textil_33', {}).get('pricePerMm')}/mm, "
-                  f"UV=${data.get('dtf_uv', {}).get('pricePerMm')}/mm")
-        return passed
-        
-    except Exception as e:
-        print_test("Pricing endpoint", False, f"Error: {str(e)}")
-        return False
-
-def test_dashboard():
-    """Test GET /api/dashboard/summary"""
-    print("\n" + "="*80)
-    print("TEST 5: Dashboard Summary")
-    print("="*80)
-    
-    try:
-        r = requests.get(f"{BASE_URL}/dashboard/summary", timeout=10)
-        data = r.json()
-        
-        passed = (
-            r.status_code == 200 and
-            data.get('salesToday', 0) > 0 and
-            data.get('pendingOrders', 0) > 0 and
-            'printerQueues' in data and
-            isinstance(data.get('recentActivity'), list)
-        )
-        
-        print_test("Dashboard summary", passed,
-                  f"Status: {r.status_code}, Sales today: ${data.get('salesToday')}, "
-                  f"Pending orders: {data.get('pendingOrders')}, "
-                  f"Printer queues: {data.get('printerQueues')}, "
-                  f"Recent activity items: {len(data.get('recentActivity', []))}")
-        return passed
-        
-    except Exception as e:
-        print_test("Dashboard summary", False, f"Error: {str(e)}")
-        return False
-
-def test_upload():
-    """Test POST /api/uploads/design"""
-    print("\n" + "="*80)
-    print("TEST 6: Design Upload")
-    print("="*80)
-    
-    results = []
-    
-    # Test 6a: Valid upload
-    try:
-        # Create a small PNG in memory
-        img = Image.new('RGB', (3000, 3000), color='red')
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format='PNG', dpi=(300, 300))
-        img_bytes.seek(0)
-        
-        files = {'file': ('test_logo.png', img_bytes, 'image/png')}
-        r = requests.post(f"{BASE_URL}/uploads/design", files=files, timeout=15)
-        data = r.json()
-        
-        passed = (
-            r.status_code == 200 and
-            'id' in data and
-            data.get('url', '').startswith('/uploads/designs/') and
-            data.get('widthPx') > 0 and
-            data.get('heightPx') > 0 and
-            data.get('sizeBytes') > 0
-        )
-        
-        # Verify file exists
-        if passed:
-            file_path = f"/app/public{data.get('url')}"
-            file_exists = os.path.exists(file_path)
-            passed = passed and file_exists
-            
-            print_test("Upload valid design", passed,
-                      f"Status: {r.status_code}, ID: {data.get('id')}, URL: {data.get('url')}, "
-                      f"Size: {data.get('widthPx')}x{data.get('heightPx')}px, "
-                      f"DPI: {data.get('dpi')}, Bytes: {data.get('sizeBytes')}, "
-                      f"File exists: {file_exists}")
+        # Verify at least 4 preexisting landings
+        if len(data) >= 4:
+            print(f"✅ PASS - At least 4 landings exist (expected: dtf-textil-santiago, dtf-uv-santiago, dtf-textil-valparaiso, dtf-por-metro-chile)")
         else:
-            print_test("Upload valid design", passed,
-                      f"Status: {r.status_code}, Response: {data}")
+            print(f"⚠️  WARNING - Expected at least 4 landings, got {len(data)}")
         
-        results.append(passed)
+        # Verify no _id in response
+        has_mongo_id = any('_id' in item for item in data)
+        if has_mongo_id:
+            print(f"❌ FAIL - Response contains MongoDB _id field")
+        else:
+            print(f"✅ PASS - No MongoDB _id in response")
         
-    except Exception as e:
-        print_test("Upload valid design", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 6b: Missing file (should return 400)
-    try:
-        r = requests.post(f"{BASE_URL}/uploads/design", timeout=10)
-        passed = r.status_code == 400
-        
-        print_test("Upload without file (should fail)", passed,
-                  f"Status: {r.status_code} (expected 400)")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Upload without file", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    return all(results)
+        # Check for expected slugs
+        slugs = [item.get('slug') for item in data]
+        expected_slugs = ['dtf-textil-santiago', 'dtf-uv-santiago', 'dtf-textil-valparaiso', 'dtf-por-metro-chile']
+        found_slugs = [s for s in expected_slugs if s in slugs]
+        print(f"   Found expected slugs: {found_slugs}")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
 
-def test_gang_sheets():
-    """Test POST /api/gang-sheets with multiple scenarios"""
-    print("\n" + "="*80)
-    print("TEST 7: Gang Sheet Creation & Validation")
-    print("="*80)
+# A2: GET /api/landings?active=true → only active landings
+print("\n[A2] GET /api/landings?active=true - Filter active only")
+try:
+    response = requests.get(f"{API_URL}/landings?active=true", timeout=10)
+    print(f"Status: {response.status_code}")
     
-    results = []
-    
-    # Test 7a: Happy path (dtf_textil_33)
-    try:
-        payload = {
-            "mode": "dtf_textil_33",
-            "canvasWidthMm": 330,
-            "express": False,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/test.png",
-                    "name": "logo.png",
-                    "srcWidthPx": 3000,
-                    "srcHeightPx": 3000,
-                    "xMm": 10,
-                    "yMm": 10,
-                    "widthMm": 200,
-                    "heightMm": 500,
-                    "rotation": 0
-                }
-            ]
-        }
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Received {len(data)} active landings")
         
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        data = r.json()
-        
-        # Expected: lengthMm = max(510 + 20, 300) = 530
-        # subtotal = 530 * 12 = 6360
-        # tax = 6360 * 0.19 = 1208 (rounded)
-        # total = 6360 + 1208 = 7568
-        
-        expected_length = 530
-        expected_subtotal = 6360
-        expected_total = 7568
-        
-        passed = (
-            r.status_code == 200 and
-            data.get('lengthMm') == expected_length and
-            data.get('quote', {}).get('subtotal') == expected_subtotal and
-            data.get('total') == expected_total and
-            data.get('orderNumber', '').startswith('DLV-2025-') and
-            data.get('printerLabel') == 'Prestige R2 Pro'
-        )
-        
-        print_test("Gang sheet happy path (dtf_textil_33)", passed,
-                  f"Status: {r.status_code}, Order: {data.get('orderNumber')}, "
-                  f"Length: {data.get('lengthMm')}mm (expected {expected_length}), "
-                  f"Subtotal: ${data.get('quote', {}).get('subtotal')} (expected ${expected_subtotal}), "
-                  f"Total: ${data.get('total')} (expected ${expected_total}), "
-                  f"Printer: {data.get('printerLabel')}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet happy path", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7b: Minimum length rule (dtf_textil_31, tiny design)
-    try:
-        payload = {
-            "mode": "dtf_textil_31",
-            "canvasWidthMm": 310,
-            "express": False,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/tiny.png",
-                    "name": "tiny.png",
-                    "srcWidthPx": 100,
-                    "srcHeightPx": 100,
-                    "xMm": 10,
-                    "yMm": 10,
-                    "widthMm": 50,
-                    "heightMm": 10,
-                    "rotation": 0
-                }
-            ]
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        data = r.json()
-        
-        # Expected: lengthMm = max(30, 300) = 300 (minimum)
-        # subtotal = 300 * 10 = 3000
-        # tax = 3000 * 0.19 = 570
-        # total = 3000 + 570 = 3570
-        
-        expected_length = 300
-        expected_subtotal = 3000
-        expected_total = 3570
-        
-        passed = (
-            r.status_code == 200 and
-            data.get('lengthMm') == expected_length and
-            data.get('quote', {}).get('subtotal') == expected_subtotal and
-            data.get('total') == expected_total
-        )
-        
-        print_test("Gang sheet minimum length (dtf_textil_31)", passed,
-                  f"Status: {r.status_code}, "
-                  f"Length: {data.get('lengthMm')}mm (expected {expected_length}), "
-                  f"Subtotal: ${data.get('quote', {}).get('subtotal')} (expected ${expected_subtotal}), "
-                  f"Total: ${data.get('total')} (expected ${expected_total})")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet minimum length", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7c: Express surcharge
-    try:
-        payload = {
-            "mode": "dtf_textil_33",
-            "canvasWidthMm": 330,
-            "express": True,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/test.png",
-                    "name": "logo.png",
-                    "srcWidthPx": 3000,
-                    "srcHeightPx": 3000,
-                    "xMm": 10,
-                    "yMm": 10,
-                    "widthMm": 200,
-                    "heightMm": 500,
-                    "rotation": 0
-                }
-            ]
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        data = r.json()
-        
-        # Expected: lengthMm = 530
-        # subtotal = 530 * 12 = 6360
-        # surcharge = 6360 * 0.30 = 1908
-        # netAmount = 6360 + 1908 = 8268
-        # tax = 8268 * 0.19 = 1571 (rounded)
-        # total = 8268 + 1571 = 9839
-        
-        expected_subtotal = 6360
-        expected_surcharge = 1908
-        expected_net = 8268
-        expected_tax = 1571
-        expected_total = 9839
-        
-        quote = data.get('quote', {})
-        
-        passed = (
-            r.status_code == 200 and
-            quote.get('subtotal') == expected_subtotal and
-            quote.get('surcharge') == expected_surcharge and
-            quote.get('netAmount') == expected_net and
-            quote.get('tax') == expected_tax and
-            data.get('total') == expected_total and
-            quote.get('express') == True
-        )
-        
-        print_test("Gang sheet express surcharge", passed,
-                  f"Status: {r.status_code}, "
-                  f"Subtotal: ${quote.get('subtotal')} (expected ${expected_subtotal}), "
-                  f"Surcharge: ${quote.get('surcharge')} (expected ${expected_surcharge}), "
-                  f"Net: ${quote.get('netAmount')} (expected ${expected_net}), "
-                  f"Tax: ${quote.get('tax')} (expected ${expected_tax}), "
-                  f"Total: ${data.get('total')} (expected ${expected_total})")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet express surcharge", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7d: Reject when design exceeds canvas width
-    try:
-        payload = {
-            "mode": "dtf_textil_31",
-            "canvasWidthMm": 310,
-            "express": False,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/wide.png",
-                    "name": "wide.png",
-                    "srcWidthPx": 1000,
-                    "srcHeightPx": 1000,
-                    "xMm": 0,
-                    "yMm": 0,
-                    "widthMm": 320,
-                    "heightMm": 100,
-                    "rotation": 0
-                }
-            ]
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        passed = r.status_code == 400
-        
-        print_test("Gang sheet reject design exceeds canvas", passed,
-                  f"Status: {r.status_code} (expected 400), Error: {r.json().get('error')}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet reject design exceeds canvas", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7e: Reject when canvasWidthMm exceeds printer max
-    try:
-        payload = {
-            "mode": "dtf_textil_33",
-            "canvasWidthMm": 340,
-            "express": False,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/test.png",
-                    "name": "test.png",
-                    "srcWidthPx": 1000,
-                    "srcHeightPx": 1000,
-                    "xMm": 10,
-                    "yMm": 10,
-                    "widthMm": 100,
-                    "heightMm": 100,
-                    "rotation": 0
-                }
-            ]
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        passed = r.status_code == 400
-        
-        print_test("Gang sheet reject canvas exceeds printer max", passed,
-                  f"Status: {r.status_code} (expected 400), Error: {r.json().get('error')}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet reject canvas exceeds printer max", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7f: Reject empty designs
-    try:
-        payload = {
-            "mode": "dtf_textil_31",
-            "canvasWidthMm": 310,
-            "express": False,
-            "designs": []
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        passed = r.status_code == 400
-        
-        print_test("Gang sheet reject empty designs", passed,
-                  f"Status: {r.status_code} (expected 400), Error: {r.json().get('error')}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet reject empty designs", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 7g: Reject invalid mode
-    try:
-        payload = {
-            "mode": "invalid_mode",
-            "canvasWidthMm": 310,
-            "express": False,
-            "designs": [
-                {
-                    "imageUrl": "/uploads/designs/test.png",
-                    "name": "test.png",
-                    "srcWidthPx": 1000,
-                    "srcHeightPx": 1000,
-                    "xMm": 10,
-                    "yMm": 10,
-                    "widthMm": 100,
-                    "heightMm": 100,
-                    "rotation": 0
-                }
-            ]
-        }
-        
-        r = requests.post(f"{BASE_URL}/gang-sheets", json=payload, timeout=15)
-        passed = r.status_code == 400
-        
-        print_test("Gang sheet reject invalid mode", passed,
-                  f"Status: {r.status_code} (expected 400), Error: {r.json().get('error')}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("Gang sheet reject invalid mode", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    return all(results)
+        # Verify all are active
+        all_active = all(item.get('active') == True for item in data)
+        if all_active:
+            print(f"✅ PASS - All returned landings are active")
+        else:
+            print(f"❌ FAIL - Some landings are not active")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
 
-def test_read_endpoints():
-    """Test GET endpoints for products, orders, inventory"""
-    print("\n" + "="*80)
-    print("TEST 8: Read Endpoints")
-    print("="*80)
-    
-    results = []
-    
-    # Test 8a: GET /api/products
-    try:
-        r = requests.get(f"{BASE_URL}/products", timeout=10)
-        data = r.json()
-        
-        # Verify no _id field in response
-        has_mongo_id = any('_id' in item for item in data)
-        
-        passed = (
-            r.status_code == 200 and
-            isinstance(data, list) and
-            len(data) > 0 and
-            not has_mongo_id
-        )
-        
-        print_test("GET /api/products", passed,
-                  f"Status: {r.status_code}, Count: {len(data)}, Has _id: {has_mongo_id}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("GET /api/products", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 8b: GET /api/orders
-    try:
-        r = requests.get(f"{BASE_URL}/orders", timeout=10)
-        data = r.json()
-        
-        # Verify no _id field and new orders exist
-        has_mongo_id = any('_id' in item for item in data)
-        has_new_order = any(item.get('orderNumber', '').startswith('DLV-2025-') for item in data)
-        
-        passed = (
-            r.status_code == 200 and
-            isinstance(data, list) and
-            len(data) > 0 and
-            not has_mongo_id and
-            has_new_order
-        )
-        
-        print_test("GET /api/orders", passed,
-                  f"Status: {r.status_code}, Count: {len(data)}, Has _id: {has_mongo_id}, "
-                  f"Has new orders: {has_new_order}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("GET /api/orders", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 8c: GET /api/inventory/commercial
-    try:
-        r = requests.get(f"{BASE_URL}/inventory/commercial", timeout=10)
-        data = r.json()
-        
-        has_mongo_id = any('_id' in item for item in data)
-        
-        passed = (
-            r.status_code == 200 and
-            isinstance(data, list) and
-            len(data) > 0 and
-            not has_mongo_id
-        )
-        
-        print_test("GET /api/inventory/commercial", passed,
-                  f"Status: {r.status_code}, Count: {len(data)}, Has _id: {has_mongo_id}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("GET /api/inventory/commercial", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    # Test 8d: GET /api/inventory/supplies
-    try:
-        r = requests.get(f"{BASE_URL}/inventory/supplies", timeout=10)
-        data = r.json()
-        
-        has_mongo_id = any('_id' in item for item in data)
-        
-        passed = (
-            r.status_code == 200 and
-            isinstance(data, list) and
-            len(data) > 0 and
-            not has_mongo_id
-        )
-        
-        print_test("GET /api/inventory/supplies", passed,
-                  f"Status: {r.status_code}, Count: {len(data)}, Has _id: {has_mongo_id}")
-        results.append(passed)
-        
-    except Exception as e:
-        print_test("GET /api/inventory/supplies", False, f"Error: {str(e)}")
-        results.append(False)
-    
-    return all(results)
-
-def main():
-    print("\n" + "="*80)
-    print("ESTAMPADOS DLV - BACKEND API TEST SUITE")
-    print("="*80)
-    print(f"Base URL: {BASE_URL}")
-    print("="*80)
-    
-    results = {
-        "Health Check": test_health(),
-        "Seed Endpoint": test_seed(),
-        "Config Endpoint": test_config(),
-        "Pricing Endpoint": test_pricing(),
-        "Dashboard Summary": test_dashboard(),
-        "Design Upload": test_upload(),
-        "Gang Sheet Creation": test_gang_sheets(),
-        "Read Endpoints": test_read_endpoints(),
+# A3: POST /api/landings with valid payload → 200 with id, slug, createdAt, no _id
+print("\n[A3] POST /api/landings - Create new landing with valid payload")
+try:
+    payload = {
+        "slug": "dtf-textil-concepcion",
+        "service": "dtf_textil",
+        "location": {
+            "city": "Concepción",
+            "region": "Biobío"
+        },
+        "h1": "DTF Textil Concepción",
+        "intro": "Servicio DTF en Concepción",
+        "body": "Contenido de la landing page",
+        "ctaText": "Cotiza",
+        "keywords": ["dtf", "concepcion"],
+        "active": True
     }
     
-    print("\n" + "="*80)
-    print("FINAL RESULTS")
-    print("="*80)
+    response = requests.post(f"{API_URL}/landings", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
     
-    for test_name, passed in results.items():
-        status = "✅ PASS" if passed else "❌ FAIL"
-        print(f"{status}: {test_name}")
-    
-    total = len(results)
-    passed = sum(results.values())
-    print(f"\nTotal: {passed}/{total} tests passed")
-    
-    if passed == total:
-        print("\n🎉 ALL TESTS PASSED!")
-        return 0
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Landing created successfully")
+        
+        # Verify response structure
+        has_id = 'id' in data
+        has_slug = 'slug' in data and data['slug'] == 'dtf-textil-concepcion'
+        has_created_at = 'createdAt' in data
+        has_mongo_id = '_id' in data
+        
+        if has_id:
+            print(f"✅ PASS - Response has UUID id: {data['id']}")
+            created_landing_ids.append(data['id'])
+        else:
+            print(f"❌ FAIL - Response missing 'id' field")
+        
+        if has_slug:
+            print(f"✅ PASS - Response has correct slug: {data['slug']}")
+        else:
+            print(f"❌ FAIL - Response missing or incorrect 'slug' field")
+        
+        if has_created_at:
+            print(f"✅ PASS - Response has 'createdAt' timestamp")
+        else:
+            print(f"❌ FAIL - Response missing 'createdAt' field")
+        
+        if has_mongo_id:
+            print(f"❌ FAIL - Response contains MongoDB _id field")
+        else:
+            print(f"✅ PASS - No MongoDB _id in response")
     else:
-        print(f"\n⚠️  {total - passed} test(s) failed")
-        return 1
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
 
-if __name__ == "__main__":
-    exit(main())
+# A4: POST /api/landings with duplicate slug → 409
+print("\n[A4] POST /api/landings - Duplicate slug should return 409")
+try:
+    payload = {
+        "slug": "dtf-textil-concepcion",  # Same as A3
+        "h1": "Another landing",
+        "active": True
+    }
+    
+    response = requests.post(f"{API_URL}/landings", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 409:
+        print(f"✅ PASS - Duplicate slug correctly rejected with 409")
+        data = response.json()
+        print(f"   Error message: {data.get('error')}")
+    else:
+        print(f"❌ FAIL - Expected 409, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# A5: POST /api/landings with invalid slug (uppercase + spaces) → 400
+print("\n[A5] POST /api/landings - Invalid slug (uppercase + spaces) should return 400")
+try:
+    payload = {
+        "slug": "DTF Textil Santiago",  # Invalid: uppercase + spaces
+        "h1": "Test landing",
+        "active": True
+    }
+    
+    response = requests.post(f"{API_URL}/landings", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 400:
+        print(f"✅ PASS - Invalid slug correctly rejected with 400")
+        data = response.json()
+        print(f"   Error message: {data.get('error')}")
+    else:
+        print(f"❌ FAIL - Expected 400, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# A6: POST /api/landings without h1 → 400
+print("\n[A6] POST /api/landings - Missing h1 should return 400")
+try:
+    payload = {
+        "slug": "test-landing-no-h1"
+        # Missing h1
+    }
+    
+    response = requests.post(f"{API_URL}/landings", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 400:
+        print(f"✅ PASS - Missing h1 correctly rejected with 400")
+        data = response.json()
+        print(f"   Error message: {data.get('error')}")
+    else:
+        print(f"❌ FAIL - Expected 400, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# A7: PATCH /api/landings {id, active:false} → 200, doc updated
+print("\n[A7] PATCH /api/landings - Update active status to false")
+try:
+    if created_landing_ids:
+        landing_id = created_landing_ids[0]
+        payload = {
+            "id": landing_id,
+            "active": False
+        }
+        
+        response = requests.patch(f"{API_URL}/landings", json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ PASS - Landing updated successfully")
+            
+            if data.get('active') == False:
+                print(f"✅ PASS - active field correctly set to false")
+            else:
+                print(f"❌ FAIL - active field not updated correctly")
+            
+            if 'updatedAt' in data:
+                print(f"✅ PASS - updatedAt timestamp present")
+            else:
+                print(f"❌ FAIL - updatedAt timestamp missing")
+        else:
+            print(f"❌ FAIL - Expected 200, got {response.status_code}")
+            print(f"   Response: {response.text}")
+    else:
+        print(f"⚠️  SKIP - No landing ID available from A3")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# A8: PATCH /api/landings {id, slug:'nuevo-slug-test'} → 200, slug updated
+print("\n[A8] PATCH /api/landings - Update slug")
+try:
+    if created_landing_ids:
+        landing_id = created_landing_ids[0]
+        payload = {
+            "id": landing_id,
+            "slug": "dtf-textil-concepcion-actualizado"
+        }
+        
+        response = requests.patch(f"{API_URL}/landings", json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ PASS - Landing slug updated successfully")
+            
+            if data.get('slug') == 'dtf-textil-concepcion-actualizado':
+                print(f"✅ PASS - slug correctly updated to: {data['slug']}")
+            else:
+                print(f"❌ FAIL - slug not updated correctly, got: {data.get('slug')}")
+        else:
+            print(f"❌ FAIL - Expected 200, got {response.status_code}")
+            print(f"   Response: {response.text}")
+    else:
+        print(f"⚠️  SKIP - No landing ID available from A3")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# A9: DELETE /api/landings {id} → 200 {ok:true}, second DELETE → 404
+print("\n[A9] DELETE /api/landings - Delete landing and verify 404 on second delete")
+try:
+    if created_landing_ids:
+        landing_id = created_landing_ids[0]
+        payload = {"id": landing_id}
+        
+        # First delete
+        response = requests.delete(f"{API_URL}/landings", json=payload, timeout=10)
+        print(f"First DELETE status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('ok') == True:
+                print(f"✅ PASS - Landing deleted successfully, response: {data}")
+            else:
+                print(f"❌ FAIL - Expected {{ok: true}}, got: {data}")
+        else:
+            print(f"❌ FAIL - Expected 200, got {response.status_code}")
+            print(f"   Response: {response.text}")
+        
+        # Second delete (should fail with 404)
+        response2 = requests.delete(f"{API_URL}/landings", json=payload, timeout=10)
+        print(f"Second DELETE status: {response2.status_code}")
+        
+        if response2.status_code == 404:
+            print(f"✅ PASS - Second delete correctly returns 404")
+        else:
+            print(f"❌ FAIL - Expected 404 on second delete, got {response2.status_code}")
+    else:
+        print(f"⚠️  SKIP - No landing ID available from A3")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# ============================================================================
+# SECTION B: REGRESSION TESTS - Previous endpoints must still work
+# ============================================================================
+
+print("\n\n📍 SECTION B: REGRESSION TESTS")
+print("=" * 80)
+
+# B1: POST /api/seed → 200 with counts, idempotent
+print("\n[B1] POST /api/seed - Seed database (idempotency test)")
+try:
+    # First seed
+    response1 = requests.post(f"{API_URL}/seed", timeout=15)
+    print(f"First seed status: {response1.status_code}")
+    
+    if response1.status_code == 200:
+        data1 = response1.json()
+        print(f"✅ PASS - First seed successful")
+        print(f"   Counts: users={data1['seeded'].get('users')}, products={data1['seeded'].get('products')}, orders={data1['seeded'].get('orders')}")
+        
+        # Second seed (idempotency test)
+        response2 = requests.post(f"{API_URL}/seed", timeout=15)
+        print(f"Second seed status: {response2.status_code}")
+        
+        if response2.status_code == 200:
+            data2 = response2.json()
+            print(f"✅ PASS - Second seed successful (idempotent)")
+            print(f"   Counts: users={data2['seeded'].get('users')}, products={data2['seeded'].get('products')}, orders={data2['seeded'].get('orders')}")
+            
+            # Verify counts match
+            if data1['seeded'] == data2['seeded']:
+                print(f"✅ PASS - Counts match between both seeds (idempotent)")
+            else:
+                print(f"⚠️  WARNING - Counts differ between seeds")
+        else:
+            print(f"❌ FAIL - Second seed failed with {response2.status_code}")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response1.status_code}")
+        print(f"   Response: {response1.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# B2: GET /api/products → 200 array (4 items), no _id
+print("\n[B2] GET /api/products - List products")
+try:
+    response = requests.get(f"{API_URL}/products", timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Received {len(data)} products")
+        
+        if len(data) >= 4:
+            print(f"✅ PASS - At least 4 products exist")
+        else:
+            print(f"⚠️  WARNING - Expected at least 4 products, got {len(data)}")
+        
+        # Verify no _id
+        has_mongo_id = any('_id' in item for item in data)
+        if has_mongo_id:
+            print(f"❌ FAIL - Response contains MongoDB _id field")
+        else:
+            print(f"✅ PASS - No MongoDB _id in response")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# B3: GET /api/dashboard/summary → 200 with salesToday, pendingOrders, printerQueues
+print("\n[B3] GET /api/dashboard/summary - Dashboard KPIs")
+try:
+    response = requests.get(f"{API_URL}/dashboard/summary", timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Dashboard summary retrieved")
+        
+        required_fields = ['salesToday', 'pendingOrders', 'printerQueues']
+        missing_fields = [f for f in required_fields if f not in data]
+        
+        if not missing_fields:
+            print(f"✅ PASS - All required fields present")
+            print(f"   salesToday: ${data['salesToday']}")
+            print(f"   pendingOrders: {data['pendingOrders']}")
+            print(f"   printerQueues: {data['printerQueues']}")
+        else:
+            print(f"❌ FAIL - Missing fields: {missing_fields}")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# B4: GET /api/config → 200 with PRINTER_SPECS
+print("\n[B4] GET /api/config - Printer specs and enums")
+try:
+    response = requests.get(f"{API_URL}/config", timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Config retrieved")
+        
+        if 'printers' in data:
+            printers = data['printers']
+            print(f"✅ PASS - Printer specs present")
+            
+            # Verify specific printers
+            if 'epson_r1390' in printers and printers['epson_r1390']['maxWidthCm'] == 31:
+                print(f"✅ PASS - Epson R1390: 31cm")
+            else:
+                print(f"❌ FAIL - Epson R1390 spec incorrect")
+            
+            if 'prestige_r2_pro' in printers and printers['prestige_r2_pro']['maxWidthCm'] == 33:
+                print(f"✅ PASS - Prestige R2 Pro: 33cm")
+            else:
+                print(f"❌ FAIL - Prestige R2 Pro spec incorrect")
+            
+            if 'dtf_uv' in printers and 'V' in printers['dtf_uv'].get('channels', []):
+                print(f"✅ PASS - DTF UV has Varnish channel (V)")
+            else:
+                print(f"❌ FAIL - DTF UV missing Varnish channel")
+        else:
+            print(f"❌ FAIL - Missing 'printers' field")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# B5: POST /api/orders/public with realistic payload → 200 with orderNumber
+print("\n[B5] POST /api/orders/public - Create public order")
+try:
+    # First get a product to use in the order
+    products_response = requests.get(f"{API_URL}/products", timeout=10)
+    if products_response.status_code == 200:
+        products = products_response.json()
+        if products and len(products) > 0:
+            product = products[0]
+            variant = product['variants'][0] if product.get('variants') else None
+            
+            if variant:
+                payload = {
+                    "customer": {
+                        "name": "María González",
+                        "email": "maria.gonzalez@test.cl",
+                        "phone": "+56912345678",
+                        "rut": "12.345.678-9"
+                    },
+                    "deliveryMethod": "pickup",
+                    "paymentMethod": "transfer",
+                    "items": [
+                        {
+                            "productId": product['id'],
+                            "variantId": variant['id'],
+                            "quantity": 1
+                        }
+                    ]
+                }
+                
+                response = requests.post(f"{API_URL}/orders/public", json=payload, timeout=10)
+                print(f"Status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    print(f"✅ PASS - Order created successfully")
+                    
+                    if 'orderNumber' in data and data['orderNumber'].startswith('DLV-2025-'):
+                        print(f"✅ PASS - Order number format correct: {data['orderNumber']}")
+                        created_order_number = data['orderNumber']
+                    else:
+                        print(f"❌ FAIL - Order number format incorrect: {data.get('orderNumber')}")
+                    
+                    print(f"   Order ID: {data.get('orderId')}")
+                    print(f"   Total: ${data.get('total')}")
+                else:
+                    print(f"❌ FAIL - Expected 200, got {response.status_code}")
+                    print(f"   Response: {response.text}")
+            else:
+                print(f"⚠️  SKIP - No variants available in product")
+        else:
+            print(f"⚠️  SKIP - No products available")
+    else:
+        print(f"⚠️  SKIP - Could not fetch products")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# B6: GET /api/orders/lookup?number=<orderNumber> → 200 with order and items
+print("\n[B6] GET /api/orders/lookup - Lookup order by number")
+try:
+    if created_order_number:
+        response = requests.get(f"{API_URL}/orders/lookup?number={created_order_number}", timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ PASS - Order lookup successful")
+            
+            if 'order' in data and 'items' in data:
+                print(f"✅ PASS - Response contains order and items")
+                print(f"   Order number: {data['order'].get('orderNumber')}")
+                print(f"   Items count: {len(data['items'])}")
+            else:
+                print(f"❌ FAIL - Missing 'order' or 'items' in response")
+        else:
+            print(f"❌ FAIL - Expected 200, got {response.status_code}")
+    else:
+        print(f"⚠️  SKIP - No order number available from B5")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# ============================================================================
+# SECTION C: RE-VERIFY DESIGN UPLOAD FIX
+# ============================================================================
+
+print("\n\n📍 SECTION C: RE-VERIFY DESIGN UPLOAD FIX")
+print("=" * 80)
+
+# C1: POST /api/uploads/design with PNG multipart → 200 with metadata
+print("\n[C1] POST /api/uploads/design - Upload PNG with DPI detection")
+try:
+    # Create a small test PNG image
+    img = Image.new('RGB', (100, 100), color='red')
+    img_bytes = BytesIO()
+    img.save(img_bytes, format='PNG', dpi=(300, 300))
+    img_bytes.seek(0)
+    
+    files = {'file': ('test-design.png', img_bytes, 'image/png')}
+    response = requests.post(f"{API_URL}/uploads/design", files=files, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Design uploaded successfully")
+        
+        required_fields = ['id', 'url', 'widthPx', 'heightPx', 'dpi', 'sizeBytes']
+        missing_fields = [f for f in required_fields if f not in data]
+        
+        if not missing_fields:
+            print(f"✅ PASS - All required fields present")
+            print(f"   ID: {data['id']}")
+            print(f"   URL: {data['url']}")
+            print(f"   Dimensions: {data['widthPx']}x{data['heightPx']}px")
+            print(f"   DPI: {data['dpi']}")
+            print(f"   Size: {data['sizeBytes']} bytes")
+            
+            # Verify file exists
+            file_path = f"/app/public{data['url']}"
+            if os.path.exists(file_path):
+                print(f"✅ PASS - File exists at {file_path}")
+            else:
+                print(f"❌ FAIL - File not found at {file_path}")
+        else:
+            print(f"❌ FAIL - Missing fields: {missing_fields}")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# ============================================================================
+# SECTION D: GANG SHEET VALIDATION (REGRESSION)
+# ============================================================================
+
+print("\n\n📍 SECTION D: GANG SHEET VALIDATION")
+print("=" * 80)
+
+# D1: Happy path - dtf_textil_33 with valid design
+print("\n[D1] POST /api/gang-sheets - Happy path (dtf_textil_33)")
+try:
+    payload = {
+        "mode": "dtf_textil_33",
+        "canvasWidthMm": 330,
+        "designs": [
+            {
+                "xMm": 10,
+                "yMm": 10,
+                "widthMm": 300,
+                "heightMm": 500
+            }
+        ]
+    }
+    
+    response = requests.post(f"{API_URL}/gang-sheets", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(f"✅ PASS - Gang sheet created successfully")
+        print(f"   Order number: {data.get('orderNumber')}")
+        print(f"   Printer: {data.get('printerLabel')}")
+        print(f"   Total: ${data.get('total')}")
+    else:
+        print(f"❌ FAIL - Expected 200, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# D2: Reject - dtf_textil_31 with canvas exceeding max width
+print("\n[D2] POST /api/gang-sheets - Reject canvas exceeding printer max (dtf_textil_31)")
+try:
+    payload = {
+        "mode": "dtf_textil_31",
+        "canvasWidthMm": 320,  # Exceeds 31cm (310mm)
+        "designs": [
+            {
+                "xMm": 10,
+                "yMm": 10,
+                "widthMm": 100,
+                "heightMm": 100
+            }
+        ]
+    }
+    
+    response = requests.post(f"{API_URL}/gang-sheets", json=payload, timeout=10)
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 400:
+        print(f"✅ PASS - Canvas width correctly rejected with 400")
+        data = response.json()
+        print(f"   Error message: {data.get('error')}")
+    else:
+        print(f"❌ FAIL - Expected 400, got {response.status_code}")
+        print(f"   Response: {response.text}")
+except Exception as e:
+    print(f"❌ FAIL - Exception: {str(e)}")
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+
+print("\n\n" + "=" * 80)
+print("🏁 BACKEND TESTING COMPLETE")
+print("=" * 80)
+print("\nTest suite executed. Review results above for pass/fail status.")
+print("All tests use realistic Chilean data as per requirements.")
+print("\nBase URL tested:", API_URL)

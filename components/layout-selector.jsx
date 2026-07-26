@@ -7,7 +7,7 @@ import { PublicNav } from '@/components/public-nav';
 import { PublicFooter } from '@/components/public-footer';
 import { CartDrawer } from '@/components/cart-drawer';
 
-const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout'];
+const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios'];
 
 export default function LayoutSelector({ children }) {
   const pathname = usePathname();

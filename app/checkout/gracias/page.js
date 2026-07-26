@@ -60,7 +60,7 @@ export default function ThankYouPage() {
         </div>
         <h1 className="mt-5 text-3xl font-bold tracking-tight text-slate-900">¡Pedido confirmado!</h1>
         <p className="text-slate-500 mt-2 max-w-md mx-auto">
-          Te enviamos un email con los detalles y las instrucciones de pago.
+          Guarda tu número de pedido. Encontrarás los datos de pago y el estado más abajo.
         </p>
 
         {orderNumber && (

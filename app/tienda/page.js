@@ -75,7 +75,7 @@ export default function TiendaPage() {
             <Button size="lg" className="bg-orange-500 hover:bg-orange-600" asChild>
               <Link href="/gang-sheet"><Layers className="h-4 w-4 mr-2" />Sube tu diseño</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-slate-600 text-white hover:bg-slate-800" asChild>
+            <Button size="lg" variant="outline" className="bg-transparent border-slate-500 text-white hover:bg-slate-800 hover:text-white" asChild>
               <a href="#catalogo">Ver catálogo <ArrowRight className="h-4 w-4 ml-2" /></a>
             </Button>
           </div>

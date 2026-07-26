@@ -143,11 +143,11 @@ backend:
 
   - task: "Design image upload with DPI detection"
     implemented: true
-    working: false
+    working: true
     file: "app/api/[[...path]]/route.js"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -155,6 +155,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "❌ FAIL - CRITICAL BUG: Variable name collision in route.js line 27. The destructured `path` variable from params shadows the imported Node.js `path` module. When code tries to call `path.join(UPLOAD_DIR, filename)` on line 312, it's actually calling array.join() instead of path.join(), resulting in malformed filepath 'uploads/app/public/uploads/designsdesign'. FIX: Rename destructured variable to `routePath` on line 27: `const { path: routePath = [] } = await params;` and update line 28 to use `routePath.join('/')`."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - FIX VERIFIED (Iteration 3). Main agent applied the fix: line 27 now uses `const { path: routePath = [] }` and line 28 uses `routePath.join('/')`. Tested POST /api/uploads/design with 100x100px PNG at 300 DPI. Response: {id: UUID, url: '/uploads/designs/<uuid>.png', widthPx: 100, heightPx: 100, dpi: 300, sizeBytes: 308}. File verified to exist at /app/public/uploads/designs/. Sharp metadata extraction working correctly. No MongoDB _id in response."
 
   - task: "Gang sheet creation with hardware validation"
     implemented: true
@@ -215,6 +218,39 @@ backend:
       - working: true
         agent: "testing"
         comment: "✅ PASS - Tested all read endpoints: GET /api/products (4 items), GET /api/orders (8 items, includes new orders with DLV-2025-* format), GET /api/inventory/commercial (8 items), GET /api/inventory/supplies (9 items). All responses correctly strip MongoDB _id field and use UUID ids exclusively. No _id fields found in any response."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS (Iteration 3 regression) - Re-tested GET /api/products: 4 items, no _id. GET /api/dashboard/summary: salesToday=$119870, pendingOrders=4, printerQueues correct. All regression tests passing."
+
+  - task: "Landings CRUD endpoints (/api/landings)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 3. Full CRUD for landing_pages collection: GET /api/landings (with ?active=true filter), POST /api/landings (validates slug format [a-z0-9-]+, h1 required, checks duplicates), PATCH /api/landings (partial update with slug uniqueness validation), DELETE /api/landings. All use UUID v4, strip _id, timestamps createdAt/updatedAt. 4 landings seeded: dtf-textil-santiago, dtf-uv-santiago, dtf-textil-valparaiso, dtf-por-metro-chile."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive CRUD testing (9 test cases): (A1) GET /api/landings → 200, 4 landings with expected slugs, no _id ✓ (A2) GET ?active=true → 200, only active ✓ (A3) POST valid payload → 200, UUID id, slug, createdAt, no _id ✓ (A4) POST duplicate slug → 409 'Ya existe una landing con ese slug' ✓ (A5) POST invalid slug 'DTF Textil Santiago' → 400 'slug inválido' ✓ (A6) POST missing h1 → 400 'slug y h1 son obligatorios' ✓ (A7) PATCH {id, active:false} → 200, updated with updatedAt ✓ (A8) PATCH {id, slug:'nuevo-slug'} → 200, slug updated ✓ (A9) DELETE {id} → 200 {ok:true}, second DELETE → 404 ✓. All validations working correctly. Slug format strictly enforced. No MongoDB _id leakage."
+
+  - task: "Public order creation (/api/orders/public)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/orders/public creates orders from web checkout. Validates customer (name, email required), items array not empty, deliveryMethod (pickup/shipping), resolves products + variants, checks stock availability, calculates totals (subtotal, shipping $3990 if applicable, IVA 19%), generates orderNumber DLV-2025-XXXXXX, creates order + order_items, reserves stock (increments reservedQuantity), logs to stock_movements. Returns {ok, orderId, orderNumber, total, paymentMethod, deliveryMethod}."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS (Iteration 3 regression) - Tested POST /api/orders/public with realistic Chilean customer data (María González, +56912345678, RUT 12.345.678-9). Order created successfully: orderNumber=DLV-2025-000305, total=$5990. GET /api/orders/lookup?number=DLV-2025-000305 → 200 with order and 1 item. Stock reservation working. Order number format correct."
 
 frontend:
   - task: "Dashboard with KPIs and printer status"
@@ -247,15 +283,61 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 3
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Design image upload with DPI detection"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      # Iteración 3 - QA/Fix session (26-jul-2026)
+
+      El usuario pidió una revisión general "que todo funcione bien y que no haya errores".
+      
+      Cambios aplicados:
+      1. Fix UI: botón "Ver catálogo" en /tienda hero era invisible (bg blanco + texto blanco). Ahora usa bg-transparent.
+      2. Fix routing: /servicios y /servicios/[slug] ahora usan el layout público (PublicNav + Footer) en vez del layout admin. Se añadió '/servicios' a PUBLIC_PREFIXES en components/layout-selector.jsx.
+      3. NUEVOS ENDPOINTS - /api/landings CRUD:
+         - GET /api/landings (con filtro opcional ?active=true)
+         - POST /api/landings (valida slug único, formato [a-z0-9-]+, h1 obligatorio)
+         - PATCH /api/landings (parcial, valida slug si cambia)
+         - DELETE /api/landings
+         Todos usan UUID v4, striping de _id, timestamps createdAt/updatedAt.
+      4. Sembradas 4 landings SEO de ejemplo vía POST: 
+         - /servicios/dtf-textil-santiago 
+         - /servicios/dtf-uv-santiago
+         - /servicios/dtf-textil-valparaiso
+         - /servicios/dtf-por-metro-chile
+      5. Sidebar admin: se añadió item "Landings SEO" (icono Globe) en sección Sistema.
+      6. Checkout copy fixes: los métodos WebPay y MercadoPago se muestran DESHABILITADOS con badge "PRÓXIMO RELEASE"; se muestra RadioGroupItem disabled y opacidad reducida. Validación agregada al submit que rechaza métodos no habilitados. Textos engañosos removidos ("Te enviamos email…" que no ocurre).
+
+      # BACKEND TESTING NEEDED:
+      Foco:
+      A) NEW: Landings CRUD end-to-end
+         - POST /api/landings con payload válido → 200 + doc con id UUID
+         - POST /api/landings con slug duplicado → 409
+         - POST /api/landings con slug inválido (con espacios o mayúsculas) → 400
+         - POST /api/landings sin h1 → 400
+         - GET /api/landings → array con al menos las 4 sembradas
+         - GET /api/landings?active=true → solo las activas
+         - PATCH /api/landings {id, active:false} → doc actualizado
+         - PATCH /api/landings {id, slug:'nuevo-slug'} → slug actualizado (validar único)
+         - DELETE /api/landings {id} → 200 + verificar que ya no aparece en GET
+      B) REGRESSION: Verificar que endpoints previos siguen funcionando:
+         - POST /api/orders/public (crear orden con paymentMethod='transfer')
+         - GET /api/orders/lookup?number=<orderNumber>
+         - GET /api/products, /api/dashboard/summary, /api/config
+         - POST /api/seed (idempotencia - debe seguir insertando 4 productos, 5 pedidos)
+      C) Ya reportado como fallo antes → RE-VERIFY:
+         - POST /api/uploads/design con PNG multipart → debería funcionar ahora (bug de shadowing 'path' ya fixed en línea 27 de route.js con 'routePath').
+
+      Base URL: process.env.NEXT_PUBLIC_BASE_URL + /api
+      Todos los IDs son UUID v4, respuestas no contienen _id.
 
 agent_communication:
   - agent: "main"
@@ -438,3 +520,54 @@ agent_communication_v2:
       **DATA INTEGRITY**: All responses use UUID ids, no MongoDB _id fields leaked.
       
       Test file: /app/backend_test.py (comprehensive test suite with 8 test groups)
+
+
+  - agent: "testing"
+    message: |
+      # ITERATION 3 BACKEND TESTING COMPLETE ✅
+      
+      Tested all iteration 3 changes + regression suite. Results: 18/18 tests PASS.
+      
+      ## A) NEW /api/landings CRUD (9/9 PASS) ✅
+      1. GET /api/landings → 200, 4 landings (dtf-textil-santiago, dtf-uv-santiago, dtf-textil-valparaiso, dtf-por-metro-chile), no _id ✅
+      2. GET /api/landings?active=true → 200, only active landings ✅
+      3. POST /api/landings valid payload → 200, UUID id, slug, createdAt, no _id ✅
+      4. POST duplicate slug → 409 "Ya existe una landing con ese slug" ✅
+      5. POST invalid slug "DTF Textil Santiago" → 400 "slug inválido" ✅
+      6. POST missing h1 → 400 "slug y h1 son obligatorios" ✅
+      7. PATCH {id, active:false} → 200, updated with updatedAt ✅
+      8. PATCH {id, slug:'nuevo-slug'} → 200, slug updated ✅
+      9. DELETE {id} → 200 {ok:true}, second DELETE → 404 ✅
+      
+      **Validation**: Slug format [a-z0-9-]+ strictly enforced. Duplicate detection working. All CRUD operations correct.
+      
+      ## B) REGRESSION TESTS (6/6 PASS) ✅
+      1. POST /api/seed → 200, idempotent (users=3, products=4, orders=5) ✅
+      2. GET /api/products → 200, 4 items, no _id ✅
+      3. GET /api/dashboard/summary → 200, salesToday=$119870, pendingOrders=4, printerQueues correct ✅
+      4. GET /api/config → 200, Epson 31cm, Prestige 33cm, DTF UV with Varnish channel ✅
+      5. POST /api/orders/public → 200, orderNumber=DLV-2025-000305, total=$5990 ✅
+      6. GET /api/orders/lookup → 200, order and items retrieved ✅
+      
+      ## C) FIX VERIFICATION (1/1 PASS) ✅
+      1. POST /api/uploads/design → 200, all metadata present (id, url, widthPx=100, heightPx=100, dpi=300, sizeBytes=308), file exists at /app/public/uploads/designs/ ✅
+      
+      **FIX CONFIRMED**: Main agent's fix for path shadowing bug is working. Line 27 now uses `routePath`, Sharp metadata extraction working correctly.
+      
+      ## D) GANG SHEET VALIDATION (2/2 PASS) ✅
+      1. Happy path dtf_textil_33 → 200, orderNumber=DLV-2025-000206, total=$7568 ✅
+      2. Reject canvas exceeding max (320mm > 310mm) → 400 "Ancho excede 31cm" ✅
+      
+      **Hardware validation**: Strict printer width constraints enforced correctly.
+      
+      ## SUMMARY
+      - **NO CRITICAL ISSUES FOUND** ✅
+      - All new /api/landings endpoints working perfectly
+      - All previous endpoints still working (regression pass)
+      - Design upload fix verified and working
+      - Data integrity: No MongoDB _id leakage, all UUIDs correct
+      - Validation: All error cases handled correctly (400, 404, 409)
+      - Chilean data format: RUT, phone, CLP amounts all correct
+      
+      Test file: /app/backend_test.py (18 comprehensive test cases)
+      Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
