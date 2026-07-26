@@ -47,8 +47,11 @@ async function handle(request, { params }) {
     // GET /api/config — expone specs de hardware + enums al frontend
     // ------------------------------------------------------------
     if (route === '/config' && method === 'GET') {
+      const dynamicPrinters = await db.collection(COLLECTIONS.PRINTERS)
+        .find({}).sort({ sortOrder: 1, createdAt: 1 }).toArray();
       return cors(NextResponse.json({
-        printers: PRINTER_SPECS,
+        printers: PRINTER_SPECS,             // legacy, retrocompatibilidad
+        printersDynamic: strip(dynamicPrinters),
         enums: { ROLES, SUPPLY_TYPE, PRODUCT_CATEGORY, ORDER_STATUS, PRODUCTION_STATUS, PRIORITY, SALES_CHANNEL, PAYMENT_METHOD },
       }));
     }
@@ -300,12 +303,44 @@ async function handle(request, { params }) {
       ];
       await db.collection(COLLECTIONS.TAXONOMIES).insertMany(taxonomies);
 
+      // PRINTERS (equipos configurables) — 3 canónicos por defecto
+      const printers = [
+        {
+          id: uuidv4(), code: 'epson_r1390', label: 'Epson R1390', shortLabel: 'Epson',
+          type: 'dtf_textil', widthMm: 310, dpi: 300,
+          supportsWhite: true, supportsVarnish: false,
+          pricePerMm: 10, minLengthMm: 100, dailyCapacityM: 30,
+          color: 'from-blue-500 to-indigo-600',
+          notes: 'Pedidos chicos, calibración precisa',
+          active: true, sortOrder: 1, createdAt: now, updatedAt: now,
+        },
+        {
+          id: uuidv4(), code: 'prestige_r2_pro', label: 'Prestige R2 Pro', shortLabel: 'Prestige',
+          type: 'dtf_textil', widthMm: 330, dpi: 300,
+          supportsWhite: true, supportsVarnish: false,
+          pricePerMm: 12, minLengthMm: 100, dailyCapacityM: 80,
+          color: 'from-purple-500 to-fuchsia-600',
+          notes: 'Producción diaria en volumen',
+          active: true, sortOrder: 2, createdAt: now, updatedAt: now,
+        },
+        {
+          id: uuidv4(), code: 'dtf_uv', label: 'DTF UV', shortLabel: 'UV',
+          type: 'dtf_uv', widthMm: 600, dpi: 300,
+          supportsWhite: true, supportsVarnish: true,
+          pricePerMm: 28, minLengthMm: 100, dailyCapacityM: 25,
+          color: 'from-emerald-500 to-teal-600',
+          notes: 'Rígidos: madera, acrílico, metal, vidrio',
+          active: true, sortOrder: 3, createdAt: now, updatedAt: now,
+        },
+      ];
+      await db.collection(COLLECTIONS.PRINTERS).insertMany(printers);
+
       return cors(NextResponse.json({
         ok: true,
         seeded: {
           users: 3, products: products.length, commercialStock: commercialStock.length,
           supplies: supplies.length, orders: orders.length, orderItems: orderItems.length, productionQueue: queue.length,
-          taxonomies: taxonomies.length,
+          taxonomies: taxonomies.length, printers: printers.length,
         },
       }));
     }
@@ -382,17 +417,49 @@ async function handle(request, { params }) {
 
     // ------------------------------------------------------------
     // POST /api/gang-sheets  — persiste pliego y crea pedido
+    // Soporta:
+    //  - Modos legacy: mode='dtf_textil_31' | 'dtf_textil_33' | 'dtf_uv'
+    //  - Printers dinámicos: printerCode='<code>' (desde tabla printers)
     // ------------------------------------------------------------
     if (route === '/gang-sheets' && method === 'POST') {
       const body = await request.json();
-      const { mode, canvasWidthMm, express = false, designs = [] } = body;
-      if (!mode || !PRICING[mode]) return cors(NextResponse.json({ error: 'modo inválido' }, { status: 400 }));
+      const { mode, printerCode, canvasWidthMm, express = false, designs = [] } = body;
       if (!designs.length) return cors(NextResponse.json({ error: 'sin diseños' }, { status: 400 }));
 
-      const cfg = PRICING[mode];
+      // Resolver configuración: printer dinámico tiene prioridad sobre mode legacy
+      let cfg;         // { label, printer(code), canvasWidthCm, pricePerMm, minLengthMm, color, type }
+      let resolvedMode;
+      let printerDoc = null;
+
+      if (printerCode) {
+        printerDoc = await db.collection(COLLECTIONS.PRINTERS).findOne({ code: printerCode, active: true });
+        if (!printerDoc) {
+          return cors(NextResponse.json({ error: `Equipo "${printerCode}" no encontrado o inactivo` }, { status: 400 }));
+        }
+        cfg = {
+          label: `${printerDoc.label} · ${(printerDoc.widthMm / 10).toFixed(0)} cm`,
+          printer: printerDoc.code,
+          canvasWidthCm: printerDoc.widthMm / 10,
+          pricePerMm: printerDoc.pricePerMm,
+          minLengthMm: printerDoc.minLengthMm || 100,
+          color: printerDoc.color || 'from-slate-500 to-slate-700',
+          type: printerDoc.type,
+        };
+        // Detectar modo canónico si hace match, para compatibilidad
+        if (printerDoc.code === 'epson_r1390') resolvedMode = 'dtf_textil_31';
+        else if (printerDoc.code === 'prestige_r2_pro') resolvedMode = 'dtf_textil_33';
+        else if (printerDoc.code === 'dtf_uv') resolvedMode = 'dtf_uv';
+        else resolvedMode = `printer_${printerDoc.code}`;
+      } else {
+        if (!mode || !PRICING[mode]) return cors(NextResponse.json({ error: 'modo inválido' }, { status: 400 }));
+        cfg = { ...PRICING[mode], type: mode === 'dtf_uv' ? 'dtf_uv' : 'dtf_textil' };
+        resolvedMode = mode;
+        // Intentar enriquecer con doc de printer si existe (para etiqueta)
+        printerDoc = await db.collection(COLLECTIONS.PRINTERS).findOne({ code: cfg.printer });
+      }
 
       // Validación estricta de hardware
-      if (mode !== 'dtf_uv' && canvasWidthMm / 10 > cfg.canvasWidthCm) {
+      if (cfg.type !== 'dtf_uv' && canvasWidthMm / 10 > cfg.canvasWidthCm) {
         return cors(NextResponse.json({ error: `Ancho excede ${cfg.canvasWidthCm}cm para ${cfg.label}` }, { status: 400 }));
       }
       for (const d of designs) {
@@ -404,9 +471,23 @@ async function handle(request, { params }) {
       // Cotización server-side (verdad autoritativa)
       const maxBottom = designs.reduce((m, d) => Math.max(m, d.yMm + d.heightMm), 0);
       const lengthMm = Math.max(maxBottom + 20, 300);
-      const q = quote({ mode, lengthMm, express });
 
-      const db = await getDb();
+      // Si viene printer dinámico no canónico, calcular quote manualmente
+      let q;
+      if (PRICING[resolvedMode]) {
+        q = quote({ mode: resolvedMode, lengthMm, express });
+      } else {
+        // Cálculo dinámico usando specs del printer
+        const billableMm = Math.max(lengthMm, cfg.minLengthMm);
+        const subtotal = billableMm * cfg.pricePerMm;
+        const surcharge = express ? Math.round(subtotal * 0.30) : 0;
+        const netAmount = subtotal + surcharge;
+        const tax = Math.round(netAmount * 0.19);
+        const total = netAmount + tax;
+        q = { mode: resolvedMode, label: cfg.label, lengthMm, billableMm,
+              pricePerMm: cfg.pricePerMm, subtotal, surcharge, netAmount, tax, total, express };
+      }
+
       const now = new Date();
 
       // Crear gang sheet
@@ -415,7 +496,7 @@ async function handle(request, { params }) {
         id: gangSheetId,
         orderId: null,
         userId: null,
-        type: mode === 'dtf_uv' ? 'dtf_uv' : 'dtf_textil',
+        type: cfg.type,
         printerTarget: cfg.printer,
         canvasWidthCm: cfg.canvasWidthCm,
         canvasLengthMm: lengthMm,
@@ -490,12 +571,13 @@ async function handle(request, { params }) {
       // Vincular gang sheet a la orden
       await db.collection(COLLECTIONS.GANG_SHEETS).updateOne({ id: gangSheetId }, { $set: { orderId } });
 
+      const legacyLabel = PRINTER_SPECS[cfg.printer]?.name || printerDoc?.label || cfg.printer;
       return cors(NextResponse.json({
         ok: true,
         gangSheetId,
         orderId,
         orderNumber,
-        printerLabel: PRINTER_SPECS[cfg.printer].name,
+        printerLabel: legacyLabel,
         printer: cfg.printer,
         lengthMm,
         total: q.total,
@@ -1266,6 +1348,119 @@ async function handle(request, { params }) {
       if (!body.id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
       const r = await db.collection(COLLECTIONS.LANDING_PAGES).deleteOne({ id: body.id });
       if (!r.deletedCount) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+      return cors(NextResponse.json({ ok: true }));
+    }
+
+    // ------------------------------------------------------------
+    // Printers CRUD — /api/printers (equipos configurables)
+    // ------------------------------------------------------------
+    if (route === '/printers' && method === 'GET') {
+      const url = new URL(request.url);
+      const activeOnly = url.searchParams.get('active') === 'true';
+      const q = activeOnly ? { active: true } : {};
+      const rows = await db.collection(COLLECTIONS.PRINTERS)
+        .find(q).sort({ sortOrder: 1, createdAt: 1 }).toArray();
+      return cors(NextResponse.json(strip(rows)));
+    }
+
+    if (route === '/printers' && method === 'POST') {
+      const body = await request.json();
+      const code = (body.code || '').trim().toLowerCase();
+      if (!code || !body.label) {
+        return cors(NextResponse.json({ error: 'code y label son obligatorios' }, { status: 400 }));
+      }
+      if (!/^[a-z0-9_-]+$/.test(code)) {
+        return cors(NextResponse.json({ error: 'code inválido (usa a-z, 0-9, guion, guion bajo)' }, { status: 400 }));
+      }
+      const dup = await db.collection(COLLECTIONS.PRINTERS).findOne({ code });
+      if (dup) return cors(NextResponse.json({ error: 'ya existe un equipo con ese code' }, { status: 409 }));
+
+      const type = body.type === 'dtf_uv' ? 'dtf_uv' : 'dtf_textil';
+      const widthMm = Number.parseInt(body.widthMm, 10);
+      if (!widthMm || widthMm < 50 || widthMm > 2000) {
+        return cors(NextResponse.json({ error: 'widthMm inválido (rango 50–2000)' }, { status: 400 }));
+      }
+      const pricePerMm = Number.parseInt(body.pricePerMm, 10);
+      if (!pricePerMm || pricePerMm < 1) {
+        return cors(NextResponse.json({ error: 'pricePerMm inválido (CLP por mm, > 0)' }, { status: 400 }));
+      }
+
+      const now = new Date();
+      const doc = {
+        id: uuidv4(),
+        code,
+        label: body.label,
+        shortLabel: body.shortLabel || body.label,
+        type,
+        widthMm,
+        dpi: Number.parseInt(body.dpi, 10) || 300,
+        supportsWhite: body.supportsWhite !== false,
+        supportsVarnish: type === 'dtf_uv' ? !!body.supportsVarnish : false,
+        pricePerMm,
+        minLengthMm: Number.parseInt(body.minLengthMm, 10) || 100,
+        dailyCapacityM: Math.max(0, Number.parseInt(body.dailyCapacityM, 10) || 0),
+        color: body.color || 'from-slate-500 to-slate-700',
+        notes: body.notes || '',
+        active: body.active !== false,
+        sortOrder: Number.parseInt(body.sortOrder, 10) || 99,
+        createdAt: now, updatedAt: now,
+      };
+      await db.collection(COLLECTIONS.PRINTERS).insertOne(doc);
+      return cors(NextResponse.json(strip(doc)));
+    }
+
+    if (route === '/printers' && method === 'PATCH') {
+      const body = await request.json();
+      if (!body.id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      const update = { updatedAt: new Date() };
+      const strFields = ['label', 'shortLabel', 'color', 'notes'];
+      const numFields = ['widthMm', 'dpi', 'pricePerMm', 'minLengthMm', 'dailyCapacityM', 'sortOrder'];
+      const boolFields = ['supportsWhite', 'supportsVarnish', 'active'];
+
+      for (const k of strFields) if (k in body) update[k] = String(body[k] || '');
+      for (const k of numFields) if (k in body) {
+        const n = Number.parseInt(body[k], 10);
+        if (Number.isNaN(n)) return cors(NextResponse.json({ error: `${k} inválido` }, { status: 400 }));
+        update[k] = n;
+      }
+      for (const k of boolFields) if (k in body) update[k] = !!body[k];
+
+      if ('type' in body) {
+        const t = body.type === 'dtf_uv' ? 'dtf_uv' : 'dtf_textil';
+        update.type = t;
+        if (t !== 'dtf_uv') update.supportsVarnish = false;
+      }
+      if ('code' in body) {
+        const c = String(body.code || '').trim().toLowerCase();
+        if (!/^[a-z0-9_-]+$/.test(c)) return cors(NextResponse.json({ error: 'code inválido' }, { status: 400 }));
+        const dup = await db.collection(COLLECTIONS.PRINTERS).findOne({ code: c, id: { $ne: body.id } });
+        if (dup) return cors(NextResponse.json({ error: 'code ya usado' }, { status: 409 }));
+        update.code = c;
+      }
+      if (update.widthMm !== undefined && (update.widthMm < 50 || update.widthMm > 2000)) {
+        return cors(NextResponse.json({ error: 'widthMm fuera de rango 50–2000' }, { status: 400 }));
+      }
+
+      const r = await db.collection(COLLECTIONS.PRINTERS).updateOne({ id: body.id }, { $set: update });
+      if (!r.matchedCount) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+      const updated = await db.collection(COLLECTIONS.PRINTERS).findOne({ id: body.id });
+      return cors(NextResponse.json(strip(updated)));
+    }
+
+    if (route === '/printers' && method === 'DELETE') {
+      const body = await request.json();
+      if (!body.id) return cors(NextResponse.json({ error: 'id requerido' }, { status: 400 }));
+      // No permitir borrar si tiene items en cola. Mejor sugerir desactivar.
+      const printer = await db.collection(COLLECTIONS.PRINTERS).findOne({ id: body.id });
+      if (!printer) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+      const inUse = await db.collection(COLLECTIONS.PRODUCTION_QUEUE)
+        .countDocuments({ printer: printer.code });
+      if (inUse > 0) {
+        return cors(NextResponse.json({
+          error: `No se puede eliminar: el equipo tiene ${inUse} trabajo(s) en cola. Desactívalo (toggle) o mueve los trabajos primero.`,
+        }, { status: 409 }));
+      }
+      await db.collection(COLLECTIONS.PRINTERS).deleteOne({ id: body.id });
       return cors(NextResponse.json({ ok: true }));
     }
 

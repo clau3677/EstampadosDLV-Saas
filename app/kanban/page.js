@@ -29,10 +29,11 @@ const STATUSES = [
   { key: 'ready',     label: 'Listo',         color: 'text-emerald-600', dot: 'bg-emerald-500' },
 ];
 
-const PRINTERS = [
-  { key: 'epson_r1390',     label: 'Epson R1390',     shortLabel: 'Epson',    color: 'from-blue-500 to-indigo-600' },
-  { key: 'prestige_r2_pro', label: 'Prestige R2 Pro', shortLabel: 'Prestige', color: 'from-purple-500 to-fuchsia-600' },
-  { key: 'dtf_uv',          label: 'DTF UV',          shortLabel: 'UV',       color: 'from-emerald-500 to-teal-600' },
+// Fallback usado solo si la API de printers está caída
+const FALLBACK_PRINTERS = [
+  { code: 'epson_r1390',     label: 'Epson R1390',     shortLabel: 'Epson',    color: 'from-blue-500 to-indigo-600' },
+  { code: 'prestige_r2_pro', label: 'Prestige R2 Pro', shortLabel: 'Prestige', color: 'from-purple-500 to-fuchsia-600' },
+  { code: 'dtf_uv',          label: 'DTF UV',          shortLabel: 'UV',       color: 'from-emerald-500 to-teal-600' },
 ];
 
 function timeAgo(date) {
@@ -47,8 +48,8 @@ function timeAgo(date) {
   return `hace ${d} d`;
 }
 
-function QueueCard({ item, isDragging }) {
-  const printer = PRINTERS.find(p => p.key === item.printer);
+function QueueCard({ item, isDragging, printersMap }) {
+  const printer = printersMap[item.printer] || { color: 'from-slate-500 to-slate-700', label: item.printer };
   const isExpress = item.priority === 'express';
 
   return (
@@ -100,7 +101,7 @@ function QueueCard({ item, isDragging }) {
   );
 }
 
-function DraggableCard({ item }) {
+function DraggableCard({ item, printersMap }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: { item },
@@ -110,12 +111,12 @@ function DraggableCard({ item }) {
     : undefined;
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
-      <QueueCard item={item} isDragging={isDragging} />
+      <QueueCard item={item} isDragging={isDragging} printersMap={printersMap} />
     </div>
   );
 }
 
-function StatusColumn({ status, items }) {
+function StatusColumn({ status, items, printersMap }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.key });
   return (
     <div
@@ -134,7 +135,7 @@ function StatusColumn({ status, items }) {
       </div>
 
       <div className="flex-1 space-y-2">
-        {items.map(item => <DraggableCard key={item.id} item={item} />)}
+        {items.map(item => <DraggableCard key={item.id} item={item} printersMap={printersMap} />)}
         {items.length === 0 && (
           <div className="h-24 flex items-center justify-center text-xs text-slate-400 italic">Vacío</div>
         )}
@@ -145,6 +146,7 @@ function StatusColumn({ status, items }) {
 
 export default function KanbanPage() {
   const [items, setItems] = useState([]);
+  const [printers, setPrinters] = useState(FALLBACK_PRINTERS);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
   const [printerFilter, setPrinterFilter] = useState('all');
@@ -154,8 +156,15 @@ export default function KanbanPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/production/queue');
-      if (r.ok) setItems(await r.json());
+      const [rq, rp] = await Promise.all([
+        fetch('/api/production/queue'),
+        fetch('/api/printers?active=true'),
+      ]);
+      if (rq.ok) setItems(await rq.json());
+      if (rp.ok) {
+        const list = await rp.json();
+        if (Array.isArray(list) && list.length > 0) setPrinters(list);
+      }
     } catch (e) {
       toast.error('Error al cargar cola');
     } finally {
@@ -165,11 +174,17 @@ export default function KanbanPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Map code → printer para lookup rápido en QueueCard
+  const printersMap = useMemo(() => {
+    const m = {};
+    printers.forEach(p => { m[p.code || p.key] = p; });
+    return m;
+  }, [printers]);
+
   const filtered = useMemo(() => {
     if (printerFilter === 'all') return items;
     return items.filter(i => i.printer === printerFilter);
   }, [items, printerFilter]);
-
   const byStatus = useMemo(() => {
     const map = { received: [], printing: [], curing: [], ready: [] };
     filtered.forEach(i => (map[i.status] || (map[i.status] = [])).push(i));
@@ -234,12 +249,12 @@ export default function KanbanPage() {
 
       {/* Filtros por impresora */}
       <Tabs value={printerFilter} onValueChange={setPrinterFilter}>
-        <TabsList className="bg-slate-100/60">
+        <TabsList className="bg-slate-100/60 flex-wrap h-auto">
           <TabsTrigger value="all" className="text-xs">Todas ({items.length})</TabsTrigger>
-          {PRINTERS.map(p => (
-            <TabsTrigger key={p.key} value={p.key} className="text-xs">
+          {printers.map(p => (
+            <TabsTrigger key={p.code || p.key} value={p.code || p.key} className="text-xs">
               <div className={`h-3 w-3 rounded bg-gradient-to-br ${p.color} mr-1.5`} />
-              {p.label} ({items.filter(i => i.printer === p.key).length})
+              {p.label} ({items.filter(i => i.printer === (p.code || p.key)).length})
             </TabsTrigger>
           ))}
         </TabsList>
@@ -269,11 +284,11 @@ export default function KanbanPage() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {STATUSES.map(s => (
-              <StatusColumn key={s.key} status={s} items={byStatus[s.key] || []} />
+              <StatusColumn key={s.key} status={s} items={byStatus[s.key] || []} printersMap={printersMap} />
             ))}
           </div>
           <DragOverlay>
-            {activeItem ? <QueueCard item={activeItem} /> : null}
+            {activeItem ? <QueueCard item={activeItem} printersMap={printersMap} /> : null}
           </DragOverlay>
         </DndContext>
       )}

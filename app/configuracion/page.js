@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Settings2, Plus, Trash2, Edit3, Loader2, Save,
-  Tag, Beaker, Ruler, Truck,
+  Tag, Beaker, Ruler, Truck, Printer,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ import {
   AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import { invalidateTaxonomyCache } from '@/components/taxonomy-select';
+import PrintersManager from '@/components/printers-manager';
 
 const KINDS = [
   { key: 'product_category', label: 'Categorías', icon: Tag,    desc: 'Categorías de productos comerciales.',        color: 'from-orange-500 to-rose-500' },
@@ -146,13 +147,20 @@ export default function ConfiguracionPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-slate-100/60">
+        <TabsList className="bg-slate-100/60 flex-wrap h-auto">
           {KINDS.map(k => (
             <TabsTrigger key={k.key} value={k.key} className="text-xs">
               <k.icon className="h-3.5 w-3.5 mr-1.5" />{k.label} ({(data[k.key] || []).length})
             </TabsTrigger>
           ))}
+          <TabsTrigger value="printers" className="text-xs">
+            <Printer className="h-3.5 w-3.5 mr-1.5" />Equipos
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="printers" className="mt-4">
+          <PrintersManager />
+        </TabsContent>
 
         {KINDS.map(k => (
           <TabsContent key={k.key} value={k.key} className="mt-4">

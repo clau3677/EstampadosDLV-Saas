@@ -280,10 +280,70 @@ frontend:
         agent: "main"
         comment: "Rewrote with imperative Konva.js API (no react-konva). Verified via screenshot: setup modal with 3 options works, canvas renders with cm ruler + grid, live quote shows correct math ($4.284 CLP for 30cm minimum at $12/m + 19% IVA), Express toggle, module navigation. Konva stage created once in useEffect, layers synced via nodesRef Map, transformer attached to selected design."
 
+  - task: "Printers CRUD endpoints (/api/printers)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW in Iteration 4. Full CRUD for printers collection: GET /api/printers (with ?active=true filter), POST /api/printers (validates code format [a-z0-9_-]+, widthMm range 50-2000, pricePerMm > 0, checks duplicates), PATCH /api/printers (partial update with code uniqueness validation, auto-resets supportsVarnish when type changes from dtf_uv to dtf_textil), DELETE /api/printers (prevents deletion if printer has items in production_queue). All use UUID v4, strip _id, timestamps createdAt/updatedAt. 3 printers seeded: epson_r1390 (310mm), prestige_r2_pro (330mm), dtf_uv (600mm)."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Comprehensive CRUD testing (20+ test cases): (A1) POST /api/seed → 200 with seeded.printers=3 ✓ (A2) GET /api/printers → 3 printers with all required fields (id, code, label, shortLabel, type, widthMm, dpi, supportsWhite, supportsVarnish, pricePerMm, minLengthMm, dailyCapacityM, color, notes, active, sortOrder, createdAt, updatedAt), no _id, ordered by sortOrder ✓ (A3) GET ?active=true → only active ✓ (A4) POST valid printer → 200, UUID id, all fields preserved ✓ (A5) Validations: duplicate code → 409 ✓, invalid code format 'BAD CODE!' → 400 ✓, missing label → 400 ✓, widthMm=10 → 400 ✓, widthMm=5000 → 400 ✓, pricePerMm=0 → 400 ✓ (A6) PATCH widthMm & color → 200, fields updated ✓ (A7) PATCH type to dtf_uv with supportsVarnish=true → 200 ✓, change back to dtf_textil → supportsVarnish auto-reset to false ✓ (A8) PATCH code: valid change → 200 ✓, invalid format 'BAD!!' → 400 ✓, duplicate 'epson_r1390' → 409 ✓ (A9) DELETE: printer without queue → 200 {ok:true}, verify removed from GET ✓, second DELETE → 404 ✓, DELETE printer with 2 items in queue → 409 with descriptive message ✓. All validations working correctly. No MongoDB _id leakage."
+
+  - task: "Gang Sheet creation with dynamic printerCode"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EXTENDED in Iteration 4. POST /api/gang-sheets now supports both legacy mode (dtf_textil_31/dtf_textil_33/dtf_uv) and dynamic printerCode (reads from printers collection). When printerCode is provided, looks up printer in DB, validates active=true, uses its widthMm/pricePerMm/minLengthMm for validation and pricing. Falls back to legacy PRICING config if mode is used. Hardware validation remains strict. Backward compatible with existing gang-sheet creation flow."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - All 5 dynamic printerCode scenarios tested: (C1) Happy path printerCode='prestige_r2_pro' → 200, orderNumber=DLV-2025-000205, printer='prestige_r2_pro', printerLabel='Prestige R2 Pro', total=$4284 ✓ (C2) Legacy mode='dtf_textil_31' → 200, still works (backward compat) ✓ (C3) printerCode='no_existe' → 400 'Equipo ... no encontrado o inactivo' ✓ (C4) printerCode with inactive printer → 400 ✓ (C5) Design exceeds canvas width (400mm > 330mm) → 400 'Diseño ... excede el ancho del lienzo' ✓. Dynamic printer resolution working perfectly. Legacy mode still functional."
+
+  - task: "Seed endpoint extended with printers"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EXTENDED in Iteration 4. POST /api/seed now inserts 3 canonical printers into printers collection: epson_r1390 (310mm, $10/mm, dtf_textil), prestige_r2_pro (330mm, $12/mm, dtf_textil), dtf_uv (600mm, $28/mm, dtf_uv with supportsVarnish=true). Returns seeded.printers count in response."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - POST /api/seed → 200 with seeded.printers=3. Full counts: users=3, products=4, commercialStock=8, supplies=9, orders=5, orderItems=5, productionQueue=5, taxonomies=22, printers=3. Idempotent operation verified."
+
+  - task: "Config endpoint extended with printersDynamic"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EXTENDED in Iteration 4. GET /api/config now returns both legacy 'printers' object (PRINTER_SPECS, 3 keys) and new 'printersDynamic' array (from DB, sorted by sortOrder). Frontend can use printersDynamic for dynamic printer selection while maintaining backward compatibility with legacy printers object."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - GET /api/config → 200 with 'printers' object (3 keys: epson_r1390, prestige_r2_pro, dtf_uv), 'printersDynamic' array (3 printers from DB), and 'enums' object. Both legacy and dynamic printer data present. Backward compatibility maintained."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 5
   run_ui: false
 
 test_plan:
@@ -521,6 +581,75 @@ agent_communication_v2:
       
       Test file: /app/backend_test.py (comprehensive test suite with 8 test groups)
 
+  - agent: "main"
+    message: |
+      # Iteración 4 - Dynamic Printers Management (26-jul-2026)
+      
+      Implementación de gestión dinámica de equipos/impresoras. Nueva colección `printers` en MongoDB.
+      
+      Cambios aplicados:
+      1. NUEVA COLECCIÓN - printers:
+         - Schema completo: id (UUID), code, label, shortLabel, type (dtf_textil/dtf_uv), widthMm, dpi, 
+           supportsWhite, supportsVarnish, pricePerMm, minLengthMm, dailyCapacityM, color (Tailwind gradient), 
+           notes, active, sortOrder, createdAt, updatedAt
+         - Validaciones: code formato [a-z0-9_-]+, widthMm rango 50-2000, pricePerMm > 0
+         - Lógica: supportsVarnish solo permitido si type=dtf_uv, auto-reset a false si cambia a dtf_textil
+      
+      2. NUEVOS ENDPOINTS - /api/printers CRUD:
+         - GET /api/printers (con filtro opcional ?active=true, ordenado por sortOrder)
+         - POST /api/printers (valida code único, formato, rangos)
+         - PATCH /api/printers (parcial, valida code si cambia, auto-ajusta supportsVarnish según type)
+         - DELETE /api/printers (previene borrado si tiene items en production_queue, retorna 409 con count)
+      
+      3. SEED EXTENDIDO - POST /api/seed:
+         - Ahora inserta 3 printers canónicos: epson_r1390 (310mm), prestige_r2_pro (330mm), dtf_uv (600mm)
+         - Retorna seeded.printers en respuesta
+      
+      4. CONFIG EXTENDIDO - GET /api/config:
+         - Ahora retorna 'printersDynamic' array (desde DB) además de 'printers' legacy (PRINTER_SPECS)
+         - Mantiene retrocompatibilidad
+      
+      5. GANG SHEETS EXTENDIDO - POST /api/gang-sheets:
+         - Ahora acepta 'printerCode' (dinámico desde DB) además de 'mode' (legacy)
+         - Si viene printerCode, busca en DB, valida active=true, usa sus specs para pricing/validación
+         - Si viene mode, usa PRICING legacy (backward compatible)
+         - Hardware validation sigue siendo estricta
+      
+      6. FRONTEND - Kanban y Gang Sheet Builder:
+         - Ahora leen printers desde GET /api/printers (dinámico)
+         - Filtro por printer en Kanban usa printers dinámicos
+         - Gang Sheet Builder setup modal usa printers dinámicos
+      
+      # BACKEND TESTING NEEDED:
+      Foco:
+      A) PRIORITY - /api/printers CRUD (9 test groups):
+         1. POST /api/seed → seeded.printers === 3
+         2. GET /api/printers → array con 3+ elementos, ordenados, sin _id, todos los campos
+         3. GET /api/printers?active=true → solo activos
+         4. POST /api/printers happy path → 200 con UUID id
+         5. POST validaciones: duplicate code → 409, invalid format → 400, missing label → 400, 
+            widthMm fuera de rango → 400, pricePerMm=0 → 400
+         6. PATCH widthMm & color → 200
+         7. PATCH type a dtf_uv con supportsVarnish → 200, cambiar de vuelta → supportsVarnish auto-reset
+         8. PATCH code: válido → 200, inválido → 400, duplicado → 409
+         9. DELETE: sin queue → 200, segundo DELETE → 404, con queue → 409 con mensaje descriptivo
+      
+      B) /api/config extendido:
+         - GET /api/config → debe contener 'printers' (legacy), 'printersDynamic' (array), 'enums'
+      
+      C) /api/gang-sheets con printerCode:
+         1. Happy path printerCode='prestige_r2_pro' → 200 con orderNumber, printer, printerLabel, total
+         2. Legacy mode='dtf_textil_31' → sigue funcionando (backward compat)
+         3. printerCode inexistente → 400
+         4. printerCode con equipo inactivo → 400
+         5. Diseño excede ancho → 400
+      
+      D) REGRESSION:
+         - POST /api/orders/public, GET /api/products, GET /api/dashboard/summary, 
+           POST /api/uploads/design, POST+GET /api/landings
+      
+      Base URL: process.env.NEXT_PUBLIC_BASE_URL + /api
+      Todos los IDs son UUID v4, respuestas no contienen _id.
 
   - agent: "testing"
     message: |
@@ -570,4 +699,84 @@ agent_communication_v2:
       - Chilean data format: RUT, phone, CLP amounts all correct
       
       Test file: /app/backend_test.py (18 comprehensive test cases)
+      Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
+
+
+
+  - agent: "testing"
+    message: |
+      # ITERATION 4 BACKEND TESTING COMPLETE ✅
+      
+      Tested all iteration 4 changes (dynamic printers management) + regression suite. Results: ALL TESTS PASS (35+ test cases).
+      
+      ## A) NEW /api/printers CRUD (20+ test cases) ✅
+      
+      ### Seed & List
+      1. POST /api/seed → 200, seeded.printers=3 (epson_r1390, prestige_r2_pro, dtf_uv) ✅
+      2. GET /api/printers → 200, 3 printers with all required fields (id, code, label, shortLabel, type, widthMm, dpi, supportsWhite, supportsVarnish, pricePerMm, minLengthMm, dailyCapacityM, color, notes, active, sortOrder, createdAt, updatedAt), no _id, ordered by sortOrder ✅
+      3. GET /api/printers?active=true → 200, only active printers ✅
+      
+      ### Create (POST)
+      4. POST /api/printers valid payload (test_epson_a3, 400mm, $15/mm) → 200, UUID id, all fields preserved, no _id ✅
+      
+      ### Validations (POST)
+      5. POST duplicate code 'test_epson_a3' → 409 "ya existe un equipo con ese code" ✅
+      6. POST invalid code 'BAD CODE!' → 400 "code inválido (usa a-z, 0-9, guion, guion bajo)" ✅
+      7. POST missing label → 400 "code y label son obligatorios" ✅
+      8. POST widthMm=10 (too small) → 400 "widthMm inválido (rango 50–2000)" ✅
+      9. POST widthMm=5000 (too large) → 400 "widthMm inválido (rango 50–2000)" ✅
+      10. POST pricePerMm=0 → 400 "pricePerMm inválido (CLP por mm, > 0)" ✅
+      
+      ### Update (PATCH)
+      11. PATCH {id, widthMm:450, color:'from-pink-500 to-rose-600'} → 200, fields updated ✅
+      12. PATCH {id, type:'dtf_uv', supportsVarnish:true} → 200, type=dtf_uv, supportsVarnish=true ✅
+      13. PATCH {id, type:'dtf_textil'} → 200, supportsVarnish auto-reset to false ✅
+      14. PATCH {id, code:'renamed_test'} → 200, code updated ✅
+      15. PATCH {id, code:'BAD!!'} → 400 "code inválido" ✅
+      16. PATCH {id, code:'epson_r1390'} (duplicate) → 409 "code ya usado" ✅
+      
+      ### Delete (DELETE)
+      17. DELETE {id} (no items in queue) → 200 {ok:true} ✅
+      18. Verify GET /api/printers no longer includes deleted printer ✅
+      19. Second DELETE same id → 404 ✅
+      20. DELETE printer with 2 items in queue → 409 "No se puede eliminar: el equipo tiene 2 trabajo(s) en cola. Desactívalo (toggle) o mueve los trabajos primero." ✅
+      
+      **Validation**: All CRUD operations working correctly. Code format [a-z0-9_-]+ strictly enforced. Width range 50-2000mm enforced. Price > 0 enforced. Duplicate detection working. Queue protection working. supportsVarnish auto-reset logic working.
+      
+      ## B) /api/config EXTENDED (1 test case) ✅
+      1. GET /api/config → 200 with:
+         - 'printers' object (legacy PRINTER_SPECS, 3 keys: epson_r1390, prestige_r2_pro, dtf_uv) ✅
+         - 'printersDynamic' array (3 printers from DB) ✅
+         - 'enums' object ✅
+      
+      **Backward compatibility**: Legacy 'printers' object maintained alongside new 'printersDynamic' array.
+      
+      ## C) /api/gang-sheets WITH DYNAMIC printerCode (5 test cases) ✅
+      1. POST with printerCode='prestige_r2_pro' → 200, orderNumber=DLV-2025-000205, printer='prestige_r2_pro', printerLabel='Prestige R2 Pro', total=$4284 ✅
+      2. POST with legacy mode='dtf_textil_31' → 200, orderNumber=DLV-2025-000206, total=$3570 (backward compat working) ✅
+      3. POST with printerCode='no_existe' → 400 "Equipo 'no_existe' no encontrado o inactivo" ✅
+      4. POST with inactive printer → 400 "Equipo 'test_inactive' no encontrado o inactivo" ✅
+      5. POST with design exceeding canvas width (400mm > 330mm) → 400 "Diseño 'too-wide.png' excede el ancho del lienzo" ✅
+      
+      **Dynamic printer resolution**: Working perfectly. Legacy mode still functional. Hardware validation strict.
+      
+      ## D) REGRESSION TESTS (5 test cases) ✅
+      1. POST /api/orders/public → 200, orderNumber=DLV-2025-000307 ✅
+      2. GET /api/products → 200, 4 products ✅
+      3. GET /api/dashboard/summary → 200, salesToday=$137840, pendingOrders=4 ✅
+      4. POST /api/uploads/design → 200, url, dpi=300 ✅
+      5. POST + GET /api/landings → 200, CRUD working ✅
+      
+      ## SUMMARY
+      - **NO CRITICAL ISSUES FOUND** ✅
+      - All new /api/printers endpoints working perfectly (20+ test cases)
+      - /api/config extended with printersDynamic array
+      - /api/gang-sheets now supports dynamic printerCode + legacy mode (backward compat)
+      - /api/seed extended with 3 printers
+      - All previous endpoints still working (regression pass)
+      - Data integrity: No MongoDB _id leakage, all UUIDs correct
+      - Validation: All error cases handled correctly (400, 404, 409)
+      - Business logic: supportsVarnish auto-reset, queue protection, code format enforcement all working
+      
+      Test file: /app/backend_test_iteration4.py (35+ comprehensive test cases)
       Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api

@@ -20,52 +20,82 @@ import { PRICING } from '@/lib/pricing';
 import { formatCLP, formatNumber } from '@/lib/format';
 
 // ============================================================================
-// MODAL DE SELECCIÓN INICIAL (bloquea el editor hasta que se elija el modo)
-// Aplica las reglas críticas de hardware: Epson 31cm, Prestige 33cm, UV
+// MODAL DE SELECCIÓN INICIAL (bloquea el editor hasta que se elija el equipo)
+// Lee dinámicamente todos los equipos activos desde /api/printers
 // ============================================================================
 function SetupModal({ onSelect }) {
-  const options = [
-    { key: 'dtf_textil_31', title: 'DTF Textil', subtitle: 'Epson R1390 · 31 cm',  description: 'Ideal para pedidos chicos y detalles finos.', color: 'from-blue-500 to-indigo-600', badge: 'Chicos' },
-    { key: 'dtf_textil_33', title: 'DTF Textil', subtitle: 'Prestige R2 Pro · 33 cm', description: 'Ancho máximo para pedidos grandes de producción.', color: 'from-purple-500 to-fuchsia-600', badge: 'Grandes' },
-    { key: 'dtf_uv',        title: 'DTF UV',     subtitle: 'Rígidos (madera, acrílico, metal)', description: 'Incluye canal Blanco + Barniz para superficies duras.', color: 'from-emerald-500 to-teal-600', badge: 'Premium' },
-  ];
+  const [printers, setPrinters] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/printers?active=true');
+        if (r.ok && alive) {
+          const list = await r.json();
+          setPrinters(Array.isArray(list) ? list : []);
+        }
+      } catch { /* ignore */ }
+      finally { if (alive) setLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-md">
               <Layers className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Elige tu tipo de impresión</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Elige tu equipo de impresión</h2>
               <p className="text-sm text-slate-500">Cada máquina tiene un ancho útil máximo. No podrás cambiar este valor después.</p>
             </div>
           </div>
         </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {options.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => onSelect(o.key)}
-              className="group text-left rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-xl bg-white p-5 transition-all"
-            >
-              <div className={`h-11 w-11 rounded-lg bg-gradient-to-br ${o.color} flex items-center justify-center shadow-md`}>
-                <Ruler className="h-5 w-5 text-white" />
-              </div>
-              <div className="mt-4 flex items-center gap-2">
-                <h3 className="font-bold text-slate-900">{o.title}</h3>
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700 text-[10px]">{o.badge}</Badge>
-              </div>
-              <div className="text-sm font-semibold text-slate-700 mt-0.5">{o.subtitle}</div>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">{o.description}</p>
-              <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-600 space-y-0.5">
-                <div><span className="font-mono font-semibold">{formatCLP(PRICING[o.key].pricePerMm * 1000)}</span> / metro</div>
-                <div>Mínimo <span className="font-mono font-semibold">{PRICING[o.key].minLengthMm / 10} cm</span></div>
-              </div>
-            </button>
-          ))}
-        </div>
+        {loading ? (
+          <div className="h-40 flex items-center justify-center text-slate-500">
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />Cargando equipos…
+          </div>
+        ) : printers.length === 0 ? (
+          <div className="p-10 text-center">
+            <div className="text-slate-500 text-sm mb-2">No hay equipos activos configurados.</div>
+            <Link href="/configuracion" className="text-orange-600 text-sm font-semibold hover:underline">
+              → Configurar equipos
+            </Link>
+          </div>
+        ) : (
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {printers.map((p) => (
+              <button
+                key={p.id || p.code}
+                onClick={() => onSelect(p)}
+                className="group text-left rounded-xl border border-slate-200 hover:border-orange-400 hover:shadow-xl bg-white p-5 transition-all"
+              >
+                <div className={`h-11 w-11 rounded-lg bg-gradient-to-br ${p.color || 'from-slate-500 to-slate-700'} flex items-center justify-center shadow-md`}>
+                  <Ruler className="h-5 w-5 text-white" />
+                </div>
+                <div className="mt-4 flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-slate-900">{p.label}</h3>
+                  {p.type === 'dtf_uv' && <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-[10px]">UV</Badge>}
+                </div>
+                <div className="text-sm font-semibold text-slate-700 mt-0.5">Ancho útil {(p.widthMm/10).toFixed(0)} cm</div>
+                {p.notes && <p className="text-xs text-slate-500 mt-2 leading-relaxed">{p.notes}</p>}
+                <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-600 space-y-0.5">
+                  <div><span className="font-mono font-semibold">{formatCLP(p.pricePerMm * 1000)}</span> / metro</div>
+                  <div>Mínimo <span className="font-mono font-semibold">{(p.minLengthMm || 100) / 10} cm</span></div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {p.supportsWhite && <Badge variant="outline" className="text-[9px] h-4 px-1">Canal blanco</Badge>}
+                    {p.supportsVarnish && <Badge variant="outline" className="text-[9px] h-4 px-1">Barniz UV</Badge>}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -125,7 +155,7 @@ function Uploader({ onFile }) {
 // ============================================================================
 export default function GangSheetPage() {
   const {
-    mode, canvasWidthMm, designs, selectedId, express,
+    mode, printerCode, printerData, canvasWidthMm, designs, selectedId, express,
     setMode, addDesign, removeDesign, duplicate, rotate90,
     select, setExpress, autoArrange, currentQuote, effectiveDpi, designWarnings,
   } = useGangSheet();
@@ -193,6 +223,7 @@ export default function GangSheetPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode,
+          printerCode,       // enviamos también el code del printer dinámico
           canvasWidthMm,
           express,
           designs: designs.map(d => ({
@@ -219,7 +250,13 @@ export default function GangSheetPage() {
 
   if (!mode) return <SetupModal onSelect={setMode} />;
 
-  const cfg = PRICING[mode];
+  // Resolver cfg de forma dinámica: printerData tiene prioridad, PRICING como fallback
+  const cfg = printerData
+    ? {
+        label: `${printerData.label} · ${(printerData.widthMm/10).toFixed(0)} cm`,
+        color: printerData.color || 'from-slate-500 to-slate-700',
+      }
+    : (PRICING[mode] || { label: mode, color: 'from-slate-500 to-slate-700' });
 
   return (
     <div className="space-y-4 max-w-[1500px] mx-auto">
@@ -379,7 +416,7 @@ export default function GangSheetPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600 mt-1">
                     <span>Tarifa</span>
-                    <span className="font-mono font-semibold">{formatCLP(cfg.pricePerMm * 1000)}/m</span>
+                    <span className="font-mono font-semibold">{formatCLP((q.pricePerMm || 0) * 1000)}/m</span>
                   </div>
 
                   <div className="my-3 h-px bg-slate-200" />
