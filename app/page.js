@@ -100,6 +100,11 @@ const ModuleCard = ({ href, title, description, icon: Icon, accent }) => (
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [seeding, setSeeding] = useState(false);
+  const [todayStr, setTodayStr] = useState('');
+
+  useEffect(() => {
+    setTodayStr(new Date().toLocaleDateString('es-CL'));
+  }, []);
 
   const load = async () => {
     try {
@@ -124,7 +129,9 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 mt-1">Panorama operacional del taller — {new Date().toLocaleDateString('es-CL')}</p>
+          <p className="text-slate-500 mt-1" suppressHydrationWarning>
+            Panorama operacional del taller {todayStr && `— ${todayStr}`}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={seed} disabled={seeding}>

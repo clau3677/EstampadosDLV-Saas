@@ -132,8 +132,12 @@ async function handle(request, { params }) {
       // PRODUCTS (catálogo comercial)
       const products = [
         { id: uuidv4(), sku: 'POL-CLA-NEG', name: 'Polera Algodón Clásica', slug: 'polera-algodon-clasica',
-          category: PRODUCT_CATEGORY.APPAREL, subcategory: 'poleras', description: 'Polera 100% algodón peinado 180gr, ideal para DTF.',
-          images: [], basePrice: 5990, cost: 2500,
+          category: PRODUCT_CATEGORY.APPAREL, subcategory: 'poleras', description: 'Polera 100% algodón peinado 180gr, ideal para DTF. Corte unisex, terminaciones premium.',
+          images: [
+            'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxibGFjayUyMHQtc2hpcnR8ZW58MHx8fHwxNzg1MDI3ODE2fDA&ixlib=rb-4.1.0&q=85',
+            'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxibGFjayUyMHQtc2hpcnR8ZW58MHx8fHwxNzg1MDI3ODE2fDA&ixlib=rb-4.1.0&q=85',
+          ],
+          basePrice: 5990, cost: 2500,
           variants: [
             { id: uuidv4(), name: 'Talla S / Negro',  sku: 'POL-CLA-NEG-S', price: 5990, attributes: { size: 'S', color: 'Negro' } },
             { id: uuidv4(), name: 'Talla M / Negro',  sku: 'POL-CLA-NEG-M', price: 5990, attributes: { size: 'M', color: 'Negro' } },
@@ -143,20 +147,30 @@ async function handle(request, { params }) {
           active: true, seoMeta: { title: 'Polera Algodón Clásica', description: 'Ideal para DTF', keywords: ['polera','dtf','algodón'] },
           createdAt: now, updatedAt: now },
         { id: uuidv4(), sku: 'DTF-MET-31', name: 'DTF Textil por Metro · 31 cm', slug: 'dtf-textil-por-metro-31',
-          category: PRODUCT_CATEGORY.DTF_METER, subcategory: 'dtf_textil', description: 'DTF Textil impreso por metro lineal, ancho útil 31 cm (Epson R1390).',
-          images: [], basePrice: 8990, cost: 3200,
+          category: PRODUCT_CATEGORY.DTF_METER, subcategory: 'dtf_textil', description: 'DTF Textil impreso por metro lineal, ancho útil 31 cm (Epson R1390). Perfecto para pedidos chicos.',
+          images: [
+            'https://images.unsplash.com/photo-1503694978374-8a2fa686963a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwxfHxwcmludGluZyUyMHJvbGx8ZW58MHx8fHwxNzg1MDI3ODI1fDA&ixlib=rb-4.1.0&q=85',
+          ],
+          basePrice: 8990, cost: 3200,
           variants: [{ id: uuidv4(), name: 'x metro', sku: 'DTF-MET-31-1M', price: 8990, attributes: { width_cm: 31 } }],
           active: true, seoMeta: { title: 'DTF Textil por Metro 31cm', description: 'Ancho 31cm', keywords: ['dtf','metro'] },
           createdAt: now, updatedAt: now },
         { id: uuidv4(), sku: 'DTF-MET-33', name: 'DTF Textil por Metro · 33 cm', slug: 'dtf-textil-por-metro-33',
-          category: PRODUCT_CATEGORY.DTF_METER, subcategory: 'dtf_textil', description: 'DTF Textil impreso por metro lineal, ancho útil 33 cm (Prestige R2 Pro).',
-          images: [], basePrice: 9990, cost: 3600,
+          category: PRODUCT_CATEGORY.DTF_METER, subcategory: 'dtf_textil', description: 'DTF Textil impreso por metro lineal, ancho útil 33 cm (Prestige R2 Pro). Para pedidos grandes.',
+          images: [
+            'https://images.pexels.com/photos/3724811/pexels-photo-3724811.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
+          ],
+          basePrice: 9990, cost: 3600,
           variants: [{ id: uuidv4(), name: 'x metro', sku: 'DTF-MET-33-1M', price: 9990, attributes: { width_cm: 33 } }],
           active: true, seoMeta: { title: 'DTF Textil por Metro 33cm', description: 'Ancho 33cm', keywords: ['dtf','metro'] },
           createdAt: now, updatedAt: now },
         { id: uuidv4(), sku: 'HOO-PREM-NEG', name: 'Poleron con Capucha Premium', slug: 'poleron-capucha-premium',
-          category: PRODUCT_CATEGORY.APPAREL, subcategory: 'hoodies', description: 'Poleron premium 380gr con felpa interior.',
-          images: [], basePrice: 19990, cost: 9000,
+          category: PRODUCT_CATEGORY.APPAREL, subcategory: 'hoodies', description: 'Poleron premium 380gr con felpa interior. Corte oversize, ideal para invierno chileno.',
+          images: [
+            'https://images.unsplash.com/photo-1680292783974-a9a336c10366?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwxfHxibGFjayUyMGhvb2RpZXxlbnwwfHx8fDE3ODUwMjc4MTZ8MA&ixlib=rb-4.1.0&q=85',
+            'https://images.pexels.com/photos/28701960/pexels-photo-28701960.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
+          ],
+          basePrice: 19990, cost: 9000,
           variants: [
             { id: uuidv4(), name: 'Talla M / Negro', sku: 'HOO-PREM-NEG-M', price: 19990, attributes: { size: 'M', color: 'Negro' } },
             { id: uuidv4(), name: 'Talla L / Negro', sku: 'HOO-PREM-NEG-L', price: 19990, attributes: { size: 'L', color: 'Negro' } },
@@ -1030,6 +1044,160 @@ async function handle(request, { params }) {
       const rows = await db.collection(COLLECTIONS.STOCK_MOVEMENTS)
         .find({}).sort({ createdAt: -1 }).limit(200).toArray();
       return cors(NextResponse.json(strip(rows)));
+    }
+
+    // ------------------------------------------------------------
+    // POST /api/orders/public  — checkout desde la tienda web
+    // Body: { customer: {name, email, phone, rut}, deliveryMethod, shippingAddress?,
+    //         paymentMethod, items: [{ productId, variantId, quantity }], notes? }
+    // ------------------------------------------------------------
+    if (route === '/orders/public' && method === 'POST') {
+      const body = await request.json();
+      const { customer, deliveryMethod, shippingAddress, paymentMethod, items, notes } = body;
+
+      if (!customer?.name || !customer?.email) {
+        return cors(NextResponse.json({ error: 'Nombre y email son obligatorios' }, { status: 400 }));
+      }
+      if (!Array.isArray(items) || items.length === 0) {
+        return cors(NextResponse.json({ error: 'El carrito está vacío' }, { status: 400 }));
+      }
+      if (!['pickup', 'shipping'].includes(deliveryMethod)) {
+        return cors(NextResponse.json({ error: 'Método de entrega inválido' }, { status: 400 }));
+      }
+
+      // Resolver productos + validar stock
+      const productIds = [...new Set(items.map(i => i.productId))];
+      const products = await db.collection(COLLECTIONS.PRODUCTS).find({ id: { $in: productIds } }).toArray();
+      const productMap = Object.fromEntries(products.map(p => [p.id, p]));
+
+      const resolvedItems = [];
+      for (const it of items) {
+        const p = productMap[it.productId];
+        if (!p) return cors(NextResponse.json({ error: `Producto no encontrado: ${it.productId}` }, { status: 400 }));
+        const v = p.variants.find(v => v.id === it.variantId);
+        if (!v) return cors(NextResponse.json({ error: `Variante no encontrada en ${p.name}` }, { status: 400 }));
+
+        // Verificar stock
+        const stockRow = await db.collection(COLLECTIONS.COMMERCIAL_STOCK)
+          .findOne({ productId: p.id, variantId: v.id });
+        const available = stockRow ? (stockRow.quantity - (stockRow.reservedQuantity || 0)) : 0;
+        const qty = Number(it.quantity) || 1;
+        if (qty > available) {
+          return cors(NextResponse.json({
+            error: `Stock insuficiente para "${p.name} · ${v.name}". Disponible: ${available}, solicitado: ${qty}.`
+          }, { status: 400 }));
+        }
+
+        resolvedItems.push({ product: p, variant: v, stockRow, quantity: qty });
+      }
+
+      // Calcular totales
+      const subtotal = resolvedItems.reduce((sum, r) => sum + r.variant.price * r.quantity, 0);
+      const shipping = deliveryMethod === 'shipping' ? 3990 : 0;
+      const netAmount = subtotal + shipping;
+      const tax = Math.round((netAmount / 1.19) * 0.19);   // IVA ya incluido en el precio final
+      const total = netAmount;
+
+      const now = new Date();
+      const orderCount = await db.collection(COLLECTIONS.ORDERS).countDocuments({});
+      const orderNumber = `DLV-2025-${String(orderCount + 300).padStart(6, '0')}`;
+      const orderId = uuidv4();
+
+      const validPayment = ['cash', 'card', 'transfer', 'webpay', 'mercadopago'];
+      const pm = validPayment.includes(paymentMethod) ? paymentMethod : 'transfer';
+
+      const order = {
+        id: orderId,
+        orderNumber,
+        channel: SALES_CHANNEL.WEB,
+        customerId: null,
+        customerSnapshot: {
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone || '',
+          rut: customer.rut || '',
+        },
+        status: ORDER_STATUS.PENDING,
+        productionStatus: PRODUCTION_STATUS.NOT_STARTED,
+        priority: PRIORITY.NORMAL,
+        subtotal: Math.round(subtotal / 1.19),
+        discount: 0,
+        tax,
+        shipping,
+        total,
+        paymentMethod: pm,
+        paymentStatus: 'pending',
+        boleta: null,
+        deliveryMethod,
+        shippingAddress: deliveryMethod === 'shipping' ? (shippingAddress || null) : null,
+        notes: notes || '',
+        createdAt: now, paidAt: null, deliveredAt: null,
+      };
+      await db.collection(COLLECTIONS.ORDERS).insertOne(order);
+
+      // Crear order_items + reservar stock
+      const orderItemsDocs = resolvedItems.map(r => ({
+        id: uuidv4(),
+        orderId,
+        type: 'product',
+        productId: r.product.id,
+        variantId: r.variant.id,
+        gangSheetId: null,
+        name: `${r.product.name} · ${r.variant.name}`,
+        quantity: r.quantity,
+        unitPrice: r.variant.price,
+        discount: 0,
+        totalPrice: r.variant.price * r.quantity,
+        gangSheetSpec: null,
+      }));
+      await db.collection(COLLECTIONS.ORDER_ITEMS).insertMany(orderItemsDocs);
+
+      // Reservar stock (aumentar reservedQuantity — no decrementa quantity hasta que se entrega)
+      for (const r of resolvedItems) {
+        if (r.stockRow) {
+          const newReserved = (r.stockRow.reservedQuantity || 0) + r.quantity;
+          await db.collection(COLLECTIONS.COMMERCIAL_STOCK).updateOne(
+            { id: r.stockRow.id },
+            { $set: { reservedQuantity: newReserved, updatedAt: now } }
+          );
+          // Bitácora
+          await db.collection(COLLECTIONS.STOCK_MOVEMENTS).insertOne({
+            id: uuidv4(),
+            type: 'commercial_out',
+            reference: 'order',
+            referenceId: orderId,
+            itemType: 'product_variant',
+            itemId: r.variant.id,
+            quantity: -r.quantity,
+            balanceAfter: r.stockRow.quantity - newReserved,
+            operatorId: null,
+            reason: `Reserva por pedido web ${orderNumber}`,
+            createdAt: now,
+          });
+        }
+      }
+
+      return cors(NextResponse.json({
+        ok: true,
+        orderId,
+        orderNumber,
+        total,
+        paymentMethod: pm,
+        deliveryMethod,
+      }));
+    }
+
+    // ------------------------------------------------------------
+    // GET /api/orders/lookup?number=DLV-2025-XXXXXX  — consulta pública
+    // ------------------------------------------------------------
+    if (route === '/orders/lookup' && method === 'GET') {
+      const url = new URL(request.url);
+      const number = url.searchParams.get('number');
+      if (!number) return cors(NextResponse.json({ error: 'number requerido' }, { status: 400 }));
+      const order = await db.collection(COLLECTIONS.ORDERS).findOne({ orderNumber: number });
+      if (!order) return cors(NextResponse.json({ error: 'no encontrado' }, { status: 404 }));
+      const orderItems = await db.collection(COLLECTIONS.ORDER_ITEMS).find({ orderId: order.id }).toArray();
+      return cors(NextResponse.json({ order: strip(order), items: strip(orderItems) }));
     }
 
     // 404

@@ -1,15 +1,14 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { Providers } from './providers';
-import { SidebarNav } from '@/components/sidebar-nav';
-import { Topbar } from '@/components/topbar';
+import LayoutSelector from '@/components/layout-selector';
 import { Toaster } from '@/components/ui/sonner';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata = {
-  title: 'Estampados DLV · Sistema Operativo',
-  description: 'Plataforma integral para taller DTF y DTF UV — E-commerce, POS, Gang Sheet Builder, Pre-Prensa, Kanban e Inventario Dual.',
+  title: 'Estampados DLV · Impresión DTF profesional en Chile',
+  description: 'Taller DTF y DTF UV en Chile. Compra prendas, DTF por metro o sube tu propio diseño con nuestro editor visual.',
 };
 
 export default function RootLayout({ children }) {
@@ -20,15 +19,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-screen bg-slate-50 font-sans antialiased">
         <Providers>
-          <div className="min-h-screen">
-            <SidebarNav />
-            <div className="lg:pl-64">
-              <Topbar />
-              <main className="px-6 py-8">
-                {children}
-              </main>
-            </div>
-          </div>
+          <LayoutSelector>{children}</LayoutSelector>
           <Toaster position="top-right" richColors />
         </Providers>
       </body>

@@ -1,18 +1,24 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Bell, Search, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatDateLong } from '@/lib/format';
 
 export function Topbar() {
-  const today = formatDateLong(new Date());
-  const capitalized = today.charAt(0).toUpperCase() + today.slice(1);
+  // Renderizar la fecha SOLO después de hydration para evitar mismatch server/client
+  // (server y cliente pueden estar en momentos distintos, ej. cruce de medianoche)
+  const [today, setToday] = useState('');
+  useEffect(() => {
+    const d = formatDateLong(new Date());
+    setToday(d.charAt(0).toUpperCase() + d.slice(1));
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/80 backdrop-blur px-6">
-      <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
+      <div className="hidden md:flex items-center gap-2 text-sm text-slate-500 min-w-[220px]">
         <Sparkles className="h-4 w-4 text-orange-500" />
-        <span>{capitalized}</span>
+        <span suppressHydrationWarning>{today}</span>
       </div>
 
       <div className="flex-1 max-w-md ml-auto relative">
