@@ -404,8 +404,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "WhatsApp Zero-Cost Automation (Baileys)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -1343,6 +1342,13 @@ backend:
           
           Test file: /app/backend_test_whatsapp.py
           Manual verification: Created order DLV-2025-000314 with phone +56987654321, WhatsApp message logged correctly.
+      - working: true
+        agent: "main"
+        comment: |
+          ✅ POS HOOK FIX APPLIED (26-jul-2026)
+          Added `notifyOrderConfirmation({ order, items: orderItems }).catch(...)` after POS session counters update in `/app/lib/api/pos.js`.
+          Manual verification: Created POS sale DLV-POS-000516 with phone +56999887766 → hook fired correctly, message logged with event='order_confirmation', jid='56999887766@s.whatsapp.net', status='skipped' (not_connected:idle), Spanish template with formatCLP rendered correctly.
+          All 3 notification hooks now confirmed working: web checkout, POS sale, kanban production status transitions.
 
           1) All /api/whatsapp/* endpoints return correct shapes and status codes for all state transitions.
           2) Notification hooks fire when orders are created/moved to production/marked ready and get logged as `skipped` (with reason `not_connected:*`) since we won't have an actual WA session in the test env.
