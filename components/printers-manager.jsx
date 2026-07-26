@@ -54,7 +54,7 @@ const EMPTY = {
   sortOrder: 99,
 };
 
-export default function PrintersManager() {
+export default function PrintersManager({ onCountChange }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -67,7 +67,11 @@ export default function PrintersManager() {
     setLoading(true);
     try {
       const r = await fetch('/api/printers');
-      if (r.ok) setRows(await r.json());
+      if (r.ok) {
+        const arr = await r.json();
+        setRows(arr);
+        if (typeof onCountChange === 'function') onCountChange(Array.isArray(arr) ? arr.length : 0);
+      }
     } catch (e) {
       toast.error('Error al cargar equipos');
     } finally { setLoading(false); }

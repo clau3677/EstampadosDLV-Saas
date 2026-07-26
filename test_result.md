@@ -351,6 +351,9 @@ frontend:
       - working: true
         agent: "testing"
         comment: "✅ PASS - E2E UI testing completed. All 3 seeded printers (Epson R1390, Prestige R2 Pro, DTF UV) display correctly with all required fields: ancho útil, precio/mm, DPI, capacidad diaria, badges (Canal blanco, Barniz UV, DTF UV Rígidos), active toggle. Create new printer works: successfully created 'Test QA DTF · 40cm' with all fields, success toast appeared. Form validations working: duplicate code → 409 error, missing fields → 'obligatorios' error, widthMm out of range → 'fuera de rango' error, pricePerMm=0 → 'mayor a 0' error. Toggle active/inactive works: deactivate → 'Equipo desactivado' toast + reduced opacity, reactivate → 'Equipo activado' toast. Delete printer works: 'Equipo eliminado' toast, card disappears. Delete protection works: attempting to delete Epson R1390 (with 2 items in queue) → error toast 'No se puede eliminar: el equipo tiene 2 trabajo(s) en cola. Desactívalo (toggle) o mueve los trabajos primero.', card remains. Minor: Edit functionality not fully tested due to selector issues in test script, but all other CRUD operations verified."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - BUG FIX VERIFIED (26-jul-2026): Equipos tab counter now displays correctly. Comprehensive testing completed (4 test scenarios): T1 (P0 CRITICAL): Tab 'Equipos' shows counter (3) correctly alongside other tabs (Categorías (5), Tipos de Insumo (9), Unidades (6), Proveedores (3)) ✓. T2 (P1): Counter updates when creating printer - created 'Test Counter' with code 'test_counter', widthMm 300mm, pricePerMm 10 CLP/mm → counter updated from (3) to (4), toast 'Equipo creado' appeared ✓. T3 (P1): Counter updates when deleting printer - deleted 'Test Counter' via trash button → AlertDialog appeared → clicked 'Eliminar' → counter updated from (4) to (3), toast 'Equipo eliminado' appeared, card removed from page ✓. T4 (P2): Counter refreshes when switching tabs - switched between 'Categorías', 'Equipos', 'Unidades' tabs multiple times → counter remains correct (3) after each switch ✓. No console errors found. Screenshots confirm all tabs display counters correctly. FIX WORKING: The new printersCount state, loadPrintersCount() function, and onCountChange callback are all functioning correctly. Counter synchronizes on mount, tab change, and after CRUD operations."
 
   - task: "Kanban with dynamic printer tabs"
     implemented: true
@@ -397,14 +400,11 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 8
-  run_ui: false
+  test_sequence: 10
+  run_ui: true
 
 test_plan:
-  current_focus:
-    - "REFACTOR: monolithic /api/[[...path]]/route.js split into 12 domain modules under /app/lib/api/*.js"
-    - "route.js reduced from 1480 lines → 69 lines (thin router)"
-    - "Verify 0 regressions on: dashboard, config, seed, products, inventory, orders, taxonomies, landings, printers, production, uploads, gang-sheets"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -1271,3 +1271,75 @@ metadata:
   test_sequence: 9
   run_ui: false
 
+
+
+  - agent: "testing"
+    message: |
+      # BUG FIX VERIFICATION COMPLETE ✅ (26-jul-2026)
+      
+      Verified minor bug fix: /configuracion page "Equipos" tab now displays counter correctly.
+      
+      ## Bug Reported
+      User showed screenshot where tabs "Categorías (6)", "Tipos de Insumo (9)", "Unidades (6)", "Proveedores (3)" had counters, but "Equipos" tab did NOT show a number.
+      
+      ## Fix Applied (by Main Agent)
+      1. `/app/app/configuracion/page.js`:
+         - New state `printersCount` initialized to 0
+         - New function `loadPrintersCount()` fetches from `/api/printers` and sets count
+         - Called on mount (line 72) and on tab change (line 82)
+         - TabsTrigger for "printers" now renders `Equipos ({printersCount})` (line 172)
+         - Passes `onCountChange={setPrintersCount}` to PrintersManager (line 177)
+      2. `/app/components/printers-manager.jsx`:
+         - Accepts `onCountChange` prop (line 57)
+         - In `load()` function, calls `onCountChange(arr.length)` after fetching (line 73)
+         - Called after create, toggle, and delete operations
+      
+      ## Test Results: 4/4 PASS ✅
+      
+      ### T1 (P0 CRITICAL): Contador visible en el tab "Equipos"
+      - ✅ PASS: Tab shows "Equipos (3)" correctly
+      - ✅ All 5 tabs display counters: Categorías (5), Tipos de Insumo (9), Unidades (6), Proveedores (3), Equipos (3)
+      - Screenshot: t1_equipos_counter.png
+      
+      ### T2 (P1): Contador se actualiza al crear un equipo
+      - ✅ PASS: Created printer "Test Counter" (code: test_counter, widthMm: 300mm, pricePerMm: 10 CLP/mm)
+      - ✅ Counter updated from (3) to (4)
+      - ✅ Toast "Equipo creado" appeared
+      - Screenshot: t2_counter_after_create.png
+      
+      ### T3 (P1): Contador se actualiza al eliminar
+      - ✅ PASS: Deleted "Test Counter" printer via trash button
+      - ✅ AlertDialog appeared, clicked "Eliminar"
+      - ✅ Counter updated from (4) to (3)
+      - ✅ Toast "Equipo eliminado" appeared
+      - ✅ Card removed from page
+      - Screenshot: t3_final_after_delete.png
+      
+      ### T4 (P2): Contador se refresca al cambiar de tab
+      - ✅ PASS: Switched between "Categorías", "Equipos", "Unidades" tabs multiple times
+      - ✅ Counter remains correct (3) after each switch
+      - ✅ No errors during tab switching
+      - Screenshot: t4_tab_switching.png
+      
+      ## Console/Network Sanity
+      - ✅ No error messages found on page
+      - ✅ All API calls successful (GET /api/printers, POST /api/printers, DELETE /api/printers)
+      - ✅ No console errors
+      
+      ## Conclusion
+      **✅ BUG FIX VERIFIED - WORKING CORRECTLY**
+      
+      The fix is working as expected:
+      - Counter displays correctly on initial load (3)
+      - Counter updates when creating a printer (3 → 4)
+      - Counter updates when deleting a printer (4 → 3)
+      - Counter refreshes correctly when switching tabs
+      - All toasts appear with correct Spanish messages
+      - No regressions detected
+      
+      The implementation correctly synchronizes the counter via:
+      1. Initial fetch on mount
+      2. Refetch on tab change
+      3. Callback from PrintersManager after CRUD operations
+      
+      Ready for production use.

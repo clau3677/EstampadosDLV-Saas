@@ -34,11 +34,22 @@ const KINDS = [
 export default function ConfiguracionPage() {
   const [tab, setTab] = useState('product_category');
   const [data, setData] = useState({});
+  const [printersCount, setPrintersCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);          // taxonomy being edited
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newLabel, setNewLabel] = useState('');
+
+  const loadPrintersCount = async () => {
+    try {
+      const r = await fetch('/api/printers');
+      if (r.ok) {
+        const arr = await r.json();
+        setPrintersCount(Array.isArray(arr) ? arr.length : 0);
+      }
+    } catch { /* ignore */ }
+  };
 
   const loadKind = async (kind) => {
     setLoading(true);
@@ -56,15 +67,19 @@ export default function ConfiguracionPage() {
     (async () => {
       setLoading(true);
       try {
-        const all = await Promise.all(
-          KINDS.map(k => fetch(`/api/taxonomies?kind=${k.key}`).then(r => r.json()).catch(() => []))
-        );
+        const [taxos] = await Promise.all([
+          Promise.all(KINDS.map(k => fetch(`/api/taxonomies?kind=${k.key}`).then(r => r.json()).catch(() => []))),
+          loadPrintersCount(),
+        ]);
         const map = {};
-        KINDS.forEach((k, i) => { map[k.key] = Array.isArray(all[i]) ? all[i] : []; });
+        KINDS.forEach((k, i) => { map[k.key] = Array.isArray(taxos[i]) ? taxos[i] : []; });
         setData(map);
       } finally { setLoading(false); }
     })();
   }, []);
+
+  // Refrescar el conteo de equipos cuando el usuario entra a la tab "printers" o vuelve a otra
+  useEffect(() => { loadPrintersCount(); }, [tab]);
 
   useEffect(() => { if (tab) loadKind(tab); }, [tab]);
 
@@ -154,12 +169,12 @@ export default function ConfiguracionPage() {
             </TabsTrigger>
           ))}
           <TabsTrigger value="printers" className="text-xs">
-            <Printer className="h-3.5 w-3.5 mr-1.5" />Equipos
+            <Printer className="h-3.5 w-3.5 mr-1.5" />Equipos ({printersCount})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="printers" className="mt-4">
-          <PrintersManager />
+          <PrintersManager onCountChange={setPrintersCount} />
         </TabsContent>
 
         {KINDS.map(k => (
