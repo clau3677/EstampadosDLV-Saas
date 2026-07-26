@@ -6,6 +6,7 @@ import { Topbar } from '@/components/topbar';
 import { PublicNav } from '@/components/public-nav';
 import { PublicFooter } from '@/components/public-footer';
 import { CartDrawer } from '@/components/cart-drawer';
+import ChatWidget from '@/components/chat-widget';
 
 const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios'];
 
@@ -20,6 +21,7 @@ export default function LayoutSelector({ children }) {
         <main className="flex-1">{children}</main>
         <PublicFooter />
         <CartDrawer />
+        <ChatWidget />
       </div>
     );
   }

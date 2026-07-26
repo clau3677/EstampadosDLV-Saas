@@ -24,6 +24,7 @@ import handleUsers        from '@/lib/api/users';
 import handleWhatsapp     from '@/lib/api/whatsapp';
 import handleEmail        from '@/lib/api/email';
 import handlePrePress     from '@/lib/api/pre-press';
+import handleAgent        from '@/lib/api/agent';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -44,6 +45,7 @@ const HANDLERS = [
   handleWhatsapp,
   handleEmail,
   handlePrePress,
+  handleAgent,
   handleSeed,         // pesado, poco frecuente
 ];
 
