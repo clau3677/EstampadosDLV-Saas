@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
-  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle,
+  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -47,7 +47,8 @@ const SECTIONS = [
   {
     label: 'Automatización',
     items: [
-      { href: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, badge: 'Zero-cost' },
+      { href: '/whatsapp', label: 'WhatsApp',  icon: MessageCircle, badge: 'Zero-cost' },
+      { href: '/emails',   label: 'Emails SMTP', icon: Mail, badge: 'Zero-cost' },
     ],
   },
   {
