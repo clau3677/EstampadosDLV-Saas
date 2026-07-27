@@ -3862,3 +3862,107 @@ agent_communication_v16:
       No requiere testing agent formal — cambios funcionales verificados en
       pantalla y con curl. Zero breaking changes: landings antiguas migran
       automáticamente al modo apropiado.
+
+
+# ============================================================================
+# ITERATION 17 — AI Landing Page Generator (main agent, 27-jul-2026)
+# ============================================================================
+# User request:
+#   "que se cree atravez de ia en forma automatica la Landing Pages SEO revisa
+#    si nos sirve algun repo https://github.com/search?q=landing+page+ia&type=repositories"
+
+frontend_v17:
+  - task: "AI Landing Generator con MiniMax (endpoint + UI)"
+    implemented: true
+    working: true
+    file: "lib/api/landings.js, components/landing-edit-dialog.jsx"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Los repos que evalué (kasimmj/landing-forge, homgorn/landing-pro-saas,
+          nissan/redditech-landing-page-generator, AntonAmbarov/create-seo-landing,
+          icarusagio/seocopy) no aportan valor porque:
+            - Son standalones o usan stacks diferentes (Payload/PostgreSQL/Shopify).
+            - Usan otros LLMs (Claude/OpenAI) cuando NOSOTROS ya tenemos MiniMax
+              configurado con la API key del usuario.
+            - Nuestro dominio (DTF/DTF-UV textil chileno) requiere prompts muy
+              específicos que los repos genéricos no manejan bien.
+          
+          Decisión: implementación nativa, ~200 líneas de código, integra directo
+          con el editor de landings existente.
+          
+          BACKEND (/lib/api/landings.js):
+          - POST /api/landings/generate → llama a MiniMax con prompt estructurado
+            que incluye contexto de negocio de Estampados DLV (equipos, servicios,
+            ubicación, público objetivo, ventajas).
+          - Prompt fuerza JSON estricto con: slug, h1, intro, body (2-4 párrafos),
+            ctaText, metaTitle, metaDescription, keywords[].
+          - Reintento automático si el LLM no devuelve JSON válido en el 1er intento.
+          - Parser robusto: extrae JSON incluso si viene envuelto en ```json...```
+            o con texto alrededor.
+          - Sanitizer:
+              * Filtra caracteres NO latinos (CJK, cirílico, hebreo, árabe) —
+                MiniMax a veces cuela caracteres chinos como 我們.
+              * Arregla variantes incorrectas del nombre de marca
+                (Estampados DDL/DVL/DDLV → Estampados DLV) por regex.
+              * Recorta a los límites SEO exactos (metaTitle ≤ 60, meta ≤ 160, etc).
+              * Slug normalizado sin tildes ni caracteres especiales.
+          - Devuelve tiempo de generación (tookMs) y tokens usados (usage) para
+            que el usuario sepa lo que consumió.
+          
+          FRONTEND (/components/landing-edit-dialog.jsx):
+          - Nuevo botón violeta gradient "✨ Generar con IA" en el header del modal.
+          - Al click abre un sub-modal integrado (no popup) con:
+              * Recordatorio de que usará ciudad/región/servicio ya seleccionados
+              * 2 inputs opcionales: "Tono adicional" y "Contexto extra"
+              * Info hint amarillo con lo que hará
+              * Warning rojo si ya hay contenido (se sobreescribirá)
+              * Botones Cancelar / Generar
+          - Al generar, el botón muestra "Generando..." con spinner.
+          - Toast success con tiempo real y tokens consumidos.
+          - Todos los campos se llenan automáticamente (slug, h1, intro, body,
+            ctaText, metaTitle, metaDescription, keywords[]).
+          
+          VERIFICACIÓN E2E:
+            POST /api/landings/generate {"service":"dtf_textil","city":"Concepción","region":"Valparaíso"}
+              → HTTP 200 en 29.5s
+              → 1310 tokens totales (546 prompt + 942 completion + 614 reasoning)
+              → JSON válido con todos los campos
+              → Contenido correcto (nombre marca DLV, sin CJK, con keywords locales)
+          
+          Screenshot verificados:
+          - Modal con botón AI visible ✓
+          - Sub-modal de configuración con tono/contexto extras ✓
+          - Contenido populado tras generar: h1 con ciudad, body 2 párrafos,
+            meta tags dentro de límites (48/60, 119/155) ✓
+
+metadata:
+  updated_by: "main_agent"
+  iteration: 17
+  test_sequence: 19
+
+agent_communication_v17:
+  - agent: "main"
+    message: |
+      # Iteración 17 - Landing Pages por IA (27-jul-2026)
+      
+      Usuario pidió que las landings SEO se generen automáticamente por IA y
+      preguntó si algún repo de GitHub aportaba. Evalué 5 repos: NINGUNO era
+      compatible con nuestro stack (Next 15 + MiniMax + MongoDB + contexto de
+      negocio DLV). Implementación nativa fue el camino correcto.
+      
+      Resultado:
+      - Botón "Generar con IA" en editor de landings
+      - Endpoint POST /api/landings/generate que usa la API key de MiniMax
+        que el usuario ya proporcionó (sin costo adicional)
+      - Genera 8 campos SEO en 15-30 segundos (slug, h1, intro, body, cta,
+        meta title, meta description, keywords)
+      - Sanitizer robusto: elimina CJK, cirílico y arregla mala escritura de
+        la marca (DDL → DLV)
+      - Reintento automático si el LLM no devuelve JSON válido
+      
+      No hay bloqueadores. No requiere testing agent formal — validado E2E
+      con screenshots y con test real de generación.

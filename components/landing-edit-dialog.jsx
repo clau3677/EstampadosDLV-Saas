@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Save, Sparkles } from 'lucide-react';
+import { Loader2, Save, Sparkles, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +48,10 @@ export function LandingEditDialog({ landing, open, onOpenChange, onSaved }) {
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiTone, setAiTone] = useState('');
+  const [aiExtra, setAiExtra] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -73,6 +77,52 @@ export function LandingEditDialog({ landing, open, onOpenChange, onSaved }) {
 
   const setField = (patch) => setForm(f => ({ ...f, ...patch }));
   const setLocation = (patch) => setForm(f => ({ ...f, location: { ...f.location, ...patch } }));
+
+  // -------- Generación con IA --------
+  const runAI = async () => {
+    // Auto-slug si no hay ciudad ni h1
+    if (!form.location?.city && !form.service) {
+      toast.error('Ingresa al menos la ciudad o el servicio antes de generar');
+      return;
+    }
+    setGenerating(true);
+    setAiOpen(false);
+    try {
+      const r = await fetch('/api/landings/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: form.service || 'general',
+          city: form.location?.city || '',
+          region: form.location?.region || '',
+          tone: aiTone || undefined,
+          extraContext: aiExtra || undefined,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'error');
+
+      // Aplicar los campos generados. Preservar location/service/productsMode.
+      setField({
+        slug: data.fields.slug || form.slug,
+        h1: data.fields.h1,
+        intro: data.fields.intro,
+        body: data.fields.body,
+        ctaText: data.fields.ctaText,
+        metaTitle: data.fields.metaTitle,
+        metaDescription: data.fields.metaDescription,
+        keywords: (data.fields.keywords || []).join(', '),
+      });
+
+      toast.success('Contenido generado con IA ✨', {
+        description: `${(data.tookMs / 1000).toFixed(1)}s · ${data.usage?.total_tokens || 0} tokens`,
+      });
+    } catch (e) {
+      toast.error('Error al generar con IA', { description: e.message });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const autoSlug = () => {
     if (!form.h1 && !form.location?.city) return toast.error('Completa H1 o Ciudad para generar el slug');
@@ -127,8 +177,70 @@ export function LandingEditDialog({ landing, open, onOpenChange, onSaved }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar landing' : 'Nueva landing SEO'}</DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle>{isEdit ? 'Editar landing' : 'Nueva landing SEO'}</DialogTitle>
+              <p className="text-xs text-slate-500 mt-1">Crea landing pages optimizadas para SEO local o usa la IA para autogenerarlas.</p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setAiOpen(true)}
+              disabled={generating}
+              className="bg-gradient-to-r from-fuchsia-500 via-violet-500 to-indigo-500 hover:from-fuchsia-600 hover:via-violet-600 hover:to-indigo-600 text-white shadow-md"
+            >
+              {generating ? (
+                <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Generando…</>
+              ) : (
+                <><Wand2 className="h-4 w-4 mr-1.5" /> Generar con IA</>
+              )}
+            </Button>
+          </div>
         </DialogHeader>
+
+        {/* Modal secundaria: parámetros IA */}
+        {aiOpen && (
+          <div className="rounded-lg border border-violet-300 bg-gradient-to-br from-fuchsia-50 to-indigo-50 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-violet-600" />
+              <div className="text-sm font-semibold text-violet-900">Generar contenido con IA (MiniMax)</div>
+            </div>
+            <p className="text-xs text-violet-800">
+              Toma en cuenta la <b>ciudad, región y servicio</b> ya seleccionados arriba, más los siguientes hints opcionales:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Tono adicional (opcional)</Label>
+                <Input
+                  placeholder="Ej: urgente, técnico, familiar…"
+                  value={aiTone}
+                  onChange={(e) => setAiTone(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Contexto extra (opcional)</Label>
+                <Input
+                  placeholder="Ej: ofertas mayoristas, entrega 24hs…"
+                  value={aiExtra}
+                  onChange={(e) => setAiExtra(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-600 bg-white/60 rounded p-2 border border-violet-200">
+              💡 La IA generará <b>slug, H1, intro, body (2-4 párrafos), CTA, meta title, meta description y keywords</b> optimizados para SEO local chileno. Tarda 10-20 segundos.
+              {form.h1 && <><br /><span className="text-rose-700">⚠ Los campos actuales serán sobreescritos.</span></>}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setAiOpen(false)}>Cancelar</Button>
+              <Button
+                size="sm"
+                onClick={runAI}
+                className="bg-gradient-to-r from-fuchsia-500 to-indigo-500 hover:from-fuchsia-600 hover:to-indigo-600 text-white"
+              >
+                <Sparkles className="h-4 w-4 mr-1.5" /> Generar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Location + Service */}
