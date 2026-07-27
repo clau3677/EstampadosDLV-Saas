@@ -201,17 +201,7 @@ export default function ReportesPage() {
               {topProducts.length === 0 ? (
                 <div className="text-sm text-slate-400 text-center py-6">Sin ventas en el período</div>
               ) : (
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topProducts} layout="vertical" margin={{ left: 100 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" fontSize={11} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                      <YAxis type="category" dataKey="name" fontSize={11} width={100} />
-                      <Tooltip formatter={(v) => formatCLP(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                      <Bar dataKey="revenue" fill="#059669" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <TopProductsList products={topProducts} />
               )}
             </CardContent>
           </Card>
@@ -383,6 +373,70 @@ export default function ReportesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Top Products — lista visual con barras de progreso (mejor que BarChart cuando
+// los nombres son largos)
+// ---------------------------------------------------------------------------
+function TopProductsList({ products }) {
+  const maxRevenue = Math.max(...products.map(p => p.revenue || 0), 1);
+  const totalRevenue = products.reduce((s, p) => s + (p.revenue || 0), 0);
+
+  return (
+    <div className="space-y-3">
+      {products.map((p, idx) => {
+        const pct = ((p.revenue || 0) / maxRevenue) * 100;
+        const sharePct = totalRevenue > 0 ? ((p.revenue || 0) / totalRevenue) * 100 : 0;
+        return (
+          <div key={p.name + idx} className="group">
+            <div className="flex items-start justify-between gap-3 mb-1.5">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <span className={`shrink-0 h-6 w-6 rounded-md text-xs font-bold flex items-center justify-center ${
+                  idx === 0 ? 'bg-emerald-100 text-emerald-700' :
+                  idx === 1 ? 'bg-slate-200 text-slate-700' :
+                  idx === 2 ? 'bg-amber-100 text-amber-700' :
+                  'bg-slate-100 text-slate-500'
+                }`}>
+                  {idx + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-slate-900 leading-tight break-words" title={p.name}>
+                    {p.name}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {p.quantity} unidad{p.quantity === 1 ? '' : 'es'} · {sharePct.toFixed(1)}% del total
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-sm font-semibold text-slate-900 tabular-nums">
+                  {formatCLP(p.revenue || 0)}
+                </div>
+              </div>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  idx === 0 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                  idx <= 2 ? 'bg-emerald-500' :
+                  'bg-emerald-400/70'
+                }`}
+                style={{ width: `${Math.max(pct, 2)}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+
+      {totalRevenue > 0 && (
+        <div className="flex items-center justify-between text-xs text-slate-500 pt-3 mt-2 border-t">
+          <span>Total top {products.length}</span>
+          <span className="font-semibold text-slate-700 tabular-nums">{formatCLP(totalRevenue)}</span>
+        </div>
+      )}
     </div>
   );
 }
