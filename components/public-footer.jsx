@@ -29,6 +29,7 @@ export function PublicFooter() {
             <li><Link href="/tienda?cat=apparel" className="hover:text-orange-600">Prendas</Link></li>
             <li><Link href="/tienda?cat=dtf_meter" className="hover:text-orange-600">DTF por metro</Link></li>
             <li><Link href="/gang-sheet" className="hover:text-orange-600">Arma tu pliego</Link></li>
+            <li><Link href="/contacto" className="hover:text-orange-600">Contacto</Link></li>
           </ul>
         </div>
 

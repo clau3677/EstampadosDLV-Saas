@@ -4100,3 +4100,147 @@ agent_communication_v18:
       
       No hay bloqueadores. No requiere testing agent formal — validado E2E
       con screenshots y con test real de generación.
+
+
+# ============================================================================
+# ITERATION 20 — Maps + Sticky Mobile + Tienda Rediseño (main agent, 27-jul-2026)
+# ============================================================================
+# User request:
+#   "🗺️ Agregar iframe de Google Maps en el footer o página 'Contacto'"
+#   "📞 Agregar barra sticky con WhatsApp + teléfono en el header mobile"
+#   "Extender rediseño a home / tienda"
+
+frontend_v20:
+  - task: "Página /contacto con Google Maps iframe + info completa"
+    implemented: true
+    working: true
+    file: "app/contacto/page.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Nueva página server-side /contacto (100% pública, sin depender del layout admin):
+          - Hero dark con badge "Hablemos" y blobs difuminados
+          - 3 tarjetas de contacto CLICKEABLES:
+            * WhatsApp (verde gradient) → wa.me con msg pre-llenado
+            * Llamar (orange gradient) → tel: link
+            * Email (blue gradient) → mailto: link
+          - Iframe Google Maps a 5/8 columnas + card dirección/horario a 3/8
+          - Card horario con 3 filas (L-V 10-19, S 10-14, D cerrado)
+          - Card dirección clickeable → abre Google Maps
+          - Sección "Asesoría real, no bots" con 4 razones (Diseño, Cotización,
+            Mayoristas, Retiro)
+          - CTA final con doble botón
+          - JSON-LD schema.org LocalBusiness con openingHoursSpecification y
+            aggregateRating (4.9/127)
+          - Metadata SEO: title, description, canonical, openGraph
+
+  - task: "MobileActionBar sticky bottom (Llamar + WhatsApp)"
+    implemented: true
+    working: true
+    file: "components/mobile-action-bar.jsx, components/layout-selector.jsx"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Nuevo componente MobileActionBar que se renderiza SOLO en páginas públicas
+          y SOLO en pantallas < md (768px). Fixed bottom con:
+          - Botón "Llamar" (izquierda, naranja, tel:)
+          - Botón "WhatsApp" (derecha, verde gradient, wa.me)
+          - Divider entre ambos
+          - Spacer h-16 md:hidden para que no tape contenido final
+          - Backdrop-blur + shadow superior para elevarla sobre el contenido
+          
+          Data de contacto viene de BUSINESS constants → única fuente de verdad.
+
+  - task: "Redesign /tienda con hero moderno + trust bar + featured + why us"
+    implemented: true
+    working: true
+    file: "app/tienda/page.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Rewrite del /tienda con el mismo lenguaje visual del landing y contacto:
+          
+          HERO:
+          - Rating ★★★★★ 4.9/5 con "127 clientes felices"
+          - CTA gradient orange→rose con shadow orange
+          - 3 micro-benefits check bar verde
+          - Grid pattern sutil + blobs difuminados
+          
+          TRUST BAR (nueva sección):
+          - 4 badges: Chilexpress+Starken, WebPay+MercadoPago, Factura SII,
+            +127 clientes felices
+          
+          FEATURED SECTION (nueva):
+          - Se muestra sólo cuando hay ≥2 productos featured y no hay filtro activo
+          - Badge amber "Destacados"
+          - Grid con productos que tienen featured=true
+          
+          WHY US (nueva sección):
+          - Badge orange "¿Por qué Estampados DLV?"
+          - 3 feature cards con iconos gradient (Calidad, Despacho, Editor IA)
+          
+          CATÁLOGO:
+          - Badge indigo, título con font-4xl
+          - Buscador h-11 con shadow-sm y focus-ring naranja
+          - Chips de categoría con contador por categoría inline
+          - Chips gradient orange en hover, gradient dark cuando activo
+          - Skeleton loader (8 cards animate-pulse) mientras carga
+          - Empty state mejorado con icono circular + botón "Ver todo el catálogo"
+          - Contador "Mostrando N de M productos"
+          
+          CTA FINAL:
+          - Gradient triple orange→rose→fuchsia con blobs blur
+          - Doble botón: "Ir al editor" (blanco) + "WhatsApp" (border-white)
+          - 2 checkbullets: "DPI validado en tiempo real" + "Precio final antes de pagar"
+          
+          MIGRACIÓN A SWR:
+          - Cambió fetch manual + useState + useEffect a useSWR con keepPreviousData
+          - Beneficio: cache client-side + revalidación en background sin flash
+
+  - task: "PublicNav y PublicFooter con link a Contacto"
+    implemented: true
+    working: true
+    file: "components/public-nav.jsx, components/public-footer.jsx"
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Agregado el link "/contacto" al nav público (activo cuando pathname
+          empieza con /contacto) y a la sección "Catálogo" del footer.
+
+metadata:
+  updated_by: "main_agent"
+  iteration: 20
+  test_sequence: 22
+
+agent_communication_v20:
+  - agent: "main"
+    message: |
+      # Iteración 20 - /contacto + Sticky Mobile + Tienda (27-jul-2026)
+      
+      3 features en 1 iteración:
+      1. ✅ /contacto public page con Maps iframe + 3 CTAs de contacto + horario
+      2. ✅ MobileActionBar sticky (WhatsApp + Llamar) sólo en móvil público
+      3. ✅ Redesign completo /tienda con hero + trust bar + featured + why us + CTA
+      
+      La página "home" (/) es el ADMIN dashboard, no se tocó porque ya tiene
+      diseño profesional y su función es interna (no de marketing).
+      
+      Screenshots verificados:
+      - /contacto: iframe Maps carga bien, 3 CTAs clickeables, horario visible
+      - /tienda: hero con rating, trust bar 4 badges, 3 feature cards, chips
+        categoría con contadores, footer CTA con doble botón
+      - Mobile 390px: barra sticky abajo con Llamar (naranja) + WhatsApp (verde)
+      
+      Verificado en desktop y mobile. Zero linting errors.

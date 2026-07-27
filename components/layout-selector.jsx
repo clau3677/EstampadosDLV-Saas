@@ -7,8 +7,9 @@ import { PublicNav } from '@/components/public-nav';
 import { PublicFooter } from '@/components/public-footer';
 import { CartDrawer } from '@/components/cart-drawer';
 import ChatWidget from '@/components/chat-widget';
+import MobileActionBar from '@/components/mobile-action-bar';
 
-const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios'];
+const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios', '/contacto'];
 
 export default function LayoutSelector({ children }) {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export default function LayoutSelector({ children }) {
         <PublicFooter />
         <CartDrawer />
         <ChatWidget />
+        <MobileActionBar />
       </div>
     );
   }

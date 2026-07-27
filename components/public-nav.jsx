@@ -44,6 +44,7 @@ export function PublicNav() {
           <Link href="/gang-sheet" className="text-sm font-medium text-slate-700 hover:text-slate-900 inline-flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" />Sube tu diseño
           </Link>
+          {link('/contacto', 'Contacto')}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">

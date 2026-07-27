@@ -3,11 +3,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Search, Layers, Sparkles, ArrowRight, Loader2, X } from 'lucide-react';
+import useSWR from 'swr';
+import {
+  Search, Layers, Sparkles, ArrowRight, Loader2, X, Star, Truck, ShieldCheck,
+  Heart, Wallet, Palette, CheckCircle2, Package,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProductCard } from '@/components/product-card';
+import { BUSINESS } from '@/lib/constants/business';
 
 const DEFAULT_CATS = [
   { code: 'all',       label: 'Todos' },
@@ -16,89 +21,225 @@ const DEFAULT_CATS = [
   { code: 'accessory', label: 'Accesorios' },
 ];
 
+const fetcher = (url) => fetch(url).then(r => r.json());
+
+// ---------------------------------------------------------------------------
+
+function TrustBadge({ icon: Icon, title, subtitle }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+        <Icon className="h-5 w-5 text-slate-700" />
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-slate-900 truncate">{title}</div>
+        <div className="text-xs text-slate-500 truncate">{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({ icon: Icon, from, to, title, desc }) {
+  return (
+    <div className="group rounded-2xl border border-slate-200 bg-white p-6 hover:border-transparent hover:shadow-xl hover:-translate-y-1 transition-all">
+      <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${from} ${to} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
+        <Icon className="h-6 w-6 text-white" />
+      </div>
+      <h3 className="mt-4 font-bold text-slate-900 text-lg">{title}</h3>
+      <p className="mt-1.5 text-sm text-slate-600 leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
+// ============================================================================
+
 export default function TiendaPage() {
   const searchParams = useSearchParams();
-  const [products, setProducts] = useState([]);
   const [cats, setCats] = useState(DEFAULT_CATS);
-  const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState('all');
   const [q, setQ] = useState('');
+
+  const { data: prData, isLoading } = useSWR('/api/products', fetcher, { keepPreviousData: true });
+  const { data: taxData } = useSWR('/api/taxonomies?kind=product_category', fetcher);
+
+  const products = useMemo(() =>
+    Array.isArray(prData) ? prData.filter(p => p.active !== false) : []
+  , [prData]);
+
+  useEffect(() => {
+    if (Array.isArray(taxData) && taxData.length > 0) {
+      setCats([{ code: 'all', label: 'Todos' }, ...taxData.map(t => ({ code: t.code, label: t.label }))]);
+    }
+  }, [taxData]);
 
   useEffect(() => {
     const paramCat = searchParams.get('cat');
     if (paramCat) setCat(paramCat);
   }, [searchParams]);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [pr, tr] = await Promise.all([
-          fetch('/api/products').then(r => r.json()),
-          fetch('/api/taxonomies?kind=product_category').then(r => r.json()),
-        ]);
-        const activeProducts = (Array.isArray(pr) ? pr : []).filter(p => p.active !== false);
-        setProducts(activeProducts);
-        if (Array.isArray(tr) && tr.length > 0) {
-          setCats([{ code: 'all', label: 'Todos' }, ...tr.map(t => ({ code: t.code, label: t.label }))]);
-        }
-      } finally { setLoading(false); }
-    })();
-  }, []);
-
   const filtered = useMemo(() => {
+    const qLow = q.trim().toLowerCase();
     return products.filter(p => {
       if (cat !== 'all' && p.category !== cat) return false;
-      if (q && !p.name?.toLowerCase().includes(q.toLowerCase()) &&
-         !p.description?.toLowerCase().includes(q.toLowerCase())) return false;
+      if (qLow &&
+          !p.name?.toLowerCase().includes(qLow) &&
+          !p.description?.toLowerCase().includes(qLow)) return false;
       return true;
     });
   }, [products, cat, q]);
 
+  const featured = useMemo(() =>
+    products.filter(p => p.featured).slice(0, 4)
+  , [products]);
+
+  const showFeaturedSection = featured.length >= 2 && cat === 'all' && !q;
+
   return (
     <div>
-      {/* HERO */}
+      {/* ================ HERO ================ */}
       <section className="relative bg-gradient-to-br from-slate-950 via-slate-900 to-orange-950 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.4),transparent_50%)]" />
-        <div className="container relative py-16 md:py-20">
+        <div className="pointer-events-none absolute -top-32 -right-32 h-96 w-96 rounded-full bg-orange-500/30 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-rose-500/20 blur-3xl" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+
+        <div className="container relative py-16 md:py-24">
           <Badge className="bg-orange-500/20 text-orange-300 border border-orange-500/30 mb-4">
             <Sparkles className="h-3 w-3 mr-1" />Taller DTF y DTF UV
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight max-w-3xl">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.05] max-w-3xl">
             Impresión DTF profesional,<br />
             <span className="bg-gradient-to-r from-orange-400 to-rose-400 bg-clip-text text-transparent">entrega en 48hrs.</span>
           </h1>
-          <p className="mt-4 text-slate-300 text-lg max-w-2xl">
-            Compra poleras, hoodies y DTF por metro. O sube tu diseño y armá tu propio pliego con nuestro editor.
+          <p className="mt-5 text-slate-300 text-lg max-w-2xl">
+            Compra poleras, polerones y DTF por metro. O sube tu diseño y arma tu propio pliego con nuestro editor visual con IA.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button size="lg" className="bg-orange-500 hover:bg-orange-600" asChild>
+
+          {/* Rating + count */}
+          <div className="mt-6 flex items-center gap-4">
+            <div className="flex items-center gap-0.5">
+              {[0,1,2,3,4].map(i => (
+                <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <div className="text-sm text-slate-400">
+              <span className="font-bold text-white">4.9/5</span> · <span>127 clientes felices</span>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 shadow-lg shadow-orange-500/25"
+              asChild
+            >
               <Link href="/gang-sheet"><Layers className="h-4 w-4 mr-2" />Sube tu diseño</Link>
             </Button>
-            <Button size="lg" variant="outline" className="bg-transparent border-slate-500 text-white hover:bg-slate-800 hover:text-white" asChild>
+            <Button
+              size="lg"
+              variant="outline"
+              className="bg-transparent border-slate-500 text-white hover:bg-slate-800 hover:text-white"
+              asChild
+            >
               <a href="#catalogo">Ver catálogo <ArrowRight className="h-4 w-4 ml-2" /></a>
             </Button>
+          </div>
+
+          {/* Micro-benefits */}
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
+            <div className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />Sin mínimo de compra</div>
+            <div className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />Auto-mejora IA a 300 DPI</div>
+            <div className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />Preview antes de imprimir</div>
           </div>
         </div>
       </section>
 
-      {/* CATALOGO */}
-      <section id="catalogo" className="container py-10">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Catálogo</h2>
-            <p className="text-sm text-slate-500">Productos listos para personalizar con tu diseño DTF.</p>
+      {/* ================ TRUST BAR ================ */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="container py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+            <TrustBadge icon={Truck}       title="Chilexpress + Starken" subtitle="Despacho 24-48h a todo Chile" />
+            <TrustBadge icon={Wallet}      title="WebPay + MercadoPago"  subtitle="Pago seguro con Transbank" />
+            <TrustBadge icon={ShieldCheck} title="Factura electrónica"   subtitle="SII · Boleta o factura" />
+            <TrustBadge icon={Heart}       title="+127 clientes felices" subtitle="4.9/5 en Google Reviews" />
           </div>
-          <div className="relative w-full sm:w-72">
+        </div>
+      </section>
+
+      {/* ================ FEATURED PRODUCTS ================ */}
+      {showFeaturedSection && (
+        <section className="container py-16">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-semibold mb-2">
+                <Star className="h-3 w-3 fill-amber-500 text-amber-500" />Destacados
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+                Los favoritos del taller
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">Los productos que más piden nuestros clientes.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {featured.map(p => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </section>
+      )}
+
+      {/* ================ WHY US ================ */}
+      <section className="bg-gradient-to-b from-slate-50 to-white py-16 border-y border-slate-100">
+        <div className="container">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-1 rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs font-semibold mb-3">
+              <Sparkles className="h-3 w-3" />¿Por qué Estampados DLV?
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">
+              Estampados premium, envío a todo Chile
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FeatureCard icon={Palette} from="from-amber-500"  to="to-orange-600"
+              title="Calidad premium 300 DPI"
+              desc="Impresión a máxima resolución con canal blanco de alta densidad. Colores vibrantes y detalles finos, incluso en telas oscuras." />
+            <FeatureCard icon={Truck}   from="from-emerald-500" to="to-teal-600"
+              title="Despacho 24-48h a todo Chile"
+              desc="Producción exprés y despacho por Chilexpress o Starken con tracking en tiempo real. Retiro gratis en Quilpué." />
+            <FeatureCard icon={Sparkles} from="from-fuchsia-500" to="to-indigo-600"
+              title="Editor visual con IA"
+              desc="Sube tu diseño y ve el resultado antes de pagar. La IA auto-mejora tus imágenes a 300 DPI." />
+          </div>
+        </div>
+      </section>
+
+      {/* ================ CATÁLOGO ================ */}
+      <section id="catalogo" className="container py-16">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold mb-2">
+              <Package className="h-3 w-3" />Catálogo
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Todo el catálogo</h2>
+            <p className="text-sm text-slate-500 mt-1">Productos listos para personalizar con tu diseño DTF.</p>
+          </div>
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
-              placeholder="Buscar producto…"
+              placeholder="Buscar producto, categoría…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="pl-9 h-10"
+              className="pl-9 h-11 shadow-sm border-slate-200 focus-visible:ring-orange-500"
             />
             {q && (
-              <button onClick={() => setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+              <button
+                onClick={() => setQ('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700"
+                aria-label="Limpiar búsqueda"
+              >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -106,54 +247,100 @@ export default function TiendaPage() {
         </div>
 
         {/* Chips de categoría */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {cats.map((c) => (
-            <button
-              key={c.code}
-              onClick={() => setCat(c.code)}
-              className={`
-                px-4 py-1.5 rounded-full text-sm font-medium transition-all
-                ${cat === c.code
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'}
-              `}
-            >
-              {c.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 mb-8">
+          {cats.map((c) => {
+            const active = cat === c.code;
+            const count = c.code === 'all' ? products.length : products.filter(p => p.category === c.code).length;
+            return (
+              <button
+                key={c.code}
+                onClick={() => setCat(c.code)}
+                className={`
+                  inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all
+                  ${active
+                    ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700'}
+                `}
+              >
+                <span>{c.label}</span>
+                <span className={`
+                  inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold
+                  ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}
+                `}>{count}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Grid */}
-        {loading ? (
-          <div className="h-64 flex items-center justify-center text-slate-500">
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />Cargando catálogo…
+        {isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[0,1,2,3,4,5,6,7].map(i => (
+              <div key={i} className="aspect-[3/4] rounded-xl bg-slate-100 animate-pulse" />
+            ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200 rounded-xl">
-            <div className="text-4xl mb-2">🔍</div>
-            <div className="text-lg font-semibold text-slate-700">Sin resultados</div>
-            <div className="text-sm text-slate-500 mt-1">Prueba con otro filtro o busca por nombre.</div>
+          <div className="py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+              <Search className="h-7 w-7 text-slate-400" />
+            </div>
+            <div className="text-lg font-semibold text-slate-800">Sin resultados</div>
+            <div className="text-sm text-slate-500 mt-1 max-w-sm">
+              No encontramos productos con esos filtros. Prueba con otra categoría o busca por nombre.
+            </div>
+            <Button variant="outline" className="mt-4" onClick={() => { setCat('all'); setQ(''); }}>
+              Ver todo el catálogo
+            </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filtered.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filtered.map(p => <ProductCard key={p.id} product={p} />)}
+            </div>
+            <div className="mt-6 text-center text-xs text-slate-500">
+              Mostrando {filtered.length} de {products.length} productos
+            </div>
+          </>
         )}
       </section>
 
-      {/* CTA final */}
+      {/* ================ CTA FINAL ================ */}
       <section className="container pb-16">
-        <div className="rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 p-8 md:p-12 text-white flex flex-col md:flex-row items-start md:items-center gap-6">
-          <div className="flex-1">
-            <div className="text-xs uppercase tracking-widest text-white/80 font-semibold">Editor visual con IA</div>
-            <h3 className="text-2xl md:text-3xl font-bold mt-1">¿No encuentras lo que buscas?</h3>
-            <p className="text-white/90 mt-1 max-w-lg">
-              Sube tus diseños y arma tu propio pliego DTF. Cotiza por mm impreso en tiempo real.
-            </p>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-rose-500 to-fuchsia-600 p-10 md:p-16 text-white shadow-2xl">
+          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="flex-1">
+              <div className="text-xs uppercase tracking-widest text-white/80 font-semibold">Editor visual con IA</div>
+              <h3 className="text-2xl md:text-3xl font-bold mt-2 tracking-tight">¿No encuentras lo que buscas?</h3>
+              <p className="text-white/95 mt-2 max-w-lg">
+                Sube tus diseños y arma tu propio pliego DTF. Cotiza por centímetro impreso en tiempo real.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-white/80">
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />DPI validado en tiempo real</span>
+                <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Precio final antes de pagar</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Button
+                size="lg"
+                className="bg-white text-rose-600 hover:bg-white/95 font-bold shadow-xl"
+                asChild
+              >
+                <Link href="/gang-sheet"><Layers className="h-4 w-4 mr-2" />Ir al editor</Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white/40 text-white hover:bg-white/10 font-bold"
+                asChild
+              >
+                <a href={BUSINESS.whatsapp.url('Hola! Quiero cotizar')} target="_blank" rel="noopener noreferrer">
+                  WhatsApp
+                </a>
+              </Button>
+            </div>
           </div>
-          <Button size="lg" className="bg-white text-orange-600 hover:bg-white/90 font-semibold" asChild>
-            <Link href="/gang-sheet"><Layers className="h-4 w-4 mr-2" />Ir al Gang Sheet Builder</Link>
-          </Button>
         </div>
       </section>
     </div>
