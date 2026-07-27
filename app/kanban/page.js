@@ -9,12 +9,16 @@ import {
 } from '@dnd-kit/core';
 import {
   ArrowLeft, KanbanSquare, Printer, Zap, User, Clock, Package,
-  RefreshCw, ChevronRight, CheckCircle2, Loader2,
+  RefreshCw, ChevronRight, CheckCircle2, Loader2, X, Ban, Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
 import { formatCLP, formatDateTime } from '@/lib/format';
 
 // ============================================================================
@@ -48,20 +52,38 @@ function timeAgo(date) {
   return `hace ${d} d`;
 }
 
-function QueueCard({ item, isDragging, printersMap }) {
+function QueueCard({ item, isDragging, printersMap, onRemoveClick }) {
   const printer = printersMap[item.printer] || { color: 'from-slate-500 to-slate-700', label: item.printer };
   const isExpress = item.priority === 'express';
 
   return (
     <div
       className={`
-        rounded-lg border bg-white p-3 shadow-sm select-none
+        relative rounded-lg border bg-white p-3 shadow-sm select-none
         ${isExpress ? 'border-orange-400 ring-1 ring-orange-200' : 'border-slate-200'}
         ${isDragging ? 'opacity-40' : ''}
-        hover:border-slate-300 transition-colors
+        hover:border-slate-300 transition-colors group
       `}
     >
-      <div className="flex items-start justify-between gap-2">
+      {/* Botón X para quitar/cancelar - visible siempre en mobile, hover en desktop */}
+      {onRemoveClick && !isDragging && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onRemoveClick(item);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute top-1.5 right-1.5 z-10 h-6 w-6 rounded-md flex items-center justify-center bg-white/90 border border-slate-200 shadow-sm text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all"
+          aria-label="Quitar del Kanban"
+          title="Quitar del Kanban"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      <div className="flex items-start justify-between gap-2 pr-6">
         <div className="font-mono text-[11px] font-bold text-slate-700">
           {item.order?.orderNumber || '—'}
         </div>
@@ -101,7 +123,7 @@ function QueueCard({ item, isDragging, printersMap }) {
   );
 }
 
-function DraggableCard({ item, printersMap }) {
+function DraggableCard({ item, printersMap, onRemoveClick }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: { item },
@@ -111,12 +133,12 @@ function DraggableCard({ item, printersMap }) {
     : undefined;
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
-      <QueueCard item={item} isDragging={isDragging} printersMap={printersMap} />
+      <QueueCard item={item} isDragging={isDragging} printersMap={printersMap} onRemoveClick={onRemoveClick} />
     </div>
   );
 }
 
-function StatusColumn({ status, items, printersMap }) {
+function StatusColumn({ status, items, printersMap, onRemoveClick }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.key });
   return (
     <div
@@ -135,7 +157,7 @@ function StatusColumn({ status, items, printersMap }) {
       </div>
 
       <div className="flex-1 space-y-2">
-        {items.map(item => <DraggableCard key={item.id} item={item} printersMap={printersMap} />)}
+        {items.map(item => <DraggableCard key={item.id} item={item} printersMap={printersMap} onRemoveClick={onRemoveClick} />)}
         {items.length === 0 && (
           <div className="h-24 flex items-center justify-center text-xs text-slate-400 italic">Vacío</div>
         )}
@@ -150,6 +172,11 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
   const [printerFilter, setPrinterFilter] = useState('all');
+
+  // Estado para el diálogo de quitar/cancelar
+  const [removeItem, setRemoveItem] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [processingRemove, setProcessingRemove] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -223,6 +250,64 @@ export default function KanbanPage() {
     }
   };
 
+  // Quitar SÓLO esta tarjeta del Kanban (deja el pedido intacto)
+  const handleRemoveFromKanban = async () => {
+    if (!removeItem) return;
+    setProcessingRemove(true);
+    try {
+      const r = await fetch('/api/production/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: removeItem.id }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo quitar la tarjeta');
+        return;
+      }
+      toast.success('Tarjeta quitada del Kanban', {
+        description: 'El pedido sigue existiendo. Puedes verlo en /pedidos',
+      });
+      setItems(prev => prev.filter(i => i.id !== removeItem.id));
+      setRemoveItem(null);
+    } catch (e) {
+      toast.error('Error de red', { description: e.message });
+    } finally {
+      setProcessingRemove(false);
+    }
+  };
+
+  // Cancelar el PEDIDO completo (marca cancelled + libera stock + quita TODAS sus tarjetas)
+  const handleCancelOrder = async () => {
+    if (!removeItem?.orderId) return;
+    setProcessingRemove(true);
+    try {
+      const r = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: removeItem.orderId, reason: cancelReason.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo cancelar el pedido');
+        return;
+      }
+      toast.success(`Pedido ${removeItem.order?.orderNumber || ''} cancelado`, {
+        description: 'Stock liberado y tarjetas removidas del Kanban',
+      });
+      // Sacar del Kanban local todas las tarjetas del mismo pedido
+      setItems(prev => prev.filter(i => i.orderId !== removeItem.orderId));
+      setRemoveItem(null);
+      setCancelReason('');
+    } catch (e) {
+      toast.error('Error de red', { description: e.message });
+    } finally {
+      setProcessingRemove(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -284,7 +369,13 @@ export default function KanbanPage() {
         >
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             {STATUSES.map(s => (
-              <StatusColumn key={s.key} status={s} items={byStatus[s.key] || []} printersMap={printersMap} />
+              <StatusColumn
+                key={s.key}
+                status={s}
+                items={byStatus[s.key] || []}
+                printersMap={printersMap}
+                onRemoveClick={setRemoveItem}
+              />
             ))}
           </div>
           <DragOverlay>
@@ -292,6 +383,84 @@ export default function KanbanPage() {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Diálogo: Quitar tarjeta / Cancelar pedido */}
+      <Dialog open={!!removeItem} onOpenChange={(v) => { if (!v) { setRemoveItem(null); setCancelReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-4 w-4 text-rose-600" />
+              {removeItem?.order?.orderNumber || 'Tarjeta'}
+            </DialogTitle>
+            <DialogDescription>
+              Elige qué hacer con esta tarjeta:
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Opción 1: quitar sólo la tarjeta */}
+          <div className="rounded-lg border border-slate-200 p-3 hover:border-slate-300 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="font-semibold text-sm text-slate-900 flex items-center gap-1.5">
+                  <X className="h-3.5 w-3.5 text-slate-600" />
+                  Quitar del Kanban
+                </div>
+                <div className="text-xs text-slate-600 mt-1">
+                  Elimina esta tarjeta específica de la cola de producción. El pedido sigue existiendo en <b>/pedidos</b>.
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRemoveFromKanban}
+                disabled={processingRemove}
+              >
+                {processingRemove
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : 'Quitar'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Opción 2: cancelar el pedido completo */}
+          <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3">
+            <div className="font-semibold text-sm text-rose-900 flex items-center gap-1.5">
+              <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+              Cancelar el pedido completo
+            </div>
+            <div className="text-xs text-rose-800/80 mt-1">
+              Marca el pedido como <b>Cancelado</b>, libera el stock reservado y quita <b>todas</b> las tarjetas del Kanban que pertenecen a este pedido.
+            </div>
+            <div className="mt-2">
+              <label className="text-[10px] font-semibold text-slate-700 uppercase tracking-wide mb-1 block">
+                Motivo (opcional)
+              </label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej. Cliente no pagó la transferencia dentro del plazo"
+                className="min-h-[60px] text-xs"
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={handleCancelOrder}
+              disabled={processingRemove || !removeItem?.orderId}
+              className="mt-2 w-full bg-rose-600 hover:bg-rose-700"
+            >
+              {processingRemove
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Procesando…</>
+                : <><Ban className="h-3.5 w-3.5 mr-1.5" />Cancelar pedido completo</>}
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setRemoveItem(null); setCancelReason(''); }} disabled={processingRemove}>
+              Volver
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

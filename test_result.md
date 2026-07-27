@@ -5604,3 +5604,131 @@ agent_communication:
     -agent: "testing"
     -message: "✅ BACKEND TESTING COMPLETE - Company/Bank Settings API (27-jan-2026). All 8 tests passed (100% success rate). Test file: /app/backend_test_settings.py. Comprehensive testing completed: (1) GET público sin auth → 200 with all 11 default fields ✓, (2) PUT sin auth → 403 with correct error message + security verified (data not saved) ✓, (3) Login admin + PUT valid data → 200 with all 3 fields updated ✓, (4) Persistence GET after PUT → all 3 fields persisted correctly ✓, (5) Merge non-destructive → partial PUT does NOT overwrite other fields ✓, (6) Whitelist → evil fields (evilField, __proto__) correctly rejected ✓, (7) Trim strings → leading/trailing spaces removed ✓, (8) Reset to defaults → all fields restored ✓. All validations working correctly: auth check (403), whitelist (only allowed fields), merge (non-destructive), trim (strings), persistence (MongoDB upsert). No MongoDB _id leakage. No critical issues found. Ready for production. Frontend testing (admin UI /configuracion tab 'Empresa & Pagos' and checkout page /checkout/gracias) NOT tested as per system limitations (frontend testing requires user manual verification). Main agent should summarize and finish."
 
+
+---
+
+# 2026-07-27 · Feature: Cancelar/Eliminar pedidos + Quitar/Cancelar tarjetas del Kanban
+
+## Contexto
+El usuario reportó que los pedidos no se pueden borrar ni las tarjetas del Kanban de Producción se pueden quitar cuando el cliente no paga o cancela. Sin este flujo, quedaban órdenes fantasmas y el stock quedaba reservado indefinidamente.
+
+## Cambios implementados
+
+### Backend
+
+#### 1. `/app/lib/api/orders.js`
+- **Nuevo helper `releaseReservedStockForOrder(db, orderId, orderNumber)`**: devuelve al stock disponible las unidades reservadas por un pedido (updates `commercial_stock.reservedQuantity` y registra un `stock_movements` tipo `commercial_in` con reason `Liberación por cancelación de pedido X`).
+- **Nuevo endpoint `POST /api/orders/cancel`** (admin only):
+  - Body: `{ id, reason }`.
+  - Valida que el pedido exista y no esté ya `cancelled` ni `delivered`.
+  - Marca status='cancelled', productionStatus='not_started', cancelReason, cancelledAt, cancelledBy.
+  - Libera stock reservado.
+  - Elimina todas las tarjetas del Kanban (`production_queue.deleteMany({orderId})`).
+- **Nuevo endpoint `POST /api/orders/delete`** (admin only):
+  - Body: `{ id, force? }`.
+  - Guardarraíl: sólo permite borrar si el pedido está en estado `cancelled`. Se puede saltar con `force=true`.
+  - Si `force=true` y el pedido no estaba cancelado (y tampoco entregado), libera stock igual.
+  - Borra en cascada: `order_items`, `production_queue`, `orders`.
+
+#### 2. `/app/lib/api/production.js`
+- **Nuevo endpoint `POST /api/production/remove`** (admin only):
+  - Body: `{ id }` (id de la tarjeta en `production_queue`).
+  - Quita SÓLO la tarjeta especificada, sin tocar el pedido.
+  - Si era la última tarjeta del pedido, marca `productionStatus='not_started'` en el pedido.
+
+### Frontend
+
+#### 3. `/app/app/pedidos/page.js`
+- Nuevos imports: `Ban`, `Trash2`, `Loader2` (lucide), `Textarea`, `DialogFooter`, `AlertDialog*`.
+- Nuevo estado: `cancelDialogOpen`, `cancelReason`, `cancelling`, `deleteConfirmOpen`, `deleting`.
+- Nuevas funciones: `cancelOrder()`, `deleteOrder()` con optimistic UI update.
+- Nuevos botones dentro del modal de detalle:
+  - **Cancelar pedido** (color rojo, sólo visible si status !== 'cancelled' && status !== 'delivered')
+  - **Eliminar permanentemente** (color rojo intenso, sólo visible si status === 'cancelled')
+- Muestra motivo de cancelación en un banner rojo si aplica.
+- Modales: 
+  - `Dialog` con `Textarea` para capturar motivo antes de cancelar
+  - `AlertDialog` de confirmación destructiva antes de eliminar
+
+#### 4. `/app/app/kanban/page.js`
+- Nuevos imports: `X`, `Ban`, `Trash2`, `Textarea`, `Dialog`, `DialogFooter`.
+- Botón X en la esquina superior derecha de cada `QueueCard`:
+  - Visible siempre en mobile (`opacity-100`)
+  - Visible en hover en desktop (`lg:opacity-0 lg:group-hover:opacity-100`)
+  - `onPointerDown` con `stopPropagation` para NO iniciar drag al presionarlo.
+- Al hacer click en X se abre un `Dialog` con 2 opciones:
+  1. **Quitar del Kanban** (secundario) → llama `POST /api/production/remove`. El pedido sigue existiendo, sólo desaparece la tarjeta.
+  2. **Cancelar el pedido completo** (destructivo, con textarea de motivo) → llama `POST /api/orders/cancel`. Marca el pedido como cancelado, libera stock, y quita TODAS las tarjetas del mismo `orderId` del Kanban local.
+
+## Verificación manual (main agent)
+- Lint pass en los 4 archivos modificados ✅
+- Compilación sin errores en dev server ✅
+
+backend:
+  - task: "Order cancel/delete endpoints (POST /api/orders/cancel, POST /api/orders/delete)"
+    implemented: true
+    working: true
+    file: "/app/lib/api/orders.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Nuevos endpoints. cancel: valida no cancelled/delivered, marca cancelled, libera stock reservado, borra tarjetas del Kanban. delete: sólo permite si status=cancelled (o force=true), cascade delete order_items+production_queue+orders. Ambos admin only."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - Comprehensive testing completed (9 test scenarios, all passed). POST /api/orders/cancel: T1.1 Auth validation (403 without admin) ✓, T1.2 Nonexistent order (404) ✓, T1.3-T1.7 Full cancel flow: created order DLV-2025-000329, cancelled successfully with reason 'Cliente no pagó', order status updated to 'cancelled', cancelReason and cancelledAt set correctly, stock released (reservedQuantity 4→2), production_queue items removed (1→0) ✓, T1.8 Already cancelled order (400) ✓. POST /api/orders/delete: T2.1 Auth validation (403) ✓, T2.2 Nonexistent order (404) ✓, T2.3 Pending order without force (400) ✓, T2.4-T2.5 Delete cancelled order: cascade delete working, order no longer exists via GET /api/orders/lookup (404) ✓, T2.6 Delete with force=true bypasses cancelled check ✓. All validations working correctly. Stock release mechanism verified. Cascade delete working (order_items + production_queue + orders). Test file: /app/backend_test_cancel_delete.py"
+
+  - task: "Kanban card remove endpoint (POST /api/production/remove)"
+    implemented: true
+    working: true
+    file: "/app/lib/api/production.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Nuevo endpoint. Quita 1 tarjeta del Kanban sin cancelar el pedido. Si era la última, marca productionStatus='not_started'. Admin only."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - Comprehensive testing completed (4 test scenarios, all passed). T3.1 Auth validation (403 without admin) ✓, T3.2 Nonexistent item (404) ✓, T3.3-T3.5 Remove fake production_queue item: inserted item via mongosh, removed via endpoint, verified item no longer in queue ✓, T3.6 Remove last item updates productionStatus: created order DLV-2025-000331, inserted production_queue item, removed it, verified order.productionStatus='not_started' ✓. All validations working correctly. productionStatus update logic verified. Test file: /app/backend_test_cancel_delete.py"
+
+frontend:
+  - task: "Order cancel/delete UI in /pedidos"
+    implemented: true
+    working: "NA"
+    file: "/app/app/pedidos/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Botones agregados en el modal de detalle. Prueba manual del usuario pendiente."
+
+  - task: "Kanban card X button + cancel dialog"
+    implemented: true
+    working: "NA"
+    file: "/app/app/kanban/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Botón X en cada tarjeta abre diálogo con 2 opciones: quitar sólo tarjeta o cancelar pedido completo. Prueba manual del usuario pendiente."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Nueva feature: cancelar y eliminar pedidos + quitar/cancelar tarjetas del Kanban. Necesito test end-to-end de los 3 endpoints nuevos: (1) POST /orders/cancel sin auth → 403, con admin → 200. Verificar que libera stock reservado (crea un pedido nuevo, revisa reservedQuantity antes y después) y borra las tarjetas del Kanban (crea manual una tarjeta en production_queue con orderId y verifica que se borre). (2) POST /orders/delete sin fuerza cuando pedido no está cancelled → 400. Con status=cancelled → 200 y cascade delete de order_items + production_queue + orders. (3) POST /production/remove sólo borra la tarjeta, no toca el pedido. Si era la última, updates productionStatus='not_started' en la orden. Credenciales admin: estampadosdlv@gmail.com / EstampadosDLV2025!."
+    -agent: "testing"
+    -message: "✅ BACKEND TESTING COMPLETE - ALL TESTS PASSED (13/13, 100%). Tested 3 new endpoints: POST /api/orders/cancel (4 tests), POST /api/orders/delete (5 tests), POST /api/production/remove (4 tests). All critical functionality verified: auth validation (403), not found (404), business logic validations (400), stock release mechanism, production_queue cleanup, cascade delete, productionStatus updates. No critical issues found. Test file: /app/backend_test_cancel_delete.py. Both backend tasks marked as working=true, needs_retesting=false. Frontend tasks (/pedidos and /kanban UI) not tested (require manual user testing as per system prompt). Ready for user acceptance testing."
+

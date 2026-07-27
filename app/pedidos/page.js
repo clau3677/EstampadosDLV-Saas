@@ -7,13 +7,20 @@ import {
   ClipboardList, RefreshCw, Search, Filter, ArrowLeft, ExternalLink,
   CheckCircle2, Clock, Package, Truck, XCircle, AlertTriangle,
   Zap, ShoppingCart, Layers, Globe, MessageCircle, Store, Printer,
+  Ban, Trash2, Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogCancel, AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { formatCLP } from '@/lib/format';
@@ -85,6 +92,11 @@ export default function PedidosPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -110,8 +122,7 @@ export default function PedidosPage() {
     if (o) openDetail(o);
     // Limpia el query param después de usarlo
     router.replace('/pedidos', { scroll: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlightNumber, orders]);
+  }, [highlightNumber, orders, router]);
 
   const openDetail = async (order) => {
     setSelectedOrder(order);
@@ -122,6 +133,64 @@ export default function PedidosPage() {
       if (r.ok) setOrderItems(data.items || []);
     } catch { /* ignore */ }
     finally { setLoadingDetail(false); }
+  };
+
+  const cancelOrder = async () => {
+    if (!selectedOrder) return;
+    setCancelling(true);
+    try {
+      const r = await fetch('/api/orders/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedOrder.id, reason: cancelReason.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo cancelar el pedido');
+        return;
+      }
+      toast.success(`Pedido ${selectedOrder.orderNumber} cancelado`, {
+        description: 'Se liberó el stock reservado y se removió del Kanban',
+      });
+      setCancelDialogOpen(false);
+      setCancelReason('');
+      // Actualizar el estado local sin recargar toda la lista
+      setOrders(prev => prev.map(o =>
+        o.id === selectedOrder.id ? { ...o, status: 'cancelled', cancelReason: cancelReason.trim(), cancelledAt: new Date().toISOString() } : o
+      ));
+      setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled', cancelReason: cancelReason.trim() } : null);
+    } catch (e) {
+      toast.error('Error de red al cancelar', { description: e.message });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const deleteOrder = async () => {
+    if (!selectedOrder) return;
+    setDeleting(true);
+    try {
+      const r = await fetch('/api/orders/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedOrder.id }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo eliminar el pedido');
+        return;
+      }
+      toast.success(`Pedido ${selectedOrder.orderNumber} eliminado permanentemente`);
+      setDeleteConfirmOpen(false);
+      setSelectedOrder(null);
+      setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
+    } catch (e) {
+      toast.error('Error de red al eliminar', { description: e.message });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -460,11 +529,114 @@ export default function PedidosPage() {
                     Pre-Prensa
                   </Button>
                 </Link>
+
+                {/* Botón CANCELAR: sólo si NO está cancelado ni entregado */}
+                {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'delivered' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCancelReason(''); setCancelDialogOpen(true); }}
+                    className="ml-auto border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                  >
+                    <Ban className="h-3.5 w-3.5 mr-1.5" />
+                    Cancelar pedido
+                  </Button>
+                )}
+
+                {/* Botón ELIMINAR: sólo si YA está cancelado */}
+                {selectedOrder.status === 'cancelled' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="ml-auto border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Eliminar permanentemente
+                  </Button>
+                )}
               </div>
+
+              {/* Motivo de cancelación (si aplica) */}
+              {selectedOrder.status === 'cancelled' && selectedOrder.cancelReason && (
+                <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">
+                  <div className="font-semibold mb-0.5">Motivo de cancelación:</div>
+                  <div>{selectedOrder.cancelReason}</div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo: confirmar cancelación con motivo */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-4 w-4 text-rose-600" />
+              Cancelar pedido {selectedOrder?.orderNumber}
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción cambiará el pedido a estado <b>Cancelado</b>, liberará el stock reservado y quitará todas las tarjetas asociadas del Kanban de producción.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+              Motivo (opcional, se guarda en el historial)
+            </label>
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Ej. El cliente desistió del pago por transferencia"
+              className="min-h-[80px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)} disabled={cancelling}>
+              Volver
+            </Button>
+            <Button
+              onClick={cancelOrder}
+              disabled={cancelling}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              {cancelling
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Cancelando…</>
+                : <><Ban className="h-3.5 w-3.5 mr-1.5" />Confirmar cancelación</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo: confirmar eliminación permanente */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-red-600" />
+              ¿Eliminar el pedido permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borrarán del sistema el pedido <b>{selectedOrder?.orderNumber}</b>, todos sus ítems y cualquier tarjeta remanente en el Kanban.
+              <br /><br />
+              <span className="text-red-700 font-semibold">Esta acción no se puede deshacer.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); deleteOrder(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Eliminando…</>
+                : <><Trash2 className="h-3.5 w-3.5 mr-1.5" />Sí, eliminar</>}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
