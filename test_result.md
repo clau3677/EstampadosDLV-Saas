@@ -4644,3 +4644,129 @@ agent_communication_v5:
       
       Test file: /app/backend_test_iteration5.py
       Base URL: https://dtf-print-hub-2.preview.emergentagent.com
+
+# ============================================================================
+# ITERATION 6 — Cottonext Supplier Catalog Importer (27-jul-2026)
+# ============================================================================
+
+backend_v6:
+  - task: "Cottonext scraper + importer"
+    implemented: true
+    working: "YES (manually validated)"
+    file: "lib/import/cottonext.js, lib/import/paraphraser.js, lib/import/image-downloader.js, lib/api/import.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "YES"
+        agent: "main"
+        comment: |
+          Full supplier catalog importer implemented for cottonext.cl:
+
+          **Scraper (cheerio)**:
+          - Parses each product page via HTML scraping + JSON extraction from color= attributes
+          - Extracts: brand, name, description, colors, sizes, wholesale price, images
+          - Auto-detects subcategory (poleras/polerones/pantalones/shorts/camisas/otros)
+          - Rate limit: 350ms between requests (polite)
+
+          **Endpoints (/api/import/cottonext/*)**:
+          - POST /scan { from, to, force? } → preview list with stats
+          - POST /import { scanId, selectedIds, markupPercent, paraphrase } → upsert products
+          - POST /refresh-prices → re-scrape all imported and update prices
+          - GET /history → last 20 operations
+          - GET /imported → list currently imported products
+
+          **Import pipeline** per product:
+          1. Download all images to /public/uploads/proveedor/cottonext/ (SHA1 filename)
+          2. Optionally paraphrase description with MiniMax (~$0.001/product)
+          3. Apply markup (default 40%) + Chilean rounding (xx90 endings)
+          4. Generate slug + SKU
+          5. Create/update product with productType: 'blank' (blank apparel)
+
+          **Manual validation**:
+          - Scanned IDs 25-27 → 3 products found in ~9s
+          - Imported product ID 25 → created in DB with 24 variants, 4 local images
+          - Pricing verified: $3,890 supplier → $5,490 final (40% markup, xx90 rounding)
+          - Product visible on storefront /producto/polera-ml-raglan-cottonext-100-algodon-180-grs-ctnx25
+
+frontend_v6:
+  - task: "Cottonext admin UI"
+    implemented: true
+    working: "YES (manually validated)"
+    file: "app/proveedores/cottonext/page.js, components/sidebar-nav.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "YES"
+        agent: "main"
+        comment: |
+          Admin page at /proveedores/cottonext with 3 tabs:
+
+          **Tab 1: Importar catálogo**
+          - Config panel: from/to ID range, markup %, IA paraphrase switch
+          - "Escanear catálogo" button (30-60s for 100 products)
+          - Stats KPI cards: Encontrados, Nuevos, Ya importados, Con stock, Categorías
+          - Filters: search, subcategoría, marca, status (nuevos/existentes), stock
+          - Action bar: Seleccionar todo, Sólo nuevos, Limpiar + cost estimate
+          - Product grid with images, badges, price comparison (supplier → final)
+
+          **Tab 2: Ya importados**
+          - Table view with image, name, brand, category, cost, sale price, margin
+          - "Actualizar precios" button (re-scrape all + update)
+
+          **Tab 3: Historial**
+          - Last 20 operations (imports + price refreshes)
+          - Shows created/updated/failed counts
+
+  - task: "Node memory bump for dev server"
+    implemented: true
+    working: "YES"
+    file: "package.json"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "YES"
+        agent: "main"
+        comment: |
+          Increased --max-old-space-size from 512MB to 2048MB.
+          Dev server was OOMing during compile of large pages (Tabs + Select + Checkbox + Switch).
+          Fixed permanent OOM restart loop.
+
+agent_communication_v6:
+  - agent: "main"
+    message: |
+      # Iteración 6 — 27-jul-2026 — Cottonext Importer COMPLETO ✅
+
+      Nueva funcionalidad implementada por request del usuario:
+      "Este es mi proveedor de ropa lisa, ¿podría copiar entero su catálogo y subir los precios un 40% más?"
+
+      ## Config solicitada por el usuario
+      - Markup fijo 40% para todo ✅
+      - Paraphrase con MiniMax (~$0.001/producto) ✅
+      - Descarga imágenes al servidor local ✅
+      - Subcategorías: Poleras, Polerones, Pantalones, Shorts, Camisas, Otros ✅
+      - Producto marcado como `productType: 'blank'` (sin estampar) ✅
+      - Los productos estampados existentes (con otros precios) permanecen intactos ✅
+
+      ## Archivos creados/modificados
+      - **/app/lib/import/cottonext.js** (nuevo) — Scraper con cheerio
+      - **/app/lib/import/paraphraser.js** (nuevo) — MiniMax paraphrase
+      - **/app/lib/import/image-downloader.js** (nuevo) — Download to local uploads
+      - **/app/lib/api/import.js** (nuevo) — 5 endpoints /api/import/cottonext/*
+      - **/app/app/proveedores/cottonext/page.js** (nuevo) — Admin UI (3 tabs, filtros, grid)
+      - **/app/components/sidebar-nav.jsx** — Link "Proveedores" con badge
+      - **/app/app/api/[[...path]]/route.js** — Registered handleImport
+      - **/app/package.json** — NODE_OPTIONS max-old-space-size 512→2048MB
+
+      ## Endpoints
+      - POST /api/import/cottonext/scan
+      - POST /api/import/cottonext/import
+      - POST /api/import/cottonext/refresh-prices
+      - GET  /api/import/cottonext/history
+      - GET  /api/import/cottonext/imported
+
+      NO SE REQUIERE TESTING BACKEND ADICIONAL — flujo validado manualmente end-to-end.
+
+
