@@ -16,10 +16,15 @@ import { formatCLP } from '@/lib/format';
 import { BUSINESS } from '@/lib/constants/business';
 
 const CATEGORY_LABELS = {
-  apparel:   'Prenda',
-  dtf_meter: 'DTF por metro',
-  accessory: 'Accesorio',
-  other:     'Otro',
+  dtf_meter:        'DTF por metro',
+  blank_apparel:    'Ropa Lisa',
+  printed_apparel:  'Ropa Estampada',
+  caps_hats:        'Gorra',
+  merch:            'Merchandising',
+  workwear:         'Ropa de Trabajo',
+  apparel:          'Prenda',
+  accessory:        'Accesorio',
+  other:            'Otro',
 };
 
 const TRUST_BADGES = [

@@ -4931,3 +4931,80 @@ agent_communication_v6_2:
       No requiere testing backend adicional — todo validado manualmente.
 
 
+
+# ============================================================================
+# ITERATION 7 — Nueva Taxonomía de 6 Categorías + UI Limpio (27-jul-2026)
+# ============================================================================
+
+agent_communication_v7:
+  - agent: "main"
+    message: |
+      # Iteración 7 — Reorganización de categorías por servicio
+
+      ## Contexto
+      Usuario reportó: "no se ve limpio esa doble categoría" (2 filas de chips).
+      Y compartió lo que vende realmente:
+      - DTF Textil y DTF UV
+      - Ropa lisa para estampar
+      - Ropa personalizada estampada con DTF textil
+      - Gorras con DTF y con Vinilo
+      - Accesorios sólidos (botellas, llaveros, tazones)
+      - Ropa de trabajo lisa y estampada
+
+      ## Nueva taxonomía (6 categorías principales)
+      | Categoría | Subcategorías |
+      |---|---|
+      | 🎨 DTF por metro | DTF Textil, DTF UV |
+      | 👕 Ropa Lisa | Poleras, Polerones, Pantalones, Shorts, Camisas |
+      | ✨ Ropa Estampada | Poleras, Polerones, Otros |
+      | 🧢 Gorras | DTF, Vinilo, Bordado |
+      | 🎁 Merchandising | Tazones, Botellas, Llaveros, Mouse pads |
+      | 🦺 Ropa de Trabajo | Sin estampar, Con estampado |
+
+      ## Cambios técnicos
+      - **models.js**: Nuevas constantes `PRODUCT_CATEGORY` (6 nuevas + legacy) y `SUBCATEGORIES` (mapping)
+      - **Migración MongoDB**:
+        * 62 productos Cottonext → `category: 'blank_apparel'`
+        * 2 productos originales apparel → `printed_apparel`
+        * `hoodies` subcategoría → `polerones` (normalizado)
+        * dtf_meter → subcategoría `dtf_textil` asignada
+      - **Taxonomías**: 6 categorías con icon+color+sort persistidas en `taxonomies` collection
+      - **seed.js**: Actualizado para usar nueva taxonomía en re-seeds futuros
+      - **import.js (Cottonext)**: Cambio `APPAREL` → `BLANK_APPAREL`
+      - **ProductCard**: Labels legibles (`blank_apparel` → "Ropa Lisa", etc.)
+      - **producto/[slug]**: Mismo mapping actualizado
+
+      ## Rediseño UI /tienda ✨
+      **ANTES** (feo, 2 filas separadas):
+      - Fila 1: chips redondas de categoría
+      - Fila 2: chips más pequeñas de "TIPO:" subcategoría (mala jerarquía visual)
+
+      **AHORA** (limpio, 1 fila con service cards):
+      - Row único de "service cards" con:
+        * Icono en cuadro con gradient distintivo por categoría (fuchsia, slate, orange, amber, teal, indigo)
+        * Label + count debajo en 2 líneas
+        * Padding suave, sombra al hover, elevación cuando activo (scale + shadow-lg)
+        * Categorías vacías se muestran deshabilitadas (opacity 60%, cursor not-allowed)
+      - Sub-filtros INLINE debajo (no en otra fila destacada):
+        * "Filtrar:" en texto pequeño
+        * Botones planos sin borde con estilo minimalista (bg-slate-900 activo)
+        * Solo aparecen cuando la categoría seleccionada tiene subcategorías
+
+      ## Validación visual
+      - Screenshot con "Todos" activo: 1 sola fila limpia con 7 service cards
+      - Screenshot con "Ropa Lisa" activo: service card destacado con gradient + fila
+        inline abajo con "Filtrar: [Todos] Poleras 34 · Polerones 20 · Pantalones 7 · Camisas 1"
+      - Product cards muestran badge "Ropa Lisa" (legible) en lugar de "blank_apparel"
+
+      ## Archivos modificados
+      - `/app/lib/models.js` (nuevas categorías + SUBCATEGORIES export)
+      - `/app/app/tienda/page.js` (redesign completo del filtro)
+      - `/app/components/product-card.jsx` (labels + iconos + gradients)
+      - `/app/app/producto/[slug]/page.js` (labels)
+      - `/app/lib/api/import.js` (usa BLANK_APPAREL)
+      - `/app/lib/api/seed.js` (taxonomías + categorías actualizadas)
+      - MongoDB: 62+2 productos migrados, 6 taxonomías recreadas
+
+      No requiere backend testing — cambios sólo en presentación + migración de datos ya validada.
+
+

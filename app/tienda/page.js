@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import {
   Search, Layers, Sparkles, ArrowRight, Loader2, X, Star, Truck, ShieldCheck,
   Heart, Wallet, Palette, CheckCircle2, Package,
+  Shirt, Gift, HardHat, CircleUser,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,11 +15,97 @@ import { Badge } from '@/components/ui/badge';
 import { ProductCard } from '@/components/product-card';
 import { BUSINESS } from '@/lib/constants/business';
 
+// Categorías principales con estilo (color + icono).
+const CATEGORY_STYLE = {
+  all: {
+    icon: Layers,
+    gradient: 'from-slate-900 to-slate-700',
+    ring: 'ring-slate-300',
+    dot: 'bg-slate-900',
+  },
+  dtf_meter: {
+    icon: Sparkles,
+    gradient: 'from-fuchsia-500 to-indigo-600',
+    ring: 'ring-fuchsia-300',
+    dot: 'bg-fuchsia-500',
+  },
+  blank_apparel: {
+    icon: Shirt,
+    gradient: 'from-slate-500 to-slate-700',
+    ring: 'ring-slate-300',
+    dot: 'bg-slate-500',
+  },
+  printed_apparel: {
+    icon: Palette,
+    gradient: 'from-orange-500 to-rose-500',
+    ring: 'ring-orange-300',
+    dot: 'bg-orange-500',
+  },
+  caps_hats: {
+    icon: CircleUser,
+    gradient: 'from-amber-500 to-orange-500',
+    ring: 'ring-amber-300',
+    dot: 'bg-amber-500',
+  },
+  merch: {
+    icon: Gift,
+    gradient: 'from-teal-500 to-emerald-600',
+    ring: 'ring-teal-300',
+    dot: 'bg-teal-500',
+  },
+  workwear: {
+    icon: HardHat,
+    gradient: 'from-indigo-500 to-blue-700',
+    ring: 'ring-indigo-300',
+    dot: 'bg-indigo-500',
+  },
+};
+
+// Subcategorías por categoría (labels legibles)
+const SUBCAT_MAP = {
+  dtf_meter: [
+    { code: 'dtf_textil', label: 'DTF Textil' },
+    { code: 'dtf_uv',     label: 'DTF UV' },
+  ],
+  blank_apparel: [
+    { code: 'poleras',    label: 'Poleras' },
+    { code: 'polerones',  label: 'Polerones' },
+    { code: 'pantalones', label: 'Pantalones' },
+    { code: 'shorts',     label: 'Shorts' },
+    { code: 'camisas',    label: 'Camisas' },
+    { code: 'otros',      label: 'Otros' },
+  ],
+  printed_apparel: [
+    { code: 'poleras',   label: 'Poleras' },
+    { code: 'polerones', label: 'Polerones' },
+    { code: 'otros',     label: 'Otros' },
+  ],
+  caps_hats: [
+    { code: 'dtf',     label: 'DTF' },
+    { code: 'vinilo',  label: 'Vinilo' },
+    { code: 'bordado', label: 'Bordado' },
+  ],
+  merch: [
+    { code: 'tazones',   label: 'Tazones' },
+    { code: 'botellas',  label: 'Botellas' },
+    { code: 'llaveros',  label: 'Llaveros' },
+    { code: 'mousepads', label: 'Mouse pads' },
+    { code: 'otros',     label: 'Otros' },
+  ],
+  workwear: [
+    { code: 'lisa',      label: 'Sin estampar' },
+    { code: 'estampada', label: 'Con estampado' },
+  ],
+};
+
 const DEFAULT_CATS = [
-  { code: 'all',       label: 'Todos' },
-  { code: 'apparel',   label: 'Prendas' },
-  { code: 'dtf_meter', label: 'DTF por metro' },
-  { code: 'accessory', label: 'Accesorios' },
+  { code: 'all',             label: 'Todo el catálogo' },
+  { code: 'dtf_meter',       label: 'DTF por metro' },
+  { code: 'blank_apparel',   label: 'Ropa Lisa' },
+  { code: 'printed_apparel', label: 'Ropa Estampada' },
+  { code: 'caps_hats',       label: 'Gorras' },
+  { code: 'merch',           label: 'Merchandising' },
+  { code: 'workwear',        label: 'Ropa de Trabajo' },
 ];
 
 const fetcher = (url) => fetch(url).then(r => r.json());
@@ -80,30 +167,20 @@ export default function TiendaPage() {
     if (paramSub) setSubcat(paramSub);
   }, [searchParams]);
 
-  // Subcategorías disponibles según la categoría actual.
-  // Poleras/Polerones/Pantalones/Shorts/Camisas/Otros aplican solo a 'apparel'.
+  // Subcategorías disponibles según la categoría actual (contextuales).
   const subcatDefs = useMemo(() => {
-    if (cat !== 'apparel' && cat !== 'all') return [];
-    const list = [
-      { code: 'poleras',    label: 'Poleras' },
-      { code: 'polerones',  label: 'Polerones' },
-      { code: 'pantalones', label: 'Pantalones' },
-      { code: 'shorts',     label: 'Shorts' },
-      { code: 'camisas',    label: 'Camisas' },
-      { code: 'otros',      label: 'Otros' },
-    ];
+    if (cat === 'all' || !SUBCAT_MAP[cat]) return [];
+    const list = SUBCAT_MAP[cat];
     // Solo mostrar subcategorías que tengan al menos 1 producto
     const withCounts = list.map(s => ({
       ...s,
-      count: products.filter(p => (cat === 'all' ? p.category === 'apparel' : true) && p.subcategory === s.code).length,
+      count: products.filter(p => p.category === cat && p.subcategory === s.code).length,
     })).filter(s => s.count > 0);
     return withCounts;
   }, [products, cat]);
 
-  // Reset subcategory cuando cambia la categoría principal (excepto 'all' o 'apparel')
-  useEffect(() => {
-    if (cat !== 'apparel' && cat !== 'all') setSubcat('all');
-  }, [cat]);
+  // Reset subcategory cuando cambia la categoría principal
+  useEffect(() => { setSubcat('all'); }, [cat]);
 
   const filtered = useMemo(() => {
     const qLow = q.trim().toLowerCase();
@@ -253,7 +330,7 @@ export default function TiendaPage() {
               <Package className="h-3 w-3" />Catálogo
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Todo el catálogo</h2>
-            <p className="text-sm text-slate-500 mt-1">Productos listos para personalizar con tu diseño DTF.</p>
+            <p className="text-sm text-slate-500 mt-1">DTF por metro, ropa lisa y estampada, gorras, merchandising y ropa de trabajo.</p>
           </div>
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -275,72 +352,86 @@ export default function TiendaPage() {
           </div>
         </div>
 
-        {/* Chips de categoría */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {cats.map((c) => {
-            const active = cat === c.code;
-            const count = c.code === 'all' ? products.length : products.filter(p => p.category === c.code).length;
-            return (
-              <button
-                key={c.code}
-                onClick={() => setCat(c.code)}
-                className={`
-                  inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all
-                  ${active
-                    ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700'}
-                `}
-              >
-                <span>{c.label}</span>
-                <span className={`
-                  inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[10px] font-bold
-                  ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}
-                `}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Chips de subcategoría (solo cuando hay prendas visibles) */}
-        {subcatDefs.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-8 pl-1">
-            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 self-center pr-1">Tipo:</div>
-            <button
-              onClick={() => setSubcat('all')}
-              className={`
-                inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                ${subcat === 'all'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-700'}
-              `}
-            >
-              Todos
-            </button>
-            {subcatDefs.map((s) => {
-              const active = subcat === s.code;
+        {/* ============ FILTROS UNIFICADOS ============ */}
+        <div className="mb-8">
+          {/* Row de service cards (categorías principales) */}
+          <div className="flex flex-wrap gap-2 -mx-1 px-1 py-1 md:overflow-visible overflow-x-auto scrollbar-hide">
+            {cats.map((c) => {
+              const active = cat === c.code;
+              const count = c.code === 'all' ? products.length : products.filter(p => p.category === c.code).length;
+              const style = CATEGORY_STYLE[c.code] || CATEGORY_STYLE.all;
+              const Icon = style.icon;
               return (
                 <button
-                  key={s.code}
-                  onClick={() => setSubcat(s.code)}
+                  key={c.code}
+                  onClick={() => setCat(c.code)}
+                  disabled={count === 0 && c.code !== 'all'}
                   className={`
-                    inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                    group shrink-0 inline-flex items-center gap-2 pl-2.5 pr-4 py-2 rounded-xl transition-all duration-200
                     ${active
-                      ? 'bg-orange-500 text-white shadow-sm'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-700'}
+                      ? `bg-gradient-to-br ${style.gradient} text-white shadow-lg shadow-slate-900/10 scale-[1.02]`
+                      : count === 0 && c.code !== 'all'
+                        ? 'bg-slate-50 border border-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'}
                   `}
                 >
-                  <span>{s.label}</span>
-                  <span className={`
-                    inline-flex items-center justify-center min-w-[20px] h-4 px-1 rounded-full text-[10px] font-bold
-                    ${active ? 'bg-white/25' : 'bg-slate-100 text-slate-600'}
-                  `}>{s.count}</span>
+                  <div className={`
+                    h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
+                    ${active
+                      ? 'bg-white/20'
+                      : `bg-gradient-to-br ${style.gradient} bg-opacity-10 text-white`}
+                  `}>
+                    <Icon className={`h-4 w-4 ${active ? 'text-white' : 'text-white'}`} />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold leading-tight">{c.label}</div>
+                    <div className={`text-[10px] font-medium leading-tight ${active ? 'text-white/80' : 'text-slate-500'}`}>
+                      {count} {count === 1 ? 'producto' : 'productos'}
+                    </div>
+                  </div>
                 </button>
               );
             })}
           </div>
-        )}
 
-        {subcatDefs.length === 0 && <div className="mb-8" />}
+          {/* Sub-filtros INLINE (aparecen dentro del mismo bloque, con transición suave) */}
+          {subcatDefs.length > 0 && (
+            <div className="mt-3 pl-2 flex items-center flex-wrap gap-x-1 gap-y-2">
+              <span className="text-xs text-slate-500 font-medium mr-1">Filtrar:</span>
+              <button
+                onClick={() => setSubcat('all')}
+                className={`
+                  px-2.5 py-1 rounded-md text-xs font-medium transition-colors
+                  ${subcat === 'all'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}
+                `}
+              >
+                Todos
+              </button>
+              {subcatDefs.map((s, i) => {
+                const active = subcat === s.code;
+                return (
+                  <button
+                    key={s.code}
+                    onClick={() => setSubcat(s.code)}
+                    className={`
+                      px-2.5 py-1 rounded-md text-xs font-medium transition-colors
+                      ${active
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}
+                    `}
+                  >
+                    {s.label}
+                    <span className={`ml-1 text-[10px] ${active ? 'text-white/70' : 'text-slate-400'}`}>
+                      {s.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Grid */}
         {isLoading ? (

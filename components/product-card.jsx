@@ -1,29 +1,45 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, Layers } from 'lucide-react';
+import { Package, Layers, Shirt, Palette, Gift, HardHat, CircleUser, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatCLP } from '@/lib/format';
 
 const CATEGORY_LABELS = {
-  apparel:   'Prenda',
-  dtf_meter: 'DTF por metro',
-  accessory: 'Accesorio',
-  other:     'Otro',
+  dtf_meter:        'DTF por metro',
+  blank_apparel:    'Ropa Lisa',
+  printed_apparel:  'Ropa Estampada',
+  caps_hats:        'Gorra',
+  merch:            'Merchandising',
+  workwear:         'Ropa de Trabajo',
+  // legacy
+  apparel:          'Prenda',
+  accessory:        'Accesorio',
+  other:            'Otro',
 };
 
 const CATEGORY_ICONS = {
-  apparel:   Package,
-  dtf_meter: Layers,
-  accessory: Package,
-  other:     Package,
+  dtf_meter:        Sparkles,
+  blank_apparel:    Shirt,
+  printed_apparel:  Palette,
+  caps_hats:        CircleUser,
+  merch:            Gift,
+  workwear:         HardHat,
+  apparel:          Package,
+  accessory:        Package,
+  other:            Package,
 };
 
 const PLACEHOLDER_GRADIENTS = {
-  apparel:   'from-slate-100 to-slate-200',
-  dtf_meter: 'from-orange-50 to-rose-100',
-  accessory: 'from-emerald-50 to-teal-100',
-  other:     'from-blue-50 to-indigo-100',
+  dtf_meter:        'from-fuchsia-50 to-indigo-100',
+  blank_apparel:    'from-slate-100 to-slate-200',
+  printed_apparel:  'from-orange-50 to-rose-100',
+  caps_hats:        'from-amber-50 to-orange-100',
+  merch:            'from-teal-50 to-emerald-100',
+  workwear:         'from-indigo-50 to-blue-100',
+  apparel:          'from-slate-100 to-slate-200',
+  accessory:        'from-emerald-50 to-teal-100',
+  other:            'from-blue-50 to-indigo-100',
 };
 
 export function ProductCard({ product }) {
