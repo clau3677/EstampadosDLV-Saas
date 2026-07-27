@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
-  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat,
+  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
+  Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -67,22 +69,42 @@ const SECTIONS = [
   },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
   const pathname = usePathname();
 
-  return (
-    <aside className="hidden lg:flex fixed inset-y-0 left-0 z-40 w-64 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
+  // Bloquear scroll del body cuando el drawer está abierto en mobile.
+  // El cierre automático al navegar ya se gestiona vía onClick={onMobileClose} en cada <Link/>.
+  useEffect(() => {
+    if (mobileOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [mobileOpen]);
+
+  const sidebarContent = (
+    <>
       {/* Brand */}
-      <div className="px-5 py-5 border-b border-slate-800">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+      <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
             <Printer className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <div className="font-bold text-white leading-tight tracking-tight">Estampados DLV</div>
+          <div className="min-w-0">
+            <div className="font-bold text-white leading-tight tracking-tight truncate">Estampados DLV</div>
             <div className="text-[10px] uppercase tracking-widest text-orange-400/80">Sistema Operativo</div>
           </div>
         </Link>
+
+        {/* Botón cerrar (solo mobile) */}
+        <button
+          type="button"
+          onClick={onMobileClose}
+          className="lg:hidden shrink-0 -mr-1 rounded-md p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -100,6 +122,7 @@ export function SidebarNav() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onMobileClose}
                       className={cn(
                         'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
                         active
@@ -138,7 +161,33 @@ export function SidebarNav() {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Backdrop (solo cuando el drawer está abierto en mobile) */}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity lg:hidden',
+          mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        )}
+        onClick={onMobileClose}
+        aria-hidden="true"
+      />
+
+      {/* Sidebar (fixed en todas las pantallas; slide en mobile, siempre visible en desktop) */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-slate-950 text-slate-200 border-r border-slate-800',
+          'transform transition-transform duration-300 ease-out',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          'lg:translate-x-0 lg:z-40', // Siempre visible en desktop
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }
 

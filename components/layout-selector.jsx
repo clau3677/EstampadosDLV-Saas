@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { Topbar } from '@/components/topbar';
@@ -17,6 +18,7 @@ const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios', '/co
 
 export default function LayoutSelector({ children }) {
   const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isBare = BARE_PREFIXES.some(p => pathname === p || pathname?.startsWith(p + '/'));
   if (isBare) return <>{children}</>;
@@ -38,10 +40,13 @@ export default function LayoutSelector({ children }) {
 
   return (
     <div className="min-h-screen">
-      <SidebarNav />
+      <SidebarNav
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+      />
       <div className="lg:pl-64">
-        <Topbar />
-        <main className="px-6 py-8">{children}</main>
+        <Topbar onToggleNav={() => setMobileNavOpen(v => !v)} />
+        <main className="px-4 sm:px-6 py-6 sm:py-8">{children}</main>
       </div>
     </div>
   );
