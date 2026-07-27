@@ -12,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCLP, formatDateTime } from '@/lib/format';
+import ReceiptUploader from '@/components/receipt-uploader';
 
 const PAYMENT_LABELS = {
   transfer: 'Transferencia Bancaria',
@@ -175,6 +176,16 @@ export default function ThankYouPage() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Upload de comprobante (solo si es transferencia y NO está pagado/entregado/cancelado) */}
+          {order.paymentMethod === 'transfer'
+            && ['pending', 'awaiting_payment'].includes(order.status) && (
+              <ReceiptUploader
+                order={order}
+                customerEmail={order.customerSnapshot?.email}
+                onUploaded={(updates) => setOrder(prev => ({ ...prev, ...updates }))}
+              />
           )}
         </>
       )}

@@ -7,7 +7,7 @@ import {
   ClipboardList, RefreshCw, Search, Filter, ArrowLeft, ExternalLink,
   CheckCircle2, Clock, Package, Truck, XCircle, AlertTriangle,
   Zap, ShoppingCart, Layers, Globe, MessageCircle, Store, Printer,
-  Ban, Trash2, Loader2,
+  Ban, Trash2, Loader2, FileImage, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,12 +30,13 @@ import { cn } from '@/lib/utils';
 // Estilos por estado
 // ---------------------------------------------------------------------------
 const STATUS_META = {
-  pending:       { label: 'Pendiente pago', color: 'bg-amber-100 text-amber-800 border-amber-200',       icon: Clock },
-  paid:          { label: 'Pagado',         color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
-  in_production: { label: 'En producción',  color: 'bg-blue-100 text-blue-800 border-blue-200',           icon: Layers },
-  ready:         { label: 'Listo',          color: 'bg-purple-100 text-purple-800 border-purple-200',     icon: Package },
-  delivered:     { label: 'Entregado',      color: 'bg-slate-100 text-slate-700 border-slate-200',        icon: Truck },
-  cancelled:     { label: 'Cancelado',      color: 'bg-rose-100 text-rose-700 border-rose-200',           icon: XCircle },
+  pending:            { label: 'Pendiente pago',    color: 'bg-amber-100 text-amber-800 border-amber-200',       icon: Clock },
+  awaiting_payment:   { label: 'Confirmar pago',    color: 'bg-blue-100 text-blue-800 border-blue-200',           icon: FileImage },
+  paid:               { label: 'Pagado',            color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
+  in_production:      { label: 'En producción',     color: 'bg-blue-100 text-blue-800 border-blue-200',           icon: Layers },
+  ready:              { label: 'Listo',             color: 'bg-purple-100 text-purple-800 border-purple-200',     icon: Package },
+  delivered:          { label: 'Entregado',         color: 'bg-slate-100 text-slate-700 border-slate-200',        icon: Truck },
+  cancelled:          { label: 'Cancelado',         color: 'bg-rose-100 text-rose-700 border-rose-200',           icon: XCircle },
 };
 
 const PRODUCTION_META = {
@@ -97,6 +98,13 @@ export default function PedidosPage() {
   const [cancelling, setCancelling] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Estado para aprobar/rechazar comprobantes de transferencia
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [receiptLightbox, setReceiptLightbox] = useState(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -190,6 +198,72 @@ export default function PedidosPage() {
       toast.error('Error de red al eliminar', { description: e.message });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const confirmPayment = async () => {
+    if (!selectedOrder) return;
+    setConfirming(true);
+    try {
+      const r = await fetch('/api/orders/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedOrder.id }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo confirmar el pago');
+        return;
+      }
+      toast.success(`Pago confirmado ✓`, {
+        description: `Pedido ${selectedOrder.orderNumber} pasa a producción. Notificamos al cliente por WhatsApp y correo.`,
+      });
+      const paidAt = new Date().toISOString();
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id
+        ? { ...o, status: 'paid', paymentStatus: 'paid', paidAt } : o));
+      setSelectedOrder(prev => prev ? { ...prev, status: 'paid', paymentStatus: 'paid', paidAt } : null);
+    } catch (e) {
+      toast.error('Error de red al confirmar', { description: e.message });
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const rejectPayment = async () => {
+    if (!selectedOrder) return;
+    if (!rejectReason.trim()) {
+      toast.error('Escribe un motivo del rechazo');
+      return;
+    }
+    setRejecting(true);
+    try {
+      const r = await fetch('/api/orders/reject-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedOrder.id, reason: rejectReason.trim() }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data.error || 'No se pudo rechazar el comprobante');
+        return;
+      }
+      toast.success('Comprobante rechazado', {
+        description: 'El cliente recibirá un aviso para subir uno nuevo.',
+      });
+      setRejectDialogOpen(false);
+      const reason = rejectReason.trim();
+      setRejectReason('');
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id
+        ? { ...o, status: 'pending', receiptUrl: null, paymentRejectionReason: reason } : o));
+      setSelectedOrder(prev => prev
+        ? { ...prev, status: 'pending', receiptUrl: null, paymentRejectionReason: reason }
+        : null);
+    } catch (e) {
+      toast.error('Error de red al rechazar', { description: e.message });
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -557,6 +631,91 @@ export default function PedidosPage() {
                 )}
               </div>
 
+              {/* Bloque de comprobante de transferencia (visible si se subió) */}
+              {selectedOrder.receiptUrl && (
+                <div className={cn(
+                  'mt-3 p-4 rounded-lg border',
+                  selectedOrder.status === 'awaiting_payment'
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'bg-slate-50 border-slate-200'
+                )}>
+                  <div className="flex items-start gap-3">
+                    {/* Miniatura del comprobante */}
+                    <button
+                      type="button"
+                      onClick={() => setReceiptLightbox(selectedOrder.receiptUrl)}
+                      className="shrink-0 h-24 w-20 rounded-md overflow-hidden border-2 border-white shadow-sm bg-white hover:ring-2 hover:ring-blue-400 transition"
+                      title="Click para ver en grande"
+                    >
+                      {/* Miniatura del comprobante en <img> nativo (no next/image porque son user-uploads sin dimensiones fijas) */}
+                      <img
+                        src={selectedOrder.receiptUrl}
+                        alt="Comprobante"
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className={cn(
+                        'font-bold text-sm flex items-center gap-1.5',
+                        selectedOrder.status === 'awaiting_payment' ? 'text-blue-900' : 'text-slate-800'
+                      )}>
+                        <FileImage className="h-4 w-4" />
+                        Comprobante de transferencia
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">
+                        Subido {selectedOrder.receiptUploadedAt ? formatDate(selectedOrder.receiptUploadedAt) : '—'}
+                      </div>
+
+                      {/* Botones aprobar/rechazar solo si está esperando */}
+                      {selectedOrder.status === 'awaiting_payment' && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            onClick={confirmPayment}
+                            disabled={confirming || rejecting}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            {confirming
+                              ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Confirmando…</>
+                              : <><ThumbsUp className="h-3.5 w-3.5 mr-1.5" />Aprobar pago</>}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setRejectReason(''); setRejectDialogOpen(true); }}
+                            disabled={confirming || rejecting}
+                            className="border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
+                            Rechazar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setReceiptLightbox(selectedOrder.receiptUrl)}
+                          >
+                            <FileImage className="h-3.5 w-3.5 mr-1.5" />
+                            Ver completo
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Motivo del rechazo anterior (si el cliente aún no subió otro) */}
+              {selectedOrder.status === 'pending' && selectedOrder.paymentRejectionReason && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                  <div className="font-semibold mb-0.5">Comprobante anterior rechazado:</div>
+                  <div>{selectedOrder.paymentRejectionReason}</div>
+                  <div className="mt-1 text-amber-700/80">
+                    El cliente ha sido notificado. Está esperando a que suba un nuevo comprobante.
+                  </div>
+                </div>
+              )}
+
               {/* Motivo de cancelación (si aplica) */}
               {selectedOrder.status === 'cancelled' && selectedOrder.cancelReason && (
                 <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">
@@ -637,6 +796,66 @@ export default function PedidosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Diálogo: rechazar comprobante con motivo */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ThumbsDown className="h-4 w-4 text-rose-600" />
+              Rechazar comprobante de {selectedOrder?.orderNumber}
+            </DialogTitle>
+            <DialogDescription>
+              El cliente recibirá un aviso por WhatsApp y correo con el motivo. El pedido volverá al estado &quot;Pendiente&quot; y el cliente podrá subir un nuevo comprobante.
+            </DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+              Motivo del rechazo <span className="text-rose-600">*</span>
+            </label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ej. El comprobante muestra un monto distinto al del pedido"
+              className="min-h-[80px]"
+              autoFocus
+            />
+            <div className="text-[10px] text-slate-500 mt-1.5">
+              Sé claro para que el cliente pueda subir uno válido.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)} disabled={rejecting}>
+              Volver
+            </Button>
+            <Button
+              onClick={rejectPayment}
+              disabled={rejecting || !rejectReason.trim()}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              {rejecting
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Rechazando…</>
+                : <><ThumbsDown className="h-3.5 w-3.5 mr-1.5" />Confirmar rechazo</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lightbox: ver comprobante en grande */}
+      <Dialog open={!!receiptLightbox} onOpenChange={(v) => { if (!v) setReceiptLightbox(null); }}>
+        <DialogContent className="max-w-3xl p-2 bg-slate-950 border-slate-800">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vista ampliada del comprobante</DialogTitle>
+          </DialogHeader>
+          {receiptLightbox && (
+            <img
+              src={receiptLightbox}
+              alt="Comprobante ampliado"
+              className="w-full h-auto max-h-[80vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
