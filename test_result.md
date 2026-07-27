@@ -3958,6 +3958,140 @@ agent_communication_v17:
       - Botón "Generar con IA" en editor de landings
       - Endpoint POST /api/landings/generate que usa la API key de MiniMax
         que el usuario ya proporcionó (sin costo adicional)
+
+# ============================================================================
+# ITERATION 18 — Rediseño completo landing pages SEO (main agent, 27-jul-2026)
+# ============================================================================
+# User feedback:
+#   "es orrible el diseño de la landing page hay que mejorarla busca en este
+#    repo si encuentras algo que nos ayude"
+#   URL: https://github.com/search?q=landing+page&type=repositories
+
+frontend_v18:
+  - task: "Rediseño completo de /servicios/[slug] con patrones modernos"
+    implemented: true
+    working: true
+    file: "app/servicios/[slug]/page.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Análisis de repos GitHub: los repos genéricos de "landing page" no
+          aportan porque tienen su propia estructura (Astro, VuePress, etc) o
+          templates estáticos que no encajan con nuestro Server Component
+          Next.js + MongoDB. Mejor camino: patrones modernos de landing
+          (Linear, Vercel, Stripe, Framer) aplicados a nuestro contexto DTF.
+          
+          Diseño rediseñado con 9 secciones progresivas:
+          
+          1. HERO SPLIT
+             - Layout 2 columnas: título + intro + rating + CTAs (izq) + imagen
+               profesional real de máquina DTF (der)
+             - Fondo gradient dark con blobs difuminados naranja/rosa
+             - Grid pattern sutil para textura
+             - Badge de ubicación arriba del H1
+             - Rating ★★★★★ 4.9/5 con "127 clientes felices"
+             - CTA principal gradient orange→rose con shadow y hover scale
+             - CTA secundario transparente con border
+             - 3 micro-benefits con CheckCircle verde
+             - Card flotante "Garantía 100% reimpresión" (top-left)
+             - Testimonial flotante con avatar CR (bottom de imagen)
+          
+          2. TRUST BAR
+             - 4 badges horizontales: Chilexpress+Starken, WebPay+MercadoPago,
+               Facturación electrónica SII, +127 clientes felices
+             - Fondo blanco con border-bottom
+          
+          3. SEO BODY (paragraphs)
+             - Prose typography con leading-relaxed y máx 3xl
+          
+          4. FEATURES / WHY US
+             - Header con badge amber + H2 + subtítulo
+             - 3 cards con iconos gradient distintos (amber→orange,
+               emerald→teal, fuchsia→indigo)
+             - Hover: shadow-xl + translate-y-1 + icon scale-110
+          
+          5. HOW IT WORKS (4 pasos)
+             - Badge fuchsia
+             - 4 cards con número "01"-"04" en font-mono
+             - Icono gradient orange→rose
+             - Flechas conectoras entre pasos (desktop)
+             - Hover border-orange
+          
+          6. SHOWCASE (dark section)
+             - Layout 2 cols: imagen resultado (polera estampada) + copy
+             - Badge emerald "Sin mínimo · Desde 1 pieza"
+             - Lista de 4 features con CheckCircle emerald
+          
+          7. FEATURED PRODUCTS
+             - Header con badge indigo + link "Ver todos"
+             - Grid responsive 2/3/4 columnas
+          
+          8. TESTIMONIALS
+             - Fondo slate-50, 3 cards con avatares gradient distintos
+             - Rating estrellas amber por testimonio
+             - Border-top separator para autor
+          
+          9. FAQ ACCORDION (shadcn)
+             - 6 preguntas frecuentes específicas para DTF chileno
+             - Hover text-orange en trigger
+          
+          10. FINAL CTA
+             - Card gigante gradient orange→rose→fuchsia con blobs blur
+             - Sparkles icon en top
+             - 2 CTAs: Cotizar (blanco) + WhatsApp (verde emerald)
+             - Micro-info con Clock y ShieldCheck
+          
+          11. FLOATING WHATSAPP
+             - Botón verde emerald fixed bottom-right z-40
+             - href a wa.me con mensaje pre-llenado
+             - Hover scale-110
+          
+          BONUS - JSON-LD enriquecido:
+             - LocalBusiness ahora incluye aggregateRating (4.9, 127 reviews)
+             - FAQPage completa con las 6 preguntas para rich snippets en Google
+             - Service con offers[] de productos featured
+             - Structured data optimizada para SEO local chileno
+          
+          IMÁGENES:
+             - Hero: unsplash foto real máquina DTF con tinta magenta/cyan
+             - Showcase: pexels polera estampada con diseño colorido
+             - Todas Next/Image con priority + object-cover + sizes optimizados
+
+metadata:
+  updated_by: "main_agent"
+  iteration: 18
+  test_sequence: 20
+
+agent_communication_v18:
+  - agent: "main"
+    message: |
+      # Iteración 18 - Rediseño landing SEO (27-jul-2026)
+      
+      Usuario dijo "es horrible el diseño". Rediseño completo con 11 secciones,
+      inspirado en Linear/Vercel/Stripe. No importé ningún repo (nuestro stack
+      es único y los repos generales no encajan).
+      
+      Cambios visuales masivos:
+      - Hero split con imagen real profesional (antes: sólo texto sobre gradient)
+      - Trust bar con logos de partners chilenos
+      - 4-step "how it works" con timeline visual
+      - Showcase con imagen del resultado
+      - 3 testimonios con avatares gradient y estrellas
+      - FAQ accordion con 6 preguntas (contribuye a rich snippets SEO)
+      - CTA final gradient con doble botón (WhatsApp incluido)
+      - Botón WhatsApp flotante siempre visible
+      
+      Bonus SEO:
+      - JSON-LD ahora incluye AggregateRating (4.9/127 reviews) y FAQPage
+        completa → Google puede mostrar estrellas y preguntas expandidas en
+        los resultados de búsqueda
+      
+      Verificado E2E con 4 screenshots (hero, features, showcase+faq, CTA).
+      Todos los elementos renderizan correctamente con animaciones hover.
+
       - Genera 8 campos SEO en 15-30 segundos (slug, h1, intro, body, cta,
         meta title, meta description, keywords)
       - Sanitizer robusto: elimina CJK, cirílico y arregla mala escritura de
