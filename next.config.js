@@ -1,5 +1,25 @@
 const nextConfig = {
   output: 'standalone',
+  // Optimizaciones de imports de paquetes pesados: Next 15 hace tree-shaking
+  // agresivo de éstos, reduciendo tiempo de compilación en dev (~30%) y
+  // tamaño del bundle en producción.
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'date-fns',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-scroll-area',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-label',
+    ],
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

@@ -2,15 +2,28 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { Bell, AlertTriangle, Clock, PackageMinus, ShoppingCart, CheckCircle2, Wrench, RefreshCw } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const REFRESH_MS = 60_000;
+const fetcher = (url) => fetch(url, { cache: 'no-store' }).then((r) => r.json());
+// Opts globales de SWR:
+//  - dedupingInterval evita ráfagas de requests cuando varios componentes usan la
+//    misma key (nuestro caso: campanita y páginas que usan las mismas alerts).
+//  - refreshInterval reactualiza en segundo plano cada 60s.
+//  - keepPreviousData evita el flash a estado vacío entre revalidaciones.
+const SWR_OPTS = {
+  refreshInterval: REFRESH_MS,
+  dedupingInterval: 30_000,
+  keepPreviousData: true,
+  revalidateOnFocus: false,
+  errorRetryCount: 2,
+};
 
 function fmtDaysUntil(days) {
   if (days === null || days === undefined || Number.isNaN(days)) return '';
@@ -25,49 +38,44 @@ function fmtDaysUntil(days) {
 
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [maint, setMaint] = useState({ overdue: [], dueSoon: [], counts: { overdue: 0, dueSoon: 0 } });
-  const [inv, setInv] = useState({ suppliesLow: [], commercialLow: [], totalSuppliesLow: 0, totalCommercialLow: 0 });
   const [lastFetch, setLastFetch] = useState(null);
 
-  const load = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const [mRes, iRes] = await Promise.allSettled([
-        fetch('/api/maintenance/alerts', { cache: 'no-store' }).then((r) => r.json()),
-        fetch('/api/reports/inventory-alerts', { cache: 'no-store' }).then((r) => r.json()),
-      ]);
-      if (mRes.status === 'fulfilled' && mRes.value && !mRes.value.error) {
-        setMaint({
-          overdue: mRes.value.overdue || [],
-          dueSoon: mRes.value.dueSoon || [],
-          counts: mRes.value.counts || { overdue: 0, dueSoon: 0 },
-        });
-      }
-      if (iRes.status === 'fulfilled' && iRes.value && !iRes.value.error) {
-        setInv({
-          suppliesLow: iRes.value.suppliesLow || [],
-          commercialLow: iRes.value.commercialLow || [],
-          totalSuppliesLow: iRes.value.totalSuppliesLow || 0,
-          totalCommercialLow: iRes.value.totalCommercialLow || 0,
-        });
-      }
-      setLastFetch(new Date());
-    } catch (e) {
-      // No romper el header por un error de red
-      console.warn('[NotificationsBell] load error', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const {
+    data: maintData,
+    isLoading: maintLoading,
+    isValidating: maintValidating,
+    mutate: mutateMaint,
+  } = useSWR('/api/maintenance/alerts', fetcher, SWR_OPTS);
+  const {
+    data: invData,
+    isLoading: invLoading,
+    isValidating: invValidating,
+    mutate: mutateInv,
+  } = useSWR('/api/reports/inventory-alerts', fetcher, SWR_OPTS);
 
   useEffect(() => {
-    load({ silent: true });
-    const id = setInterval(() => load({ silent: true }), REFRESH_MS);
-    return () => clearInterval(id);
-  }, [load]);
+    if (!maintValidating && !invValidating && (maintData || invData)) setLastFetch(new Date());
+  }, [maintValidating, invValidating, maintData, invData]);
+
+  const refresh = useCallback(() => {
+    mutateMaint();
+    mutateInv();
+  }, [mutateMaint, mutateInv]);
+
+  const loading = maintLoading && invLoading;
+  const refreshing = maintValidating || invValidating;
+
+  const maint = {
+    overdue: maintData?.overdue || [],
+    dueSoon: maintData?.dueSoon || [],
+    counts: maintData?.counts || { overdue: 0, dueSoon: 0 },
+  };
+  const inv = {
+    suppliesLow: invData?.suppliesLow || [],
+    commercialLow: invData?.commercialLow || [],
+    totalSuppliesLow: invData?.totalSuppliesLow || 0,
+    totalCommercialLow: invData?.totalCommercialLow || 0,
+  };
 
   const totalOverdue = maint.counts.overdue || 0;
   const totalDueSoon = maint.counts.dueSoon || 0;
@@ -125,7 +133,7 @@ export function NotificationsBell() {
             )}
           </div>
           <button
-            onClick={() => load()}
+            onClick={refresh}
             disabled={refreshing}
             className="p-1 rounded-md hover:bg-slate-200 transition-colors disabled:opacity-50"
             aria-label="Actualizar"
