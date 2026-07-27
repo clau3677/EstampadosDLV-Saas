@@ -151,7 +151,7 @@ export default function CheckoutPage() {
                       <Package className="h-4 w-4 text-slate-500" />
                       <span className="font-semibold text-sm">Retiro en local</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">Ñuñoa, Santiago · Gratis</p>
+                    <p className="text-xs text-slate-500 mt-1">Galleguillos 1870, Quilpué · Gratis</p>
                     <div className="text-xs font-mono font-semibold text-emerald-600 mt-1">GRATIS</div>
                   </div>
                 </label>

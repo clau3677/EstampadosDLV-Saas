@@ -23,6 +23,7 @@ import {
 import { getDb } from '@/lib/mongo';
 import { COLLECTIONS, strip } from '@/lib/models';
 import { ProductCard } from '@/components/product-card';
+import { BUSINESS } from '@/lib/constants/business';
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from '@/components/ui/accordion';
@@ -163,17 +164,19 @@ export default async function LandingPage({ params }) {
       {
         '@type': 'LocalBusiness',
         '@id': `${baseUrl}/#business`,
-        name: `Estampados DLV${landing.location?.city ? ' · ' + landing.location.city : ''}`,
+        name: `${BUSINESS.name}${landing.location?.city ? ' · ' + landing.location.city : ''}`,
         description: landing.intro,
         image: landing.ogImage || IMG_HERO,
         url: `${baseUrl}/servicios/${slug}`,
-        telephone: '+56912345678',
+        telephone: BUSINESS.phone.intl,
+        email: BUSINESS.email.primary,
         priceRange: '$$',
         address: {
           '@type': 'PostalAddress',
-          addressLocality: landing.location?.city || 'Quilpué',
-          addressRegion:   landing.location?.region || 'Valparaíso',
-          addressCountry:  'CL',
+          streetAddress:   `${BUSINESS.address.street}, ${BUSINESS.address.unit}`,
+          addressLocality: landing.location?.city || BUSINESS.address.city,
+          addressRegion:   landing.location?.region || BUSINESS.address.region,
+          addressCountry:  BUSINESS.address.countryCode,
         },
         areaServed: landing.location?.city,
         aggregateRating: {
@@ -567,7 +570,7 @@ export default async function LandingPage({ params }) {
                 <Layers className="h-5 w-5" />{landing.ctaText || 'Cotiza tu diseño ahora'}
               </Link>
               <a
-                href="https://wa.me/56912345678?text=Hola%2C%20quiero%20cotizar%20un%20estampado%20DTF"
+                href={BUSINESS.whatsapp.url()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 shadow-xl transition-all hover:scale-105"
@@ -585,7 +588,7 @@ export default async function LandingPage({ params }) {
 
       {/* ================ FLOATING WHATSAPP ================ */}
       <a
-        href="https://wa.me/56912345678?text=Hola%2C%20quiero%20cotizar%20un%20estampado%20DTF"
+        href={BUSINESS.whatsapp.url()}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="WhatsApp"
