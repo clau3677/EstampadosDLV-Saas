@@ -14,20 +14,20 @@ import { Textarea } from '@/components/ui/textarea';
 const FIELDS = [
   // Sección: Datos generales
   { section: 'Datos de la empresa', icon: Building2 },
-  { key: 'companyName',   label: 'Razón social / Nombre comercial', placeholder: 'Estampados DLV SpA' },
-  { key: 'rut',           label: 'RUT',                              placeholder: '77.123.456-7' },
-  { key: 'contactEmail',  label: 'Email de contacto',                placeholder: 'contacto@estampadosdlv.cl', type: 'email' },
-  { key: 'contactPhone',  label: 'Teléfono',                         placeholder: '+56 9 1234 5678' },
-  { key: 'address',       label: 'Dirección',                        placeholder: 'Av. Ejemplo 123, Quilpué' },
+  { key: 'companyName',   label: 'Razón social (nombre legal)', placeholder: 'Safebuildlv SpA' },
+  { key: 'rut',           label: 'RUT de la empresa',            placeholder: '77.852.607-7' },
+  { key: 'contactEmail',  label: 'Email de contacto',            placeholder: 'estampadosdlv@gmail.com', type: 'email' },
+  { key: 'contactPhone',  label: 'Teléfono',                     placeholder: '+56 9 1234 5678' },
+  { key: 'address',       label: 'Dirección',                    placeholder: 'Av. Ejemplo 123, Quilpué' },
 
   // Sección: Datos bancarios
   { section: 'Datos bancarios (aparecen al confirmar un pedido con transferencia)', icon: Landmark },
-  { key: 'bankName',       label: 'Banco',            placeholder: 'BancoEstado' },
-  { key: 'accountType',    label: 'Tipo de cuenta',   placeholder: 'Cuenta Vista' },
-  { key: 'accountNumber',  label: 'N° de cuenta',     placeholder: '12345678', mono: true },
-  { key: 'accountHolder',  label: 'Nombre del titular', placeholder: 'Estampados DLV SpA' },
-  { key: 'paymentEmail',   label: 'Email para enviar comprobantes', placeholder: 'pagos@estampadosdlv.cl', type: 'email' },
-  { key: 'instructions',   label: 'Instrucciones adicionales (opcional)', placeholder: 'Ej. Enviar el comprobante por WhatsApp al +56...', textarea: true },
+  { key: 'bankName',       label: 'Banco',                                     placeholder: 'Banco Estado' },
+  { key: 'accountType',    label: 'Tipo de cuenta',                            placeholder: 'Chequera Electrónica' },
+  { key: 'accountNumber',  label: 'N° de cuenta',                              placeholder: '22870140049', mono: true },
+  { key: 'accountHolder',  label: 'Titular de la cuenta (normalmente igual a la razón social)', placeholder: 'Safebuildlv SpA' },
+  { key: 'paymentEmail',   label: 'Email para enviar comprobantes',            placeholder: 'estampadosdlv@gmail.com', type: 'email' },
+  { key: 'instructions',   label: 'Instrucciones adicionales (opcional)',      placeholder: 'Ej. Enviar el comprobante por WhatsApp al +56...', textarea: true },
 ];
 
 export default function CompanySettingsPanel() {
