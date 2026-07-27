@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Search, Sparkles } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatDateLong } from '@/lib/format';
+import { NotificationsBell } from '@/components/notifications-bell';
 
 export function Topbar() {
   // Renderizar la fecha SOLO después de hydration para evitar mismatch server/client
@@ -29,10 +30,7 @@ export function Topbar() {
         />
       </div>
 
-      <button className="relative rounded-full p-2 hover:bg-slate-100 transition-colors" aria-label="Notificaciones">
-        <Bell className="h-5 w-5 text-slate-600" />
-        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 ring-2 ring-white" />
-      </button>
+      <NotificationsBell />
     </header>
   );
 }
