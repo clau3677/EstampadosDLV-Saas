@@ -106,7 +106,7 @@ export async function generateMetadata({ params }) {
       siteName: 'Estampados DLV',
       locale: 'es_CL',
       type: 'website',
-      images: landing.ogImage ? [{ url: landing.ogImage }] : [{ url: IMG_HERO }],
+      images: landing.ogImage ? [{ url: landing.ogImage }] : (landing.heroImage ? [{ url: landing.heroImage }] : [{ url: IMG_HERO }]),
     },
     twitter: {
       card: 'summary_large_image',
@@ -166,7 +166,7 @@ export default async function LandingPage({ params }) {
         '@id': `${baseUrl}/#business`,
         name: `${BUSINESS.name}${landing.location?.city ? ' · ' + landing.location.city : ''}`,
         description: landing.intro,
-        image: landing.ogImage || IMG_HERO,
+        image: landing.ogImage || landing.heroImage || IMG_HERO,
         url: `${baseUrl}/servicios/${slug}`,
         telephone: BUSINESS.phone.intl,
         email: BUSINESS.email.primary,
@@ -295,8 +295,8 @@ export default async function LandingPage({ params }) {
             <div className="relative">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 aspect-[4/5] max-w-md mx-auto lg:max-w-none">
                 <Image
-                  src={IMG_HERO}
-                  alt="Impresión DTF en Estampados DLV"
+                  src={landing.heroImage || IMG_HERO}
+                  alt={landing.heroImage ? landing.h1 : "Impresión DTF en Estampados DLV"}
                   fill
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 50vw"

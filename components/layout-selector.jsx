@@ -9,10 +9,18 @@ import { CartDrawer } from '@/components/cart-drawer';
 import ChatWidget from '@/components/chat-widget';
 import MobileActionBar from '@/components/mobile-action-bar';
 
-const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios', '/contacto'];
+// Rutas totalmente aisladas: login/registro se pintan solas, sin nav, sin footer.
+const BARE_PREFIXES = ['/login', '/registro'];
+
+// Rutas públicas con PublicNav + Footer (incluye /mi-cuenta para clientes).
+const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta'];
 
 export default function LayoutSelector({ children }) {
   const pathname = usePathname();
+
+  const isBare = BARE_PREFIXES.some(p => pathname === p || pathname?.startsWith(p + '/'));
+  if (isBare) return <>{children}</>;
+
   const isPublic = PUBLIC_PREFIXES.some(p => pathname?.startsWith(p));
 
   if (isPublic) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Save, Sparkles, Wand2 } from 'lucide-react';
+import { Loader2, Save, Sparkles, Wand2, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +36,7 @@ const emptyForm = {
   location: { city: '', comuna: '', region: 'Valparaíso' },
   h1: '', intro: '', body: '', ctaText: '',
   metaTitle: '', metaDescription: '', ogImage: '',
+  heroImage: '',                            // imagen destacada del hero
   keywords: '',                             // string → array al enviar
   productsMode: 'featured',                 // 'manual' | 'featured' | 'all_active'
   featuredProductIds: [],
@@ -52,6 +53,30 @@ export function LandingEditDialog({ landing, open, onOpenChange, onSaved }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiTone, setAiTone] = useState('');
   const [aiExtra, setAiExtra] = useState('');
+  const [uploadingHero, setUploadingHero] = useState(false);
+
+  const uploadHeroImage = async (file) => {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) return toast.error('Solo imágenes (JPG, PNG, WEBP)');
+    if (file.size > 8 * 1024 * 1024) return toast.error('Imagen máxima 8MB');
+    setUploadingHero(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'landings');
+      const r = await fetch('/api/uploads/image', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'error');
+      setField({ heroImage: d.url });
+      toast.success('Imagen subida', {
+        description: `${d.widthPx}×${d.heightPx}px · ${Math.round(d.sizeBytes / 1024)} KB`,
+      });
+    } catch (e) {
+      toast.error('No se pudo subir', { description: e.message });
+    } finally {
+      setUploadingHero(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -321,6 +346,68 @@ Realizamos despachos a comunas cercanas: Villa Alemana, Viña del Mar, Valparaí
                 <Label className="text-xs">Texto del botón CTA</Label>
                 <Input placeholder="Cotiza tu diseño en Quilpué" value={form.ctaText}
                   onChange={(e) => setField({ ctaText: e.target.value })} />
+              </div>
+            </div>
+          </div>
+
+          {/* Hero Image */}
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+              <ImageIcon className="h-3 w-3" />
+              Imagen destacada del Hero
+              <span className="text-[10px] font-normal normal-case tracking-normal text-slate-400">(opcional)</span>
+            </div>
+            <div className="flex items-start gap-3">
+              {/* Preview */}
+              <div className="w-32 h-32 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center relative overflow-hidden shrink-0">
+                {form.heroImage ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.heroImage} alt="Hero" className="absolute inset-0 h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setField({ heroImage: '' })}
+                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md"
+                      title="Quitar imagen"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </>
+                ) : (
+                  <ImageIcon className="h-8 w-8 text-slate-300" />
+                )}
+              </div>
+
+              {/* Controls */}
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && uploadHeroImage(e.target.files[0])}
+                    />
+                    <span className={`inline-flex items-center gap-1.5 rounded-md px-3 h-9 text-xs font-semibold transition-colors ${
+                      uploadingHero
+                        ? 'bg-slate-100 text-slate-400 cursor-wait'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}>
+                      {uploadingHero ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Subiendo…</> : <><Upload className="h-3.5 w-3.5" />Subir imagen</>}
+                    </span>
+                  </label>
+                  <span className="text-[11px] text-slate-500">Máx 8MB · JPG, PNG, WEBP</span>
+                </div>
+                <Input
+                  value={form.heroImage}
+                  onChange={(e) => setField({ heroImage: e.target.value })}
+                  placeholder="/uploads/landings/… o URL externa"
+                  className="text-xs font-mono h-9"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Se mostrará junto al H1 en el hero de <span className="font-mono">/servicios/{form.slug || 'slug'}</span>.
+                  Si no subes ninguna, se usa un gradiente de marca.
+                </p>
               </div>
             </div>
           </div>

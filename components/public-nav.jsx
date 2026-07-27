@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Printer, ShoppingBag, Layers, Search } from 'lucide-react';
+import { Printer, ShoppingBag, Layers, User, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCart, cartCount } from '@/lib/cart-store';
+import { useAuth } from '@/hooks/use-auth';
+import { UserMenu } from '@/components/user-menu';
 import { cn } from '@/lib/utils';
 
 export function PublicNav() {
@@ -13,6 +14,7 @@ export function PublicNav() {
   const items = useCart(s => s.items);
   const open = useCart(s => s.open);
   const count = cartCount(items);
+  const { user } = useAuth();
 
   const link = (href, label) => (
     <Link
@@ -54,13 +56,26 @@ export function PublicNav() {
             className="relative border-slate-200 hover:border-orange-300 hover:bg-orange-50"
           >
             <ShoppingBag className="h-4 w-4 mr-2" />
-            Carrito
+            <span className="hidden sm:inline">Carrito</span>
             {count > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                 {count}
               </span>
             )}
           </Button>
+
+          {user ? (
+            <UserMenu />
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-slate-700">
+                <Link href="/login"><LogIn className="h-3.5 w-3.5 mr-1" />Ingresar</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600 hidden md:inline-flex">
+                <Link href="/registro"><User className="h-3.5 w-3.5 mr-1" />Crear cuenta</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

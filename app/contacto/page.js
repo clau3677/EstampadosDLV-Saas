@@ -11,6 +11,7 @@ import {
   CheckCircle2, Layers, Package, Palette, Truck,
 } from 'lucide-react';
 import { BUSINESS } from '@/lib/constants/business';
+import ContactForm from '@/components/contact-form';
 
 export const metadata = {
   title: `Contacto · ${BUSINESS.name} · Quilpué, Valparaíso`,
@@ -214,6 +215,48 @@ export default function ContactoPage() {
                     <span className="font-mono font-medium text-slate-900">{s.hours}</span>
                   </li>
                 ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CONTACT FORM */}
+      <section className="container mb-16">
+        <div className="grid lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3">
+            <ContactForm />
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-rose-50 border border-orange-200 p-6">
+              <div className="text-xs uppercase tracking-widest font-bold text-orange-700 mb-2">¿Urgente?</div>
+              <h4 className="text-lg font-bold text-slate-900">Escríbenos por WhatsApp</h4>
+              <p className="mt-2 text-sm text-slate-600">La forma más rápida de resolver dudas. Respondemos en minutos durante horario hábil.</p>
+              <a
+                href={BUSINESS.whatsapp.url('Hola! Quiero cotizar un estampado')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold px-5 py-2.5 rounded-lg shadow-md transition-all hover:scale-105"
+              >
+                <MessageCircle className="h-4 w-4" />Abrir WhatsApp
+              </a>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <div className="text-xs uppercase tracking-widest font-bold text-slate-500 mb-3">Otros medios</div>
+              <ul className="space-y-2.5 text-sm">
+                <li className="flex items-center gap-2 text-slate-700">
+                  <Phone className="h-4 w-4 text-orange-500 shrink-0" />
+                  <a href={BUSINESS.phone.tel} className="hover:text-orange-600 font-medium">{BUSINESS.phone.display}</a>
+                </li>
+                <li className="flex items-center gap-2 text-slate-700">
+                  <Mail className="h-4 w-4 text-orange-500 shrink-0" />
+                  <a href={BUSINESS.email.mailto} className="hover:text-orange-600 font-medium break-all">{BUSINESS.email.primary}</a>
+                </li>
+                <li className="flex items-center gap-2 text-slate-700">
+                  <Clock className="h-4 w-4 text-orange-500 shrink-0" />
+                  <span>Lun-Vie 10:00 – 19:00</span>
+                </li>
               </ul>
             </div>
           </div>

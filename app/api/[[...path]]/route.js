@@ -28,10 +28,14 @@ import handleAgent        from '@/lib/api/agent';
 import handleReports      from '@/lib/api/reports';
 import handleMaintenance  from '@/lib/api/maintenance';
 import handleCustomers    from '@/lib/api/customers';
+import handleAuth         from '@/lib/api/auth';
+import handleContact      from '@/lib/api/contact';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
 const HANDLERS = [
+  handleAuth,         // auth first (login/register are lightweight)
+  handleContact,      // public contact form
   handleDashboard,
   handleProducts,
   handleInventory,
