@@ -108,16 +108,22 @@ ok "Usuario $APP_USER listo"
 # ==========================================================================
 step "5/12 — Clonando código desde GitHub"
 mkdir -p /var/www
+# Marcar el destino como safe.directory para git (evita "dubious ownership")
+sudo -u "$APP_USER" git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+
 if [[ -d "$APP_DIR/.git" ]]; then
   cd "$APP_DIR"
   sudo -u "$APP_USER" git fetch origin "$GITHUB_BRANCH"
   sudo -u "$APP_USER" git reset --hard "origin/$GITHUB_BRANCH"
 else
-  sudo -u "$APP_USER" git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" "$APP_DIR"
+  # Limpiar posible dir parcial de un run anterior fallido
+  rm -rf "$APP_DIR"
+  # Clonar como root (para que pueda crear el dir dentro de /var/www) y luego chown
+  git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" "$APP_DIR"
 fi
-cd "$APP_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
-ok "Código en $APP_DIR ($(cd $APP_DIR && sudo -u $APP_USER git log -1 --format=%h))"
+cd "$APP_DIR"
+ok "Código en $APP_DIR ($(git log -1 --format=%h 2>/dev/null || echo 'unknown'))"
 
 # ==========================================================================
 # 6. VARIABLES DE ENTORNO (.env.production)
