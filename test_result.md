@@ -3597,3 +3597,163 @@ agent_communication_v13:
          - Verificar que el fondo blanco/color se reemplaza por transparencia.
       
       Base URL: process.env.NEXT_PUBLIC_BASE_URL
+
+
+# ============================================================================
+# ITERATION 15 — Auditoría de lógica + Módulo Clientes (main agent, 27-jul-2026)
+# ============================================================================
+# User report:
+#   "por que esta en 0 si hay pedidos revisa toda la logica del software saas
+#    para encontrar errores de logica o de informacion faltante o que este cruzada"
+#   "tambien esta pendiente Clientes / En construcción — base de datos unificada"
+
+frontend_v15:
+  - task: "Fix Dashboard Ventas hoy = $0"
+    implemented: true
+    working: true
+    file: "lib/api/dashboard.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Bug: dashboard.js filtraba órdenes con `paymentStatus:'paid'` + `paidAt >= today`
+          pero los pedidos gang-sheet quedan en `pending` (no pasan por checkout) →
+          Ventas hoy siempre $0.
+          
+          Fix: cambiar la query a "ventas comprometidas hoy" =
+          `createdAt >= inicio_dia` AND `status != cancelled`. Esto refleja lo que
+          realmente se vendió hoy, independiente del método/momento de pago.
+          
+          Además: alinear "Pedidos en cola" con el Kanban →
+            antes: orders.status IN [paid, in_production] (7)
+            ahora: production_queue.status IN [received, printing, curing] (9)
+          
+          Verificado en /:
+            Ventas hoy: $24.620 (era $0)
+            Pedidos en cola: 9 (alineado con Kanban)
+
+  - task: "Módulo Clientes / CRM unificado"
+    implemented: true
+    working: true
+    file: "lib/api/customers.js, app/clientes/page.js, app/api/[[...path]]/route.js, lib/models.js, lib/mongo-indexes.js, lib/api/orders.js, lib/api/pos.js"
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Reemplaza la página placeholder "En construcción" por un CRM completo.
+          
+          BACKEND (/lib/api/customers.js):
+          - GET /api/customers           → lista + KPIs derivados (totalCustomers,
+                                            activeCustomers, totalRevenue, avgLtv)
+          - GET /api/customers/:id       → detalle + historial 360° (últimos 50 pedidos)
+          - POST /api/customers          → crear cliente manual
+          - PATCH /api/customers/:id     → editar (name, email, phone, rut, address,
+                                            tags, notes)
+          - DELETE /api/customers/:id    → eliminar (los pedidos históricos quedan intactos)
+          - POST /api/customers/backfill → reconstruye colección desde snapshots de orders
+          
+          FEATURES CLAVE:
+          - Dedupe automático por email/phone/rut normalizados (case-insensitive,
+            phone sin +56, rut sin puntos ni guión).
+          - Anti-anonimo: si el snapshot no tiene NINGÚN identificador, no crea
+            cliente (evita 20× "Cliente Web" duplicados).
+          - Auto-upsert desde ORDERS al crear pedido (Web + POS + Gang Sheet ya
+            hookeados).
+          - LTV, ordersCount, firstOrderAt, lastOrderAt calculados on-the-fly desde
+            orders con match por customerId OR customerSnapshot.email/phone/rut.
+          - Etiquetas: vip, mayorista, express, moroso, recurrente, nuevo.
+          - Notas internas (textarea).
+          - 7 índices MongoDB (id unique, emailNorm/phoneNorm/rutNorm sparse, tags,
+            createdAt DESC, orders.customerId).
+          
+          FRONTEND (/app/app/clientes/page.js):
+          - Grid de tarjetas responsive con avatar de iniciales (gradient distinto
+            por nombre), puntito verde si activo (<90 días), email, teléfono, canales.
+          - 4 KPIs arriba (Total, Activos, Ingresos, LTV promedio).
+          - Búsqueda instant por nombre/email/phone/rut.
+          - Ordenar por último pedido / LTV / #pedidos / A-Z / más nuevos.
+          - Tabs por etiqueta (Todos + 6 tags con icono).
+          - Detalle en modal con historial 360° clickable (cada pedido link a
+            /pedidos?highlight=DLV-XXX).
+          - Modo edición con toggles de etiquetas, textarea de notas, campos editables.
+          - Botón "Nuevo cliente" para creación manual.
+          - Usa SWR con revalidación cada 60s + cache client-side.
+          
+          BACKFILL EJECUTADO:
+          Corrí POST /api/customers/backfill contra la BD real:
+            - 28 órdenes procesadas
+            - 10 clientes creados (por primera vez desde snapshots)
+            - 18 órdenes actualizadas con customerId
+            - 0 skipped
+          Luego borré manualmente 9 "clientes anónimos" (sin email/phone/rut) para
+          respetar la nueva regla anti-anónimo.
+          
+          Estado final: 8 clientes reales con historial completo:
+            - Diego P. (5 pedidos, LTV $137.840, canales: web+pos+whatsapp)
+            - Test Cliente Email Invalido (8 pedidos, LTV $53.910)
+            - Carlos Test (2 pedidos, LTV $17.970)
+            - + 5 más
+          
+          BUGS FIXES ADICIONALES ENCONTRADOS EN LA AUDITORÍA:
+          - dashboard.js: `stockAlerts` ahora también valida `minAlert > 0` (evita
+            contar supplies con minAlert=0 como alertas).
+          - dashboard.js: `channel.toUpperCase()` protegido con `(channel || 'web')`
+            para evitar crash si channel es null.
+
+metadata:
+  updated_by: "main_agent"
+  iteration: 15
+  test_sequence: 17
+
+test_plan:
+  current_focus:
+    - "Módulo Clientes / CRM unificado"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication_v15:
+  - agent: "main"
+    message: |
+      # Iteración 15 - Auditoría lógica + Módulo Clientes (27-jul-2026)
+      
+      Usuario reportó 2 problemas:
+      1. Dashboard: Ventas hoy = $0 pese a haber pedidos.
+      2. /clientes seguía siendo un placeholder "En construcción".
+      
+      Además pidió auditoría general del software para encontrar bugs de lógica
+      o datos cruzados.
+      
+      AUDITORÍA - Bugs encontrados y corregidos:
+      1. ✅ salesToday medía "paidAt today" pero gang-sheet nunca marca paid.
+         → Ahora mide "createdAt today AND status != cancelled".
+      2. ✅ pendingOrders contaba orders.status pero Kanban usa production_queue.status.
+         → Ambos ahora usan production_queue.status IN [received, printing, curing].
+      3. ✅ stockAlerts consideraba minAlert=0 como alerta (bug). Ahora requiere >0.
+      4. ✅ channel.toUpperCase() crasheaba si channel era null. Protegido.
+      5. ✅ NO existía colección customers ni CRUD. Creado desde cero.
+      6. ✅ Gang-sheet orders creaban "Cliente Web" duplicados. Anti-anónimo aplicado.
+      
+      Verificación visual:
+        - Dashboard: Ventas hoy $24.620 (correcto), Pedidos en cola 9 (alineado)
+        - /clientes: 8 clientes unificados, KPIs, cards, detalle con historial 360°
+      
+      No mocks. Sin API keys externas. Todos los datos reales de MongoDB.
+      
+      FRONTEND TESTING SUGERIDO (P1):
+      - Verificar flujo end-to-end en /clientes:
+        1. Cargar página → ver 8 clientes con KPIs
+        2. Buscar "Diego" → filtrar
+        3. Click en un cliente → modal detalle con historial 360°
+        4. Click "Editar" → toggles de etiquetas + notas
+        5. Guardar → toast "Cliente actualizado"
+        6. Click "Nuevo cliente" → modal creación
+        7. Validar: sin email/phone/rut → error "Ingresa al menos email, teléfono o RUT"
+        8. Crear con datos válidos → aparece en la grid
+        9. Eliminar cliente → confirmación → desaparece
+      - En /pedidos: verificar que los pedidos de un cliente linkean a /clientes/:id
+        (esto NO se implementó, sería mejora futura).

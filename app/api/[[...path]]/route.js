@@ -27,6 +27,7 @@ import handlePrePress     from '@/lib/api/pre-press';
 import handleAgent        from '@/lib/api/agent';
 import handleReports      from '@/lib/api/reports';
 import handleMaintenance  from '@/lib/api/maintenance';
+import handleCustomers    from '@/lib/api/customers';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -35,6 +36,7 @@ const HANDLERS = [
   handleProducts,
   handleInventory,
   handleOrders,
+  handleCustomers,
   handleProduction,
   handleGangSheets,
   handleUploads,
