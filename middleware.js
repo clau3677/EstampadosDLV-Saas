@@ -60,6 +60,6 @@ export async function middleware(req) {
 export const config = {
   matcher: [
     // Exclude static assets from middleware to keep it fast.
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads|downloads).*)',
   ],
 };
