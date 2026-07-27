@@ -21,7 +21,13 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       // Dynamic import: el paquete pesa ~40MB (modelo ONNX) por lo que se
       // carga sólo cuando el usuario decide usarlo. El navegador cachea el
       // modelo después de la primera ejecución.
-      const { removeBackground } = await import('@imgly/background-removal');
+      // webpackChunkName evita que el chunk se llame con "node_modules" en el path
+      // (algunos ingresses/proxies bloquean URLs con esa palabra o cortan por longitud).
+      const { removeBackground } = await import(
+        /* webpackChunkName: "imgly-bg-removal" */
+        '@imgly/background-removal'
+      );
+      // El modelo se descarga desde staticimgly.com (CDN oficial, sin API key)
       const blob = await removeBackground(imageUrl, {
         progress: (key, current, total) => {
           const p = Math.round((current / total) * 100);

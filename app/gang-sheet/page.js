@@ -159,7 +159,7 @@ export default function GangSheetPage() {
     manualLengthMm,
     setMode, addDesign, removeDesign, duplicate, rotate90,
     select, setExpress, autoArrange, currentQuote, effectiveDpi, designWarnings,
-    computedLengthMm, setManualLengthMm,
+    computedLengthMm, setManualLengthMm, reset,
   } = useGangSheet();
 
   const [uploading, setUploading] = useState(0);
@@ -187,7 +187,9 @@ export default function GangSheetPage() {
           image: img,
         });
         toast.success(`${data.originalName} agregado`, {
-          description: `${data.widthPx}×${data.heightPx}px · ${data.dpi} DPI original`,
+          description: data.upscaled
+            ? `${data.originalWidthPx}×${data.originalHeightPx}px → ${data.widthPx}×${data.heightPx}px · Auto-mejorada a 300 DPI (${data.upscaleFactor}×)`
+            : `${data.widthPx}×${data.heightPx}px · 300 DPI`,
         });
       };
       img.onerror = () => toast.error('No se pudo cargar la imagen');
@@ -242,7 +244,13 @@ export default function GangSheetPage() {
       if (!r.ok) throw new Error(data.error || 'error');
       toast.success('¡Pedido creado!', {
         description: `${data.orderNumber} · ${formatCLP(data.total)} · Enviado a ${data.printerLabel}`,
+        action: {
+          label: 'Ver pedido',
+          onClick: () => { window.location.href = `/pedidos?highlight=${data.orderNumber}`; },
+        },
       });
+      // Limpiar el lienzo tras confirmar el pedido para no crear duplicados
+      reset();
     } catch (e) {
       toast.error('Error al crear pedido', { description: e.message });
     } finally {

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
-  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail, Sparkles, MessageSquare,
+  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -19,6 +19,7 @@ const SECTIONS = [
     label: 'Ventas',
     items: [
       { href: '/pos',    label: 'POS · Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
+      { href: '/pedidos',label: 'Pedidos',              icon: ClipboardList },
       { href: '/tienda', label: 'Tienda Web',            icon: Store },
     ],
   },
