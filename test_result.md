@@ -5698,7 +5698,7 @@ backend:
 frontend:
   - task: "Order cancel/delete UI in /pedidos"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/pedidos/page.js"
     stuck_count: 0
     priority: "high"
@@ -5707,10 +5707,13 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Botones agregados en el modal de detalle. Prueba manual del usuario pendiente."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - E2E UI testing completed (FLOW A & B, desktop 1920x900). FLOW A (Cancel): Created test order DLV-2025-000329, opened modal, verified 'Cancelar pedido' button visible and 'Eliminar permanentemente' NOT visible (correct), clicked cancel, filled reason 'Test QA - Cliente no pagó', confirmed cancellation, verified success toast 'Pedido cancelado' with 'Se liberó el stock reservado y se removió del Kanban', modal updated to show status 'Cancelado', cancel reason banner visible with correct text, 'Cancelar pedido' button now gone, 'Eliminar permanentemente' button now visible ✓. FLOW B (Delete): Opened cancelled order DLV-2025-000330, verified 'Eliminar permanentemente' button visible, clicked delete, AlertDialog opened with title '¿Eliminar el pedido permanentemente?', warning text 'Esta acción no se puede deshacer' present, clicked 'Sí, eliminar', success toast 'eliminado permanentemente' appeared, order removed from list ✓. All UI elements, dialogs, toasts, and state transitions working correctly. Screenshots: pedidos-modal-with-cancel-button.png, pedidos-cancel-dialog-with-textarea.png, pedidos-after-cancel-with-reason-banner.png, pedidos-delete-alert-dialog.png."
 
   - task: "Kanban card X button + cancel dialog"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/app/kanban/page.js"
     stuck_count: 0
     priority: "high"
@@ -5719,6 +5722,9 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Botón X en cada tarjeta abre diálogo con 2 opciones: quitar sólo tarjeta o cancelar pedido completo. Prueba manual del usuario pendiente."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - E2E UI testing completed (FLOW C & D, desktop 1920x900 + mobile 412x915). FLOW C (Remove card): Desktop - hovered over card, X button became visible (lg:opacity-0 lg:group-hover:opacity-100 working), clicked X, dialog opened with 2 options: 'Quitar del Kanban' and 'Cancelar el pedido completo', textarea for cancel reason present, clicked 'Quitar' button, success toast 'Tarjeta quitada del Kanban' with description 'El pedido sigue existiendo. Puedes verlo en /pedidos' appeared, card removed from Kanban ✓. FLOW D (Cancel order): Clicked X on another card, filled textarea with 'Test QA - Cancelación desde Kanban', clicked 'Cancelar pedido completo', success toast 'Pedido cancelado' with 'Stock liberado y tarjetas removidas del Kanban' appeared, all cards for that order removed ✓. MOBILE (412x915): X button always visible on cards (opacity-100, no hover required), dialog displays correctly without overflow, buttons stack properly (flex-wrap), /pedidos modal responsive ✓. All UI elements, hover behaviors, dialogs, toasts working correctly on both desktop and mobile. Screenshots: kanban-card-with-x-button-hover.png, kanban-remove-dialog-two-options.png, kanban-card-with-x-button-mobile.png, kanban-mobile-view.png, pedidos-mobile-view.png."
 
 test_plan:
   current_focus: []
@@ -5731,4 +5737,6 @@ agent_communication:
     -message: "Nueva feature: cancelar y eliminar pedidos + quitar/cancelar tarjetas del Kanban. Necesito test end-to-end de los 3 endpoints nuevos: (1) POST /orders/cancel sin auth → 403, con admin → 200. Verificar que libera stock reservado (crea un pedido nuevo, revisa reservedQuantity antes y después) y borra las tarjetas del Kanban (crea manual una tarjeta en production_queue con orderId y verifica que se borre). (2) POST /orders/delete sin fuerza cuando pedido no está cancelled → 400. Con status=cancelled → 200 y cascade delete de order_items + production_queue + orders. (3) POST /production/remove sólo borra la tarjeta, no toca el pedido. Si era la última, updates productionStatus='not_started' en la orden. Credenciales admin: estampadosdlv@gmail.com / EstampadosDLV2025!."
     -agent: "testing"
     -message: "✅ BACKEND TESTING COMPLETE - ALL TESTS PASSED (13/13, 100%). Tested 3 new endpoints: POST /api/orders/cancel (4 tests), POST /api/orders/delete (5 tests), POST /api/production/remove (4 tests). All critical functionality verified: auth validation (403), not found (404), business logic validations (400), stock release mechanism, production_queue cleanup, cascade delete, productionStatus updates. No critical issues found. Test file: /app/backend_test_cancel_delete.py. Both backend tasks marked as working=true, needs_retesting=false. Frontend tasks (/pedidos and /kanban UI) not tested (require manual user testing as per system prompt). Ready for user acceptance testing."
+    -agent: "testing"
+    -message: "✅ FRONTEND E2E TESTING COMPLETE - ALL FLOWS PASSED (4/4, 100%). Tested cancel/delete orders feature from /pedidos and /kanban on desktop (1920x900) and mobile (412x915). FLOW A (Cancel from /pedidos): Order modal shows correct buttons based on status, cancel dialog with textarea works, success toast appears, modal updates to show cancelled status with reason banner, button visibility changes correctly ✓. FLOW B (Delete from /pedidos): AlertDialog confirmation works, cascade delete successful, order removed from list ✓. FLOW C (Remove card from Kanban): X button visible on hover (desktop), dialog with 2 options works, remove single card successful ✓. FLOW D (Cancel order from Kanban): Cancel with reason works, all cards for order removed, stock released ✓. MOBILE: X button always visible (no hover), dialogs responsive, buttons stack properly ✓. All UI elements, state transitions, toasts, and responsive behaviors working correctly. No critical issues found. Screenshots captured: pedidos-modal-with-cancel-button.png, pedidos-cancel-dialog-with-textarea.png, pedidos-after-cancel-with-reason-banner.png, pedidos-delete-alert-dialog.png, kanban-card-with-x-button-hover.png, kanban-remove-dialog-two-options.png, kanban-card-with-x-button-mobile.png. Feature is production-ready."
 
