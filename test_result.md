@@ -5008,3 +5008,91 @@ agent_communication_v7:
       No requiere backend testing — cambios sólo en presentación + migración de datos ya validada.
 
 
+
+# ============================================================================
+# ITERATION 8 — Textil Ryu Supplier Integration (27-jul-2026)
+# ============================================================================
+
+agent_communication_v8:
+  - agent: "main"
+    message: |
+      # Iteración 8 — Segundo proveedor: Textil Ryu (gorras)
+
+      ## Contexto
+      Usuario pidió: "este es mi proveedor de gorras podría copiar entero su catalogo y subir los precios un 40% mas para incorporarlo a mi catalogo?"
+
+      ## Aproximación técnica
+      Textil Ryu = WordPress + WooCommerce.
+      - Usé WooCommerce Store API pública (`/wp-json/wc/store/v1/products?slug=...`)
+      - Combinado con HTML scraping de `/catalogo/` para extraer precios MAYORISTAS ("Al mayor $X") que NO están expuestos en la API
+      - 76 productos totales en catálogo, 74 con precio mayorista visible (2 sin precio → skip)
+
+      ## Refactor de import.js (generalizado)
+      Antes: import.js era 100% Cottonext-specific.
+      Ahora:
+      - `buildProductDoc({item, markupPercent, paraphrase, existingProduct, supplierName})` acepta cualquier proveedor
+      - Maneja variantes color×talla (Cottonext) O sólo colors[] (Textil Ryu unitalla)
+      - `syncInventoryForVariants(db, product, sourceVariants, supplierName)` genérico
+      - SKU prefix se genera desde supplierName (`CTNX-...`, `TEXT-...`)
+      - Slug incluye supplier tag para evitar colisiones (`-cottonext25`, `-textilryu10152`)
+
+      ## Nuevos archivos
+      - `/app/lib/import/textilryu.js` — Scraper WooCommerce Store API + parser del catálogo HTML
+      - `/app/app/proveedores/textilryu/page.js` — UI admin (basada en cottonext, adaptada)
+      - `/app/scripts/refresh-textilryu-prices.sh` — Cron script diario
+
+      ## Endpoints nuevos
+      - `POST /api/import/textilryu/scan` — HTML + API híbrido (~90s para 76 productos)
+      - `POST /api/import/textilryu/import` — Import con markup +40% + paraphrase MiniMax
+      - `POST /api/import/textilryu/refresh-prices` — Cron sync de precios
+      - `GET  /api/import/textilryu/history`
+      - `GET  /api/import/textilryu/imported`
+      - `POST /api/import/textilryu/sync-inventory`
+      - `GET/POST /api/import/textilryu/cron/settings`
+      - `GET  /api/import/textilryu/cron/precheck`
+
+      ## Ajustes a taxonomía
+      - Agregada subcategoría `lisa` en `caps_hats` (nueva)
+      - Auto-clasificación por nombre:
+        * "gorra"/"cap"/"beanie" → `caps_hats` / `lisa`
+        * "polera" → `blank_apparel` / `poleras`
+        * "polerón"/"hoodie" → `blank_apparel` / `polerones`
+
+      ## Sidebar actualizado
+      Antes: 1 link "Proveedores" (badge Cottonext)
+      Ahora: 2 links separados
+      - "Proveedor Cottonext" (badge Ropa)
+      - "Proveedor Textil Ryu" (badge Gorras)
+
+      ## Cron actualizado
+      `/etc/cron.d/estampados-dlv-cron`:
+      - Cottonext: `15 3 * * *` (00:15 hrs Chile)
+      - Textil Ryu: `30 3 * * *` (00:30 hrs Chile) — 15 min offset para no colisionar
+      Ambos con precheck de setting en BD antes de ejecutarse.
+
+      ## Ejecución real
+      - **74 productos importados** sin errores (100% éxito)
+      - Distribución:
+        * 70 caps_hats/lisa (gorras): $1.190 - $10.490 (promedio $4.500)
+        * 4 blank_apparel/poleras: promedio $4.990
+      - **354 stock records** creados automáticamente en commercial_stock (Bajo pedido · Textil Ryu)
+      - Cron manual test exitoso: HTTP 200, "updated: 0, unchanged: 74, failed: 0"
+
+      ## Bug menor detectado y corregido
+      Un taxonomía huérfana `gorra_parche_animal` fue creada en la BD durante el flujo (probablemente por un POST manual en algún momento del testing). Se eliminó y se re-categorizaron 2 productos afectados a `caps_hats/lisa`.
+
+      ## Estado final catálogo
+      - **140 productos activos** en /tienda
+      - 62 Cottonext (Ropa Lisa)
+      - 74 Textil Ryu (70 gorras + 4 poleras)
+      - 4 originales (DTF + estampados)
+
+      ## Screenshots
+      - /proveedores/textilryu tab "Ya importados (74)": tabla con imagen, nombre, marca "Textil Ryu", categoría "Sin estampar", costo, venta, margen +40%, estado activo
+      - /tienda: 6 service cards con "Gorras (70 productos)" bien visible
+      - Featured gorras Animal Malla ($4.890): imágenes reales de alta calidad, descripciones parafraseadas
+
+      ## No requiere backend testing adicional
+      Todo el flujo validado manualmente end-to-end con datos reales del proveedor.
+
+

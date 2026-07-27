@@ -41,7 +41,8 @@ const SECTIONS = [
     items: [
       { href: '/inventario',   label: 'Inventario Dual',   icon: PackageSearch },
       { href: '/clientes',     label: 'Clientes',          icon: Users },
-      { href: '/proveedores/cottonext', label: 'Proveedores', icon: Truck, badge: 'Cottonext' },
+      { href: '/proveedores/cottonext', label: 'Proveedor Cottonext', icon: Truck, badge: 'Ropa' },
+      { href: '/proveedores/textilryu', label: 'Proveedor Textil Ryu', icon: Truck, badge: 'Gorras' },
       { href: '/reportes',     label: 'Reportes',          icon: LineChart },
       { href: '/mantenimiento',label: 'Mantenimiento',     icon: Wrench },
     ],

@@ -81,6 +81,7 @@ const SUBCAT_MAP = {
     { code: 'otros',     label: 'Otros' },
   ],
   caps_hats: [
+    { code: 'lisa',    label: 'Sin estampar' },
     { code: 'dtf',     label: 'DTF' },
     { code: 'vinilo',  label: 'Vinilo' },
     { code: 'bordado', label: 'Bordado' },

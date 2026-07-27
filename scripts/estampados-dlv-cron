@@ -2,6 +2,9 @@
 # Cron jobs para Estampados DLV. Instalado por /app/scripts/install-crons.sh
 #
 # Formato: minute hour day month day_of_week user command
-#
-# Refresh prices Cottonext — diariamente 03:15 UTC (00:15 Chile continental)
+
+# Refresh prices Cottonext — diariamente 00:15 hrs Chile (03:15 UTC)
 15 3 * * * root /app/scripts/refresh-cottonext-prices.sh
+
+# Refresh prices Textil Ryu — diariamente 00:30 hrs Chile (03:30 UTC)
+30 3 * * * root /app/scripts/refresh-textilryu-prices.sh
