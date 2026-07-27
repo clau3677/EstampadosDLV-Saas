@@ -341,7 +341,13 @@ export default function PedidosPage() {
       {/* Modal de detalle */}
       <Dialog open={!!selectedOrder} onOpenChange={(v) => { if (!v) { setSelectedOrder(null); setOrderItems([]); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedOrder && (
+          {!selectedOrder ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Cargando pedido…</DialogTitle>
+              </DialogHeader>
+            </>
+          ) : (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 flex-wrap">

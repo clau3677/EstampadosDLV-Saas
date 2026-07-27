@@ -409,7 +409,12 @@ function CustomerDetail({ id, onClose, onSaved, onDeleted }) {
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
         {isLoading || !data ? (
-          <div className="py-12 text-center text-slate-500 text-sm">Cargando…</div>
+          <>
+            <DialogHeader>
+              <DialogTitle>Cargando cliente…</DialogTitle>
+            </DialogHeader>
+            <div className="py-12 text-center text-slate-500 text-sm">Cargando…</div>
+          </>
         ) : (
           <>
             <DialogHeader>
