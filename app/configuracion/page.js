@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Settings2, Plus, Trash2, Edit3, Loader2, Save,
-  Tag, Beaker, Ruler, Truck, Printer,
+  Tag, Beaker, Ruler, Truck, Printer, Building2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { invalidateTaxonomyCache } from '@/components/taxonomy-select';
 import PrintersManager from '@/components/printers-manager';
+import CompanySettingsPanel from '@/components/company-settings-panel';
 
 const KINDS = [
   { key: 'product_category', label: 'Categorías', icon: Tag,    desc: 'Categorías de productos comerciales.',        color: 'from-orange-500 to-rose-500' },
@@ -32,7 +33,7 @@ const KINDS = [
 ];
 
 export default function ConfiguracionPage() {
-  const [tab, setTab] = useState('product_category');
+  const [tab, setTab] = useState('company');
   const [data, setData] = useState({});
   const [printersCount, setPrintersCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -81,7 +82,10 @@ export default function ConfiguracionPage() {
   // Refrescar el conteo de equipos cuando el usuario entra a la tab "printers" o vuelve a otra
   useEffect(() => { loadPrintersCount(); }, [tab]);
 
-  useEffect(() => { if (tab) loadKind(tab); }, [tab]);
+  useEffect(() => {
+    // Solo recargamos taxonomías si la tab activa es una de las conocidas (no company/printers)
+    if (tab && KINDS.some(k => k.key === tab)) loadKind(tab);
+  }, [tab]);
 
   const currentItems = data[tab] || [];
 
@@ -156,13 +160,16 @@ export default function ConfiguracionPage() {
           </div>
           <div>
             <div className="font-bold text-slate-900">Configuración</div>
-            <div className="text-xs text-slate-500">Categorías, tipos, unidades y proveedores</div>
+            <div className="text-xs text-slate-500">Empresa, datos bancarios, categorías, unidades, equipos y proveedores</div>
           </div>
         </div>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-slate-100/60 flex-wrap h-auto">
+          <TabsTrigger value="company" className="text-xs">
+            <Building2 className="h-3.5 w-3.5 mr-1.5" />Empresa & Pagos
+          </TabsTrigger>
           {KINDS.map(k => (
             <TabsTrigger key={k.key} value={k.key} className="text-xs">
               <k.icon className="h-3.5 w-3.5 mr-1.5" />{k.label} ({(data[k.key] || []).length})
@@ -172,6 +179,10 @@ export default function ConfiguracionPage() {
             <Printer className="h-3.5 w-3.5 mr-1.5" />Equipos ({printersCount})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="company" className="mt-4">
+          <CompanySettingsPanel />
+        </TabsContent>
 
         <TabsContent value="printers" className="mt-4">
           <PrintersManager onCountChange={setPrintersCount} />

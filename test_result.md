@@ -400,7 +400,7 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 15
+  test_sequence: 16
   run_ui: false
 
 test_plan:
@@ -5507,4 +5507,100 @@ agent_communication_v8:
       ## No requiere backend testing adicional
       Todo el flujo validado manualmente end-to-end con datos reales del proveedor.
 
+
+
+
+---
+
+# 2026-07-27 · Feature: Company/Bank Settings Admin UI
+
+## Contexto
+El usuario reportó que al realizar un pedido con "Transferencia Bancaria", en la pantalla `/checkout/gracias` se mostraban datos bancarios ficticios hardcodeados (BancoEstado / Estampados DLV SpA / 77.123.456-7 / Cuenta Vista 12345678 / pagos@estampadosdlv.cl) y no existía UI para modificarlos.
+
+## Cambios implementados
+
+### 1. Nuevo endpoint API — `/app/lib/api/settings.js`
+- **GET `/api/settings/company`** → lectura pública (necesaria para checkout). Retorna el documento actual mergeado con defaults sensatos.
+- **PUT `/api/settings/company`** → sólo admin (verificado con `getUserFromRequest` + `role === 'admin'`). Guarda en la colección `app_settings` bajo el key `company_info`.
+- Whitelist de campos permitidos + merge no-destructivo con el estado actual (permite guardar sólo unos pocos campos).
+- Campos: `companyName`, `rut`, `bankName`, `accountType`, `accountNumber`, `accountHolder`, `paymentEmail`, `contactEmail`, `contactPhone`, `address`, `instructions`.
+
+### 2. Router registrado — `/app/app/api/[[...path]]/route.js`
+- Importado `handleSettings from '@/lib/api/settings'`.
+- Añadido al array `HANDLERS` en posición temprana (tras `handleContact`).
+
+### 3. Nuevo componente admin — `/app/components/company-settings-panel.js`
+- Panel completo con 2 secciones (Datos de la empresa · Datos bancarios).
+- Estado dirty tracking + sticky bottom bar con botones Recargar / Guardar cambios.
+- Toasts de éxito/error con `sonner`.
+- Usa `<Textarea>` para instrucciones adicionales.
+
+### 4. Página `/configuracion` — `/app/app/configuracion/page.js`
+- Nueva pestaña "Empresa & Pagos" con icono `Building2`, posicionada primero.
+- Es la pestaña por defecto (`useState('company')`).
+- Guarded el `loadKind` para que no dispare en tabs no-taxonomía.
+- Subtítulo actualizado.
+
+### 5. Checkout `/checkout/gracias` — `/app/app/checkout/gracias/page.js`
+- Nuevo `useEffect` que carga `/api/settings/company` en paralelo.
+- Los 5 campos de datos de transferencia ahora leen desde `company?.*` con fallbacks a `—`.
+- Nueva sección opcional para mostrar `company.instructions` si el admin lo llenó (whitespace-pre-line).
+
+## Verificación manual (main agent)
+- `curl http://localhost:3000/api/settings/company` → devuelve JSON con defaults ✅
+- Lint pass en los 4 archivos modificados/creados ✅
+- Compilación sin errores en dev server ✅
+
+backend:
+  - task: "Company/Bank settings API (GET/PUT /api/settings/company)"
+    implemented: true
+    working: true
+    file: "/app/lib/api/settings.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Nuevo endpoint. GET público retorna defaults, PUT requiere admin. Falta test end-to-end (login admin → PUT → GET verifica persistencia → PUT sin auth debe 403)."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - Comprehensive E2E testing completed (8/8 tests passed). Test file: /app/backend_test_settings.py. T1: GET público sin auth → 200 with all 11 default fields (companyName, rut, bankName, accountType, accountNumber, accountHolder, paymentEmail, contactEmail, contactPhone, address, instructions) ✓. T2: PUT sin auth → 403 'Sólo administradores pueden modificar la configuración de empresa', post-check verified 'Hack Bank' was NOT saved (security OK) ✓. T3: Login admin (estampadosdlv@gmail.com) → PUT {bankName:'Banco Test 2026', accountNumber:'9999-8888-7777', paymentEmail:'nuevo@ejemplo.cl'} → 200 {ok:true, data:{...}}, all 3 fields updated, other fields intact ✓. T4: GET after PUT → all 3 fields persisted correctly (bankName='Banco Test 2026', accountNumber='9999-8888-7777', paymentEmail='nuevo@ejemplo.cl') ✓. T5: Merge non-destructive → PUT {companyName:'Nueva Razón Social SpA'} → companyName updated, bankName still 'Banco Test 2026' (partial PUT does NOT overwrite other fields) ✓. T6: Whitelist → PUT {bankName:'Banco Legit', evilField:'pwned', __proto__:'boom'} → bankName saved, evilField and __proto__ correctly rejected (not in response) ✓. T7: Trim strings → PUT {accountHolder:'   Con espacios   '} → accountHolder='Con espacios' (no leading/trailing spaces) ✓. T8: Reset to defaults → all fields restored to original values ✓. All validations working correctly: auth check (403), whitelist (only allowed fields), merge (non-destructive), trim (strings), persistence (MongoDB upsert). No MongoDB _id leakage. Ready for production."
+
+frontend:
+  - task: "Admin settings tab UI (/configuracion tab 'Empresa & Pagos')"
+    implemented: true
+    working: "NA"
+    file: "/app/app/configuracion/page.js + /app/components/company-settings-panel.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Nuevo tab. Prueba manual del usuario pendiente."
+
+  - task: "Checkout page reads bank data from API instead of hardcoded"
+    implemented: true
+    working: "NA"
+    file: "/app/app/checkout/gracias/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Actualizado. Los 5 campos leen desde /api/settings/company con fallback a '—'."
+
+test_plan:
+  current_focus: []
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Feature nueva: UI de admin para configurar datos de empresa y banco (antes hardcodeados). Necesito test end-to-end del endpoint /api/settings/company: (1) GET sin auth → 200 con defaults, (2) PUT sin auth → 403, (3) login como admin (estampadosdlv@gmail.com / EstampadosDLV2025!) → PUT con body {bankName:'Banco Test', accountNumber:'99999'} → 200, (4) GET después del PUT → refleja los cambios. También validar que campos no permitidos sean ignorados y que el merge no destruya otros campos."
+    -agent: "testing"
+    -message: "✅ BACKEND TESTING COMPLETE - Company/Bank Settings API (27-jan-2026). All 8 tests passed (100% success rate). Test file: /app/backend_test_settings.py. Comprehensive testing completed: (1) GET público sin auth → 200 with all 11 default fields ✓, (2) PUT sin auth → 403 with correct error message + security verified (data not saved) ✓, (3) Login admin + PUT valid data → 200 with all 3 fields updated ✓, (4) Persistence GET after PUT → all 3 fields persisted correctly ✓, (5) Merge non-destructive → partial PUT does NOT overwrite other fields ✓, (6) Whitelist → evil fields (evilField, __proto__) correctly rejected ✓, (7) Trim strings → leading/trailing spaces removed ✓, (8) Reset to defaults → all fields restored ✓. All validations working correctly: auth check (403), whitelist (only allowed fields), merge (non-destructive), trim (strings), persistence (MongoDB upsert). No MongoDB _id leakage. No critical issues found. Ready for production. Frontend testing (admin UI /configuracion tab 'Empresa & Pagos' and checkout page /checkout/gracias) NOT tested as per system limitations (frontend testing requires user manual verification). Main agent should summarize and finish."
 

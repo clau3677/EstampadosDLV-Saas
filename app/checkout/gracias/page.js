@@ -27,6 +27,7 @@ export default function ThankYouPage() {
   const [order, setOrder] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [company, setCompany] = useState(null);
 
   useEffect(() => {
     if (!orderNumber) { setLoading(false); return; }
@@ -38,6 +39,16 @@ export default function ThankYouPage() {
       } finally { setLoading(false); }
     })();
   }, [orderNumber]);
+
+  // Cargar datos de empresa/banco desde configuración (para instrucciones de transferencia)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/settings/company');
+        if (r.ok) setCompany(await r.json());
+      } catch { /* fallback a defaults del backend */ }
+    })();
+  }, []);
 
   const copyNumber = () => {
     if (!orderNumber) return;
@@ -145,15 +156,18 @@ export default function ThankYouPage() {
               <CardContent className="p-6">
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-slate-800">
+                  <div className="text-sm text-slate-800 w-full">
                     <div className="font-bold">Datos para transferencia</div>
                     <div className="mt-2 space-y-0.5 font-mono text-xs">
-                      <div>Banco: <b>BancoEstado</b></div>
-                      <div>Titular: <b>Estampados DLV SpA</b></div>
-                      <div>RUT: <b>77.123.456-7</b></div>
-                      <div>Cuenta Vista: <b>12345678</b></div>
-                      <div>Email: <b>pagos@estampadosdlv.cl</b></div>
+                      <div>Banco: <b>{company?.bankName || '—'}</b></div>
+                      <div>Titular: <b>{company?.accountHolder || company?.companyName || '—'}</b></div>
+                      <div>RUT: <b>{company?.rut || '—'}</b></div>
+                      <div>{company?.accountType || 'Cuenta'}: <b>{company?.accountNumber || '—'}</b></div>
+                      <div>Email: <b>{company?.paymentEmail || company?.contactEmail || '—'}</b></div>
                     </div>
+                    {company?.instructions && (
+                      <p className="mt-3 text-xs text-slate-700 whitespace-pre-line">{company.instructions}</p>
+                    )}
                     <p className="mt-2 text-xs text-slate-600">
                       Envía el comprobante indicando el número <b>{orderNumber}</b>. Confirmaremos tu pedido en menos de 2 horas hábiles.
                     </p>
