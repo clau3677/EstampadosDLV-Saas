@@ -410,6 +410,61 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+bugfix_treck_import_bulk:
+  - task: "BUGFIX: Import masivo Treck fallaba con 'Unexpected token <' + E11000 dup key"
+    implemented: true
+    working: true
+    file: "app/proveedores/treck/page.js + lib/api/import.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "user"
+        comment: |
+          User selected all 445 products with paraphrase=true and hit Importar.
+          Frontend showed: "Import falló - Unexpected token '<', '<!DOCTYPE '... is not valid JSON".
+          Root cause investigation:
+          1) Nginx/Kubernetes ingress timeout ~60-90s cuts the request → responds HTML 504.
+             But Node.js keeps processing in background.
+          2) User clicks Import again → 2nd process starts.
+          3) Both processes hit `products.findOne(...)` for same supplierProductId at ~same time.
+             Both get null. Both attempt insertOne. First succeeds, second fails E11000 dup slug key.
+          4) 47 products got imported partially before this cascade of failures.
+      - working: true
+        agent: "main"
+        comment: |
+          FIX APPLIED (defense in depth, 2 layers):
+
+          LAYER 1 — Frontend chunking (/app/app/proveedores/treck/page.js):
+          - runImport() now splits selectedIds into chunks of 5 (with paraphrase) or 20 (without).
+          - Sequential POST per chunk. Aggregates stats.
+          - New importProgress state renders a visible progress bar with % and stats live.
+          - Content-Type check: if response is not JSON (HTML from proxy timeout), throws clean error.
+          - On chunk failure, continues with next chunks. Reports both successes and failures.
+
+          LAYER 2 — Backend anti-race fallback (/app/lib/api/import.js):
+          - In all 3 supplier imports (cottonext, textilryu, treck), the `insertOne(doc)` call
+            is wrapped in try/catch. If it fails with E11000 (dup key), refetch the existing
+            product by (supplier, supplierProductId) and do updateOne instead.
+          - The fallback preserves original id + createdAt to avoid duplicates in the future.
+          - Details log includes `action: 'updated_after_race'` for visibility.
+
+          VERIFICATION:
+          - Cleaned 47 orphaned products + 873 stock records + image folder.
+          - Playwright test: login → scan 50 → select 15 → Import (paraphrase off).
+            Result: 3 chunks of 5, each ~1.5s. Total 15/15 created successfully.
+            Toast: "Escaneo completo: 50 productos". Tab: "Ya importados (15)".
+            Grid re-renders with "Ya importado" badges after auto-refresh.
+          - curl test with paraphrase=true: 8 products in ~62s (borderline of proxy timeout,
+            hence CHUNK_SIZE=5 for paraphrase is safe margin).
+          - curl test with paraphrase=false: 15 products in 4s (super fast).
+
+          Estimated import times for full 448 catalog:
+          - paraphrase=false: ~30 chunks × 5s = ~2.5 min total
+          - paraphrase=true:  ~90 chunks × 45s = ~68 min total (recommended: do batches)
+
+
 backend_treck_importer:
   - task: "Treck VTEX scraper module (/app/lib/import/treck.js)"
     implemented: true

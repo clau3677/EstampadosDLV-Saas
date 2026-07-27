@@ -51,6 +51,7 @@ export default function TreckImportPage() {
   const [search, setSearch] = useState('');
 
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(null); // { done, total, currentBatch, stats }
   const [importResult, setImportResult] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [imported, setImported] = useState([]);
@@ -188,30 +189,94 @@ export default function TreckImportPage() {
     if (selectedIds.size === 0) return toast.error('Selecciona al menos 1 producto');
     setImporting(true);
     setImportResult(null);
-    try {
-      const r = await fetch('/api/import/treck/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          scanId: scanResult.scanId,
-          selectedIds: Array.from(selectedIds),
-          markupPercent,
-          paraphrase,
-        }),
+    setImportProgress(null);
+
+    // Chunk selectedIds en tandas para evitar timeout del ingress (~60-90s).
+    // Con paráfrasis: ~7-8s por producto → chunks de 5 = ~40s (margen seguro).
+    // Sin paráfrasis: ~0.3s por producto → chunks de 20 = ~6s (rápido).
+    const CHUNK_SIZE = paraphrase ? 5 : 20;
+    const allIds = Array.from(selectedIds);
+    const chunks = [];
+    for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+      chunks.push(allIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const agg = { attempted: 0, created: 0, updated: 0, failed: 0, details: [] };
+
+    for (let idx = 0; idx < chunks.length; idx++) {
+      const chunk = chunks[idx];
+      setImportProgress({
+        currentChunk: idx + 1,
+        totalChunks: chunks.length,
+        processed: idx * CHUNK_SIZE,
+        total: allIds.length,
+        stats: { ...agg },
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'error');
-      setImportResult(d);
-      toast.success(`Import listo: ${d.created} creados, ${d.updated} actualizados`, {
-        description: d.failed > 0 ? `${d.failed} fallaron` : 'Todos ok',
+
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await fetch('/api/import/treck/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            scanId: scanResult.scanId,
+            selectedIds: chunk,
+            markupPercent,
+            paraphrase,
+          }),
+        });
+
+        // Manejo defensivo: si el proxy responde con HTML (504/502), no se puede parsear como JSON
+        const contentType = r.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await r.text();
+          throw new Error(`Chunk ${idx + 1}/${chunks.length} — respuesta no JSON (posible timeout): ${text.slice(0, 100)}`);
+        }
+        // eslint-disable-next-line no-await-in-loop
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+
+        agg.attempted += d.attempted || 0;
+        agg.created   += d.created || 0;
+        agg.updated   += d.updated || 0;
+        agg.failed    += d.failed || 0;
+        if (Array.isArray(d.details)) agg.details.push(...d.details);
+      } catch (err) {
+        console.error(`[treck:import] chunk ${idx + 1} failed:`, err);
+        agg.failed += chunk.length;
+        agg.details.push({ chunk: idx + 1, action: 'chunk_failed', error: err.message });
+        toast.error(`Chunk ${idx + 1}/${chunks.length} falló`, {
+          description: err.message.slice(0, 120),
+        });
+      }
+    }
+
+    setImportProgress({
+      currentChunk: chunks.length,
+      totalChunks: chunks.length,
+      processed: allIds.length,
+      total: allIds.length,
+      stats: { ...agg },
+    });
+    setImportResult(agg);
+
+    const successful = agg.created + agg.updated;
+    if (successful > 0) {
+      toast.success(`Import completo: ${agg.created} creados, ${agg.updated} actualizados`, {
+        description: agg.failed > 0 ? `${agg.failed} fallaron` : 'Todos ok',
       });
-      loadImported();
-      loadHistory();
-      runScan();
-    } catch (err) {
-      toast.error('Import falló', { description: err.message });
-    } finally { setImporting(false); }
+    } else {
+      toast.error('Import falló completamente', {
+        description: `Ninguno de los ${allIds.length} productos se procesó correctamente`,
+      });
+    }
+
+    loadImported();
+    loadHistory();
+    setImporting(false);
+    // Refresh scan tras un delay para dejar terminar syncs pendientes
+    setTimeout(runScan, 500);
   };
 
   const runRefreshPrices = async () => {
@@ -467,8 +532,44 @@ export default function TreckImportPage() {
                 </Button>
               </div>
 
+              {/* PROGRESS BAR (durante import por chunks) */}
+              {importing && importProgress && (
+                <div className="rounded-2xl border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-white shadow-md p-5">
+                  <div className="flex items-start gap-3">
+                    <Loader2 className="h-6 w-6 text-orange-600 animate-spin shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                        <div>
+                          <div className="font-bold text-orange-900">
+                            Procesando chunk {importProgress.currentChunk} de {importProgress.totalChunks}
+                          </div>
+                          <div className="text-xs text-slate-600 mt-0.5">
+                            {importProgress.processed} de {importProgress.total} productos procesados
+                            {' · '}
+                            <b className="text-emerald-700">{importProgress.stats.created} creados</b>
+                            {' · '}
+                            <b className="text-blue-700">{importProgress.stats.updated} actualizados</b>
+                            {importProgress.stats.failed > 0 && <> · <b className="text-rose-600">{importProgress.stats.failed} fallidos</b></>}
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-orange-700 font-mono">
+                          {Math.round((importProgress.processed / importProgress.total) * 100)}%
+                        </div>
+                      </div>
+                      <div className="mt-3 h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-500 rounded-full"
+                             style={{ width: `${(importProgress.processed / importProgress.total) * 100}%` }} />
+                      </div>
+                      <div className="mt-2 text-[11px] text-slate-500">
+                        No cierres esta pestaña. Cada chunk procesa hasta {paraphrase ? 5 : 20} productos con IA + descarga de imágenes (~40-60s por chunk).
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* IMPORT RESULT */}
-              {importResult && (
+              {importResult && !importing && (
                 <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-sm p-5">
                   <div className="flex items-start gap-3">
                     <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0 mt-0.5" />
