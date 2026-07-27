@@ -520,11 +520,13 @@ export default function PosPage() {
   const [cart, setCart] = useState([]);
 
   // ------------ FILTROS EN CASCADA ------------
-  // supplier → category → subcategory → brand → onlyInStock
+  // supplier → category → subcategory → brand → color → size → onlyInStock
   const [fSupplier, setFSupplier]     = useState('all');
   const [fCategory, setFCategory]     = useState('all');
   const [fSubcategory, setFSubcategory] = useState('all');
   const [fBrand, setFBrand]           = useState('all');
+  const [fColor, setFColor]           = useState('all');
+  const [fSize, setFSize]             = useState('all');
   const [onlyInStock, setOnlyInStock] = useState(false);
 
   // -------- Fetching --------
@@ -677,6 +679,51 @@ export default function PosPage() {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }, [products, fSupplier, fCategory, fSubcategory]);
 
+  // Productos que pasan los filtros de nivel producto (para color/size)
+  const productsForVariantFilters = useMemo(() => {
+    return products.filter(p =>
+      (fSupplier === 'all' || getSupplier(p) === fSupplier) &&
+      (fCategory === 'all' || p.category === fCategory) &&
+      (fSubcategory === 'all' || p.subcategory === fSubcategory) &&
+      (fBrand === 'all' || (p.supplierBrand || 'Sin marca') === fBrand)
+    );
+  }, [products, fSupplier, fCategory, fSubcategory, fBrand]);
+
+  // Colores disponibles considerando filtros superiores (y tallas si están fijadas)
+  const colorOptions = useMemo(() => {
+    const counts = {};
+    for (const p of productsForVariantFilters) {
+      for (const v of (p.variants || [])) {
+        if (fSize !== 'all' && v.attributes?.size !== fSize) continue;
+        const c = v.attributes?.color || 'estándar';
+        counts[c] = (counts[c] || 0) + 1;
+      }
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [productsForVariantFilters, fSize]);
+
+  // Tallas disponibles con orden natural (XS, S, M, L, XL, XXL, 2XL, 3XL, luego numéricos, luego otros)
+  const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL', 'única'];
+  const sizeSortKey = (s) => {
+    const upper = String(s || '').toUpperCase().trim();
+    const idx = SIZE_ORDER.indexOf(upper);
+    if (idx >= 0) return `1_${String(idx).padStart(3, '0')}`;
+    const num = parseInt(upper, 10);
+    if (!isNaN(num)) return `2_${String(num).padStart(4, '0')}`;
+    return `3_${upper}`;
+  };
+  const sizeOptions = useMemo(() => {
+    const counts = {};
+    for (const p of productsForVariantFilters) {
+      for (const v of (p.variants || [])) {
+        if (fColor !== 'all' && v.attributes?.color !== fColor) continue;
+        const s = v.attributes?.size || 'única';
+        counts[s] = (counts[s] || 0) + 1;
+      }
+    }
+    return Object.entries(counts).sort((a, b) => sizeSortKey(a[0]).localeCompare(sizeSortKey(b[0])));
+  }, [productsForVariantFilters, fColor]);
+
   // Reset cascada cuando el nivel superior cambia
   useEffect(() => {
     if (fCategory !== 'all' && !categoryOptions.some(([k]) => k === fCategory)) setFCategory('all');
@@ -687,27 +734,38 @@ export default function PosPage() {
   useEffect(() => {
     if (fBrand !== 'all' && !brandOptions.some(([k]) => k === fBrand)) setFBrand('all');
   }, [brandOptions, fBrand]);
+  useEffect(() => {
+    if (fColor !== 'all' && !colorOptions.some(([k]) => k === fColor)) setFColor('all');
+  }, [colorOptions, fColor]);
+  useEffect(() => {
+    if (fSize !== 'all' && !sizeOptions.some(([k]) => k === fSize)) setFSize('all');
+  }, [sizeOptions, fSize]);
 
   const activeFilterCount = useMemo(() => {
     return (fSupplier !== 'all' ? 1 : 0) + (fCategory !== 'all' ? 1 : 0)
          + (fSubcategory !== 'all' ? 1 : 0) + (fBrand !== 'all' ? 1 : 0)
+         + (fColor !== 'all' ? 1 : 0) + (fSize !== 'all' ? 1 : 0)
          + (onlyInStock ? 1 : 0);
-  }, [fSupplier, fCategory, fSubcategory, fBrand, onlyInStock]);
+  }, [fSupplier, fCategory, fSubcategory, fBrand, fColor, fSize, onlyInStock]);
 
   const clearFilters = () => {
     setFSupplier('all'); setFCategory('all'); setFSubcategory('all'); setFBrand('all');
-    setOnlyInStock(false); setSearch('');
+    setFColor('all'); setFSize('all'); setOnlyInStock(false); setSearch('');
   };
 
-  // -------- Producto filtrado final --------
+  // -------- Producto filtrado a nivel PRODUCTO (búsqueda + supplier/cat/subcat/brand + stock) --------
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(p => {
-      // Cascada
       if (fSupplier !== 'all' && getSupplier(p) !== fSupplier) return false;
       if (fCategory !== 'all' && p.category !== fCategory) return false;
       if (fSubcategory !== 'all' && p.subcategory !== fSubcategory) return false;
       if (fBrand !== 'all' && (p.supplierBrand || 'Sin marca') !== fBrand) return false;
+      // Color/size: al menos una variante debe cumplir el criterio
+      if (fColor !== 'all' && !p.variants?.some(v => v.attributes?.color === fColor
+          && (fSize === 'all' || v.attributes?.size === fSize))) return false;
+      if (fSize !== 'all' && !p.variants?.some(v => v.attributes?.size === fSize
+          && (fColor === 'all' || v.attributes?.color === fColor))) return false;
       if (onlyInStock && getProductStock(p) === 0) return false;
       // Búsqueda
       if (q) {
@@ -717,7 +775,14 @@ export default function PosPage() {
       }
       return true;
     });
-  }, [products, stockMap, search, fSupplier, fCategory, fSubcategory, fBrand, onlyInStock]);
+  }, [products, stockMap, search, fSupplier, fCategory, fSubcategory, fBrand, fColor, fSize, onlyInStock]);
+
+  // Filtro a nivel VARIANTE: sólo mostrar variantes que cumplen color/size
+  const variantPassesFilters = (v) => {
+    if (fColor !== 'all' && v.attributes?.color !== fColor) return false;
+    if (fSize !== 'all' && v.attributes?.size !== fSize) return false;
+    return true;
+  };
 
   // -------- Session lifecycle --------
   const onSessionOpen = (newSession) => {
@@ -892,6 +957,40 @@ export default function PosPage() {
                     </Select>
                   )}
 
+                  {/* Color — visible cuando hay más de 1 opción */}
+                  {colorOptions.length > 1 && (
+                    <Select value={fColor} onValueChange={setFColor}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[120px] max-w-[200px]">
+                        <SelectValue placeholder="Color" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[400px]">
+                        <SelectItem value="all">Todos colores</SelectItem>
+                        {colorOptions.map(([color, count]) => (
+                          <SelectItem key={color} value={color}>
+                            {color} ({count})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Talla — visible cuando hay más de 1 opción */}
+                  {sizeOptions.length > 1 && (
+                    <Select value={fSize} onValueChange={setFSize}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[110px] max-w-[180px]">
+                        <SelectValue placeholder="Talla" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[400px]">
+                        <SelectItem value="all">Todas tallas</SelectItem>
+                        {sizeOptions.map(([size, count]) => (
+                          <SelectItem key={size} value={size}>
+                            {size} ({count})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
                   {/* Solo con stock */}
                   <div className="flex items-center gap-1.5 px-2 h-8 rounded-md border border-slate-200 bg-white">
                     <Switch checked={onlyInStock} onCheckedChange={setOnlyInStock} className="scale-75" />
@@ -910,6 +1009,10 @@ export default function PosPage() {
 
                   {/* Contador */}
                   <div className="ml-auto text-xs text-slate-500">
+                    <b className="text-slate-800">
+                      {filteredProducts.reduce((acc, p) => acc + p.variants.filter(variantPassesFilters).length, 0)}
+                    </b>
+                    {' '}variantes en{' '}
                     <b className="text-slate-800">{filteredProducts.length}</b> de {products.length} productos
                   </div>
                 </div>
@@ -924,7 +1027,7 @@ export default function PosPage() {
                     : 'Sin productos'}
                 </div>
               )}
-              {filteredProducts.map(p => p.variants.map(v => {
+              {filteredProducts.map(p => p.variants.filter(variantPassesFilters).map(v => {
                 const key = `${p.id}-${v.id}`;
                 const stock = stockMap[key] || 0;
                 const disabled = stock === 0;
