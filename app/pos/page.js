@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import {
   ShoppingCart, Search, Plus, Minus, X, LogIn, LogOut, User, Loader2,
   Wallet, CreditCard, Banknote, Landmark, Receipt, Printer, ChevronDown, Package,
-  History, ArrowLeft,
+  History, ArrowLeft, Filter, Truck, HardHat, Tag,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,47 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCLP } from '@/lib/format';
 
 const PAYMENT_ICONS = { cash: Banknote, card: CreditCard, transfer: Landmark };
 const PAYMENT_LABELS = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia' };
+
+// Labels amigables para códigos de categoría (mismo que /tienda)
+const CATEGORY_LABELS = {
+  dtf_meter:           'DTF Textil por metro',
+  dtf_uv_meter:        'DTF UV por metro',
+  blank_apparel:       'Ropa lisa',
+  printed_apparel:     'Ropa personalizada',
+  printed_cap:         'Gorras estampadas',
+  caps_hats:           'Gorras y sombreros',
+  gorra_parche_animal: 'Gorras parche animal',
+  merchandising:       'Merchandising',
+  workwear:            'Ropa de trabajo',
+  sin_categoria:       'Sin categoría',
+};
+
+const SUBCATEGORY_LABELS = {
+  // workwear
+  trabajo:  'Ropa de trabajo',
+  tecnica:  'Ropa técnica',
+  ignifuga: 'Ropa ignífuga',
+  outdoor:  'Ropa outdoor',
+  lisa:     'Sin estampar',
+  estampada:'Con estampado',
+  // caps
+  gorra:            'Gorra normal',
+  gorra_flex:       'Gorra flex',
+  gorra_trucker:    'Gorra trucker',
+  gorro_lana:       'Gorro de lana',
+  gorra_flatbill:   'Gorra visera plana',
+  // otros
+  otros:    'Otros',
+};
 
 // ============================================================================
 // MODAL: Abrir Caja
@@ -483,6 +519,14 @@ export default function PosPage() {
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]);
 
+  // ------------ FILTROS EN CASCADA ------------
+  // supplier → category → subcategory → brand → onlyInStock
+  const [fSupplier, setFSupplier]     = useState('all');
+  const [fCategory, setFCategory]     = useState('all');
+  const [fSubcategory, setFSubcategory] = useState('all');
+  const [fBrand, setFBrand]           = useState('all');
+  const [onlyInStock, setOnlyInStock] = useState(false);
+
   // -------- Fetching --------
   const loadOperators = async () => {
     try {
@@ -578,16 +622,102 @@ export default function PosPage() {
   const removeItem = (idx) => setCart(c => c.filter((_, i) => i !== idx));
   const clearCart = () => setCart([]);
 
-  // -------- Search filter --------
+  // -------- Filtros en cascada + búsqueda --------
+  // Metadata de proveedores (mapa supplier code → label + icon)
+  const SUPPLIER_META = {
+    cottonext: { label: 'Cottonext',  color: 'bg-purple-100 text-purple-800 border-purple-300' },
+    textilryu: { label: 'Textil Ryu', color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
+    treck:     { label: 'Treck',      color: 'bg-orange-100 text-orange-800 border-orange-300' },
+    manual:    { label: 'Manual',     color: 'bg-slate-100 text-slate-700 border-slate-300' },
+  };
+
+  // Función que devuelve el "supplier code" para un producto
+  const getSupplier = (p) => p.supplier || 'manual';
+
+  // Función helper: stock total del producto (suma de variantes disponibles)
+  const getProductStock = (p) => {
+    let total = 0;
+    for (const v of (p.variants || [])) {
+      total += stockMap[`${p.id}-${v.id}`] || 0;
+    }
+    return total;
+  };
+
+  // Opciones disponibles (dinámicas según selección superior)
+  const supplierOptions = useMemo(() => {
+    const counts = {};
+    products.forEach(p => { const s = getSupplier(p); counts[s] = (counts[s] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [products]);
+
+  const categoryOptions = useMemo(() => {
+    const counts = {};
+    products
+      .filter(p => fSupplier === 'all' || getSupplier(p) === fSupplier)
+      .forEach(p => { const c = p.category || 'sin_categoria'; counts[c] = (counts[c] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [products, fSupplier]);
+
+  const subcategoryOptions = useMemo(() => {
+    const counts = {};
+    products
+      .filter(p => (fSupplier === 'all' || getSupplier(p) === fSupplier)
+                && (fCategory === 'all' || p.category === fCategory))
+      .forEach(p => { const s = p.subcategory || 'otros'; counts[s] = (counts[s] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [products, fSupplier, fCategory]);
+
+  const brandOptions = useMemo(() => {
+    const counts = {};
+    products
+      .filter(p => (fSupplier === 'all' || getSupplier(p) === fSupplier)
+                && (fCategory === 'all' || p.category === fCategory)
+                && (fSubcategory === 'all' || p.subcategory === fSubcategory))
+      .forEach(p => { const b = p.supplierBrand || 'Sin marca'; counts[b] = (counts[b] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [products, fSupplier, fCategory, fSubcategory]);
+
+  // Reset cascada cuando el nivel superior cambia
+  useEffect(() => {
+    if (fCategory !== 'all' && !categoryOptions.some(([k]) => k === fCategory)) setFCategory('all');
+  }, [categoryOptions, fCategory]);
+  useEffect(() => {
+    if (fSubcategory !== 'all' && !subcategoryOptions.some(([k]) => k === fSubcategory)) setFSubcategory('all');
+  }, [subcategoryOptions, fSubcategory]);
+  useEffect(() => {
+    if (fBrand !== 'all' && !brandOptions.some(([k]) => k === fBrand)) setFBrand('all');
+  }, [brandOptions, fBrand]);
+
+  const activeFilterCount = useMemo(() => {
+    return (fSupplier !== 'all' ? 1 : 0) + (fCategory !== 'all' ? 1 : 0)
+         + (fSubcategory !== 'all' ? 1 : 0) + (fBrand !== 'all' ? 1 : 0)
+         + (onlyInStock ? 1 : 0);
+  }, [fSupplier, fCategory, fSubcategory, fBrand, onlyInStock]);
+
+  const clearFilters = () => {
+    setFSupplier('all'); setFCategory('all'); setFSubcategory('all'); setFBrand('all');
+    setOnlyInStock(false); setSearch('');
+  };
+
+  // -------- Producto filtrado final --------
   const filteredProducts = useMemo(() => {
-    if (!search.trim()) return products;
-    const q = search.toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.sku?.toLowerCase().includes(q) ||
-      p.variants.some(v => v.sku?.toLowerCase().includes(q))
-    );
-  }, [products, search]);
+    const q = search.trim().toLowerCase();
+    return products.filter(p => {
+      // Cascada
+      if (fSupplier !== 'all' && getSupplier(p) !== fSupplier) return false;
+      if (fCategory !== 'all' && p.category !== fCategory) return false;
+      if (fSubcategory !== 'all' && p.subcategory !== fSubcategory) return false;
+      if (fBrand !== 'all' && (p.supplierBrand || 'Sin marca') !== fBrand) return false;
+      if (onlyInStock && getProductStock(p) === 0) return false;
+      // Búsqueda
+      if (q) {
+        const hay = `${p.name} ${p.sku || ''} ${p.supplierBrand || ''} ${p.category || ''}`.toLowerCase();
+        const inVariant = p.variants?.some(v => v.sku?.toLowerCase().includes(q) || v.name?.toLowerCase().includes(q));
+        if (!hay.includes(q) && !inVariant) return false;
+      }
+      return true;
+    });
+  }, [products, stockMap, search, fSupplier, fCategory, fSubcategory, fBrand, onlyInStock]);
 
   // -------- Session lifecycle --------
   const onSessionOpen = (newSession) => {
@@ -675,23 +805,124 @@ export default function PosPage() {
           {/* LEFT — Products grid */}
           <div className="lg:col-span-2 space-y-3">
             <Card>
-              <CardContent className="p-3">
+              <CardContent className="p-3 space-y-3">
+                {/* Búsqueda */}
                 <div className="relative">
                   <Search className="h-4 w-4 absolute left-3 top-3 text-slate-400" />
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar SKU, nombre o código..."
+                    placeholder="Buscar SKU, nombre, marca o categoría…"
                     className="h-10 pl-10 text-sm"
                     autoFocus
                   />
+                </div>
+
+                {/* Filtros en cascada */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-widest mr-1">
+                    <Filter className="h-3.5 w-3.5" />
+                    Filtros
+                  </div>
+
+                  {/* Proveedor */}
+                  <Select value={fSupplier} onValueChange={setFSupplier}>
+                    <SelectTrigger className="h-8 text-xs w-auto min-w-[140px] max-w-[200px]">
+                      <SelectValue placeholder="Proveedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los proveedores</SelectItem>
+                      {supplierOptions.map(([code, count]) => {
+                        const meta = SUPPLIER_META[code] || { label: code };
+                        return (
+                          <SelectItem key={code} value={code}>
+                            {meta.label} ({count})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Categoría — habilitado cuando hay opciones */}
+                  <Select value={fCategory} onValueChange={setFCategory} disabled={categoryOptions.length === 0}>
+                    <SelectTrigger className="h-8 text-xs w-auto min-w-[140px] max-w-[200px]">
+                      <SelectValue placeholder="Categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas categorías ({categoryOptions.reduce((s, [, n]) => s + n, 0)})</SelectItem>
+                      {categoryOptions.map(([code, count]) => (
+                        <SelectItem key={code} value={code}>
+                          {CATEGORY_LABELS[code] || code} ({count})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Subcategoría — habilitado cuando hay categoría seleccionada o opciones */}
+                  {subcategoryOptions.length > 1 && (
+                    <Select value={fSubcategory} onValueChange={setFSubcategory}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[140px] max-w-[200px]">
+                        <SelectValue placeholder="Subcategoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas subcategorías</SelectItem>
+                        {subcategoryOptions.map(([code, count]) => (
+                          <SelectItem key={code} value={code}>
+                            {SUBCATEGORY_LABELS[code] || code} ({count})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Marca — habilitada cuando hay opciones */}
+                  {brandOptions.length > 1 && (
+                    <Select value={fBrand} onValueChange={setFBrand}>
+                      <SelectTrigger className="h-8 text-xs w-auto min-w-[130px] max-w-[200px]">
+                        <SelectValue placeholder="Marca" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas marcas</SelectItem>
+                        {brandOptions.map(([brand, count]) => (
+                          <SelectItem key={brand} value={brand}>
+                            {brand} ({count})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  {/* Solo con stock */}
+                  <div className="flex items-center gap-1.5 px-2 h-8 rounded-md border border-slate-200 bg-white">
+                    <Switch checked={onlyInStock} onCheckedChange={setOnlyInStock} className="scale-75" />
+                    <Label className="text-xs text-slate-600 cursor-pointer" onClick={() => setOnlyInStock(!onlyInStock)}>
+                      Con stock
+                    </Label>
+                  </div>
+
+                  {/* Reset */}
+                  {(activeFilterCount > 0 || search) && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-slate-500 hover:text-rose-600">
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Limpiar ({activeFilterCount + (search ? 1 : 0)})
+                    </Button>
+                  )}
+
+                  {/* Contador */}
+                  <div className="ml-auto text-xs text-slate-500">
+                    <b className="text-slate-800">{filteredProducts.length}</b> de {products.length} productos
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {filteredProducts.length === 0 && (
-                <div className="col-span-full text-center py-12 text-slate-400 text-sm">Sin resultados</div>
+                <div className="col-span-full text-center py-12 text-slate-400 text-sm">
+                  {activeFilterCount > 0 || search
+                    ? <>Sin resultados con filtros actuales. <button onClick={clearFilters} className="text-orange-600 underline">Limpiar filtros</button></>
+                    : 'Sin productos'}
+                </div>
               )}
               {filteredProducts.map(p => p.variants.map(v => {
                 const key = `${p.id}-${v.id}`;
