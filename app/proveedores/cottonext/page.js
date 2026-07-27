@@ -569,6 +569,39 @@ export default function CottonextImportPage() {
 
         {/* ====================== TAB 3: HISTORIAL ====================== */}
         <TabsContent value="history" className="space-y-4 mt-4">
+          {/* Cron scheduler info */}
+          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-fuchsia-50 shadow-sm p-5">
+            <div className="flex items-start gap-3">
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-sm">
+                <RefreshCw className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-slate-900">Actualización automática de precios</h3>
+                  <Badge className="bg-emerald-500 text-white border-0">Activo</Badge>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  Cron diario a las <b>00:15 hrs Chile</b> (03:15 UTC). Refresca precios de todos los productos importados,
+                  detecta cambios y actualiza el precio final con markup +40%.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 border border-indigo-200 text-slate-700">
+                    <History className="h-3 w-3" />Log: <code className="font-mono">/var/log/dlv-cron.log</code>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 border border-indigo-200 text-slate-700">
+                    Script: <code className="font-mono">/app/scripts/refresh-cottonext-prices.sh</code>
+                  </span>
+                </div>
+              </div>
+              <Button size="sm" onClick={runRefreshPrices} disabled={refreshing || imported.length === 0}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0">
+                {refreshing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Ejecutando…</>
+                  : <><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Ejecutar ahora</>}
+              </Button>
+            </div>
+          </div>
+
           <h2 className="font-bold text-slate-900">Últimas 20 operaciones</h2>
           {history.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">

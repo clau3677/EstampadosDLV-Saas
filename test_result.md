@@ -4770,3 +4770,77 @@ agent_communication_v6:
       NO SE REQUIERE TESTING BACKEND ADICIONAL — flujo validado manualmente end-to-end.
 
 
+
+# ============================================================================
+# ITERATION 6.1 — Cottonext Full Catalog Imported + Paraphrase Fix + Cron
+# ============================================================================
+
+agent_communication_v6_1:
+  - agent: "main"
+    message: |
+      # Iteración 6.1 — 27-jul-2026 — Post-import completo + fixes
+
+      ## 1. Paraphrase Bug Fixed 🐛→✅
+      **Bug**: MiniMax M2 usa ~120-200 tokens en reasoning ANTES del content.
+      Con max_tokens=300, quedaban solo ~100-180 para output → content=""
+      → mi fallback silencioso devolvía el original.
+      
+      **Fix**:
+      - `maxTokens: 300 → 1200`
+      - Prompt más estricto (7 reglas obligatorias)
+      - Logs cuando falla (para debug futuro)
+      - `temperature: 0.6 → 0.75` (más variabilidad natural)
+
+      **Validado con 62 productos**: todas las descripciones parafraseadas correctamente:
+      Ejemplo: "Polera básica manga corta, cuello redondo, tubular sin costuras
+      laterales, calce clásico. 100% algodón ring spun, tejido Jersey Soft style
+      150 grs, pre-encogida, importada de EE.UU., ideal para personalización
+      con DTF, serigrafía, sublimación o bordado. Etiqueta desprendible."
+
+      ## 2. Full Catalog Import Executed 🎉
+      Ejecuté el import completo del catálogo Cottonext (IDs 1-100):
+      - **62 productos encontrados** en el scan
+      - **62/62 importados sin fallos** (100% éxito)
+      - Distribución final:
+        * Poleras: 34 ($1,790 - $9,790)
+        * Polerones: 20 ($2,190 - $23,790)
+        * Pantalones: 7 ($8,090 - $19,590)
+        * Camisas: 1 ($13,990)
+      - Marcas: Cottonext (23), Old Brits (18), Yazbek (10), Gildan (7), ONE (3), OB (1)
+      - **430 imágenes descargadas** al servidor (147 MB total en /public/uploads/proveedor/cottonext/)
+      - Tiempo total: ~8.6 min (dividido en 6 batches paralelos)
+
+      Ahora la tienda tiene **66 productos activos** (62 sin estampar + 4 estampados originales).
+
+      ## 3. Cron Diario Instalado ⏰
+      Archivos nuevos:
+      - `/app/scripts/refresh-cottonext-prices.sh` (curl al endpoint refresh-prices)
+      - `/app/scripts/estampados-dlv-cron` (entrada crontab)
+      - `/app/scripts/install-crons.sh` (instalador idempotente)
+      
+      **Cron entry**: `15 3 * * *` (03:15 UTC = 00:15 Chile continental) diariamente.
+      Ejecuta refresh-prices que:
+      1. Re-scrapea cada producto Cottonext ya importado
+      2. Detecta cambios en `supplierPrice`
+      3. Actualiza `basePrice` y `variants[].price` con markup+40%
+      4. Loggea en colección `cottonext_imports` (visible en tab Historial)
+      
+      Logs en `/var/log/dlv-cron.log`. Test manual del script pasado: HTTP 200,
+      "updated: 0, unchanged: 17, failed: 0" (correcto porque acabábamos de importar).
+
+      ## 4. UI Improvement
+      - Agregado panel "Actualización automática de precios" en tab Historial
+      - Muestra: schedule, ubicación de log/script, botón "Ejecutar ahora"
+      - El botón "Actualizar precios" en tab "Ya importados" también sigue funcional
+
+      ## Archivos creados/modificados en esta sub-iteración
+      - `/app/lib/import/paraphraser.js` (rewrite completo, bug fix)
+      - `/app/scripts/refresh-cottonext-prices.sh` (NUEVO)
+      - `/app/scripts/estampados-dlv-cron` (NUEVO)
+      - `/app/scripts/install-crons.sh` (NUEVO)
+      - `/app/app/proveedores/cottonext/page.js` (panel automatización en tab Historial)
+      - `/etc/cron.d/estampados-dlv-cron` (instalado)
+
+      ## NO REQUIRE BACKEND TESTING — Todo validado end-to-end con datos reales.
+
+

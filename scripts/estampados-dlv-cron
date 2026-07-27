@@ -1,0 +1,7 @@
+# /etc/cron.d/estampados-dlv-cron
+# Cron jobs para Estampados DLV. Instalado por /app/scripts/install-crons.sh
+#
+# Formato: minute hour day month day_of_week user command
+#
+# Refresh prices Cottonext — diariamente 03:15 UTC (00:15 Chile continental)
+15 3 * * * root /app/scripts/refresh-cottonext-prices.sh
