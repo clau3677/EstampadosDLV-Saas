@@ -216,9 +216,13 @@ if [[ ! -f "$RESTORE_MARKER" ]]; then
   mongorestore --db estampados_dlv --drop /tmp/mongo-dump/estampados_dlv/ 2>&1 | tail -5
   rm -rf /tmp/mongo-dump /tmp/mongo-dump.tar.gz
 
-  # Uploads (imágenes de proveedores)
+  # Uploads (imágenes de proveedores) — usar wget que maneja mejor archivos grandes
   echo "  Descargando uploads.tar.gz (~723 MB, puede tomar 3-5 min)..."
-  curl -fL "$UPLOADS_URL" -o /tmp/uploads.tar.gz --progress-bar || fail "No pude descargar uploads"
+  if ! wget --tries=5 --continue --quiet --show-progress "$UPLOADS_URL" -O /tmp/uploads.tar.gz; then
+    warn "wget falló, intentando con curl HTTP/1.1..."
+    curl -fL --http1.1 --retry 5 --retry-delay 5 "$UPLOADS_URL" -o /tmp/uploads.tar.gz \
+      || fail "No pude descargar uploads.tar.gz — revisa conectividad"
+  fi
   tar xzf /tmp/uploads.tar.gz -C "$APP_DIR" 2>&1 | tail -3
   rm -f /tmp/uploads.tar.gz
   chown -R "$APP_USER:$APP_USER" "$APP_DIR/public/uploads"
