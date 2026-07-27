@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, PackageSearch, Search, Plus, Minus, AlertTriangle,
   Droplet, Layers, ScrollText, Loader2, RefreshCw, Edit3, Trash2, MoreVertical,
-  FileUp, Image as ImageIcon,
+  FileUp, Image as ImageIcon, Star,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -242,6 +242,33 @@ export default function InventarioPage() {
 
   useEffect(() => { load(); }, []);
 
+  const toggleFeatured = async (product) => {
+    const newValue = !product.featured;
+    // Actualización optimista: aplicar el cambio en la UI antes de que el
+    // servidor responda para que se sienta instantáneo.
+    setProducts(list =>
+      (Array.isArray(list) ? list : []).map(p => p.id === product.id ? { ...p, featured: newValue } : p)
+    );
+    try {
+      const r = await fetch('/api/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: product.id, featured: newValue }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'error');
+      toast.success(newValue ? '⭐ Marcado como destacado' : 'Ya no es destacado', {
+        description: product.name,
+      });
+    } catch (e) {
+      // Revertir si falla
+      setProducts(list =>
+        (Array.isArray(list) ? list : []).map(p => p.id === product.id ? { ...p, featured: !newValue } : p)
+      );
+      toast.error('Error al actualizar', { description: e.message });
+    }
+  };
+
   const filteredSupplies = (Array.isArray(supplies) ? supplies : []).filter(s =>
     !query || s.name?.toLowerCase().includes(query.toLowerCase()) || s.code?.toLowerCase().includes(query.toLowerCase())
   );
@@ -371,6 +398,7 @@ export default function InventarioPage() {
                       {filteredStock.map(s => {
                         const isLow = s.quantity <= s.minStockAlert;
                         const product = productMap[s.productId];
+                        const isFeatured = !!product?.featured;
                         return (
                           <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/60">
                             <td className="px-3 py-2">
@@ -382,7 +410,14 @@ export default function InventarioPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="px-3 py-3 font-medium text-slate-900">{s.productName || '—'}</td>
+                            <td className="px-3 py-3 font-medium text-slate-900">
+                              <div className="flex items-center gap-1.5">
+                                {isFeatured && (
+                                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" aria-label="Destacado" />
+                                )}
+                                <span>{s.productName || '—'}</span>
+                              </div>
+                            </td>
                             <td className="px-3 py-3 text-slate-700">{s.variantName || '—'}</td>
                             <td className="px-3 py-3 font-mono text-xs text-slate-500">{s.sku || '—'}</td>
                             <td className="px-3 py-3 text-right">
@@ -393,6 +428,16 @@ export default function InventarioPage() {
                             <td className="px-3 py-3 text-right font-mono text-slate-500">{s.minStockAlert}</td>
                             <td className="px-3 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className={`h-7 w-7 p-0 ${isFeatured ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'}`}
+                                  title={isFeatured ? 'Quitar de destacados' : 'Marcar como destacado'}
+                                  onClick={() => product && toggleFeatured(product)}
+                                  disabled={!product}
+                                >
+                                  <Star className={`h-4 w-4 ${isFeatured ? 'fill-amber-500' : ''}`} />
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAdjusting({ item: s, type: 'commercial' })}>
                                   Ajustar
                                 </Button>
@@ -405,6 +450,10 @@ export default function InventarioPage() {
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => product && setEditingProduct(product)}>
                                       <Edit3 className="h-3.5 w-3.5 mr-2" />Editar producto
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => product && toggleFeatured(product)}>
+                                      <Star className={`h-3.5 w-3.5 mr-2 ${isFeatured ? 'text-amber-500 fill-amber-500' : ''}`} />
+                                      {isFeatured ? 'Quitar de destacados' : 'Marcar como destacado'}
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem

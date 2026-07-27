@@ -37,7 +37,9 @@ const emptyForm = {
   h1: '', intro: '', body: '', ctaText: '',
   metaTitle: '', metaDescription: '', ogImage: '',
   keywords: '',                             // string → array al enviar
+  productsMode: 'featured',                 // 'manual' | 'featured' | 'all_active'
   featuredProductIds: [],
+  maxProducts: 8,
   active: true,
 };
 
@@ -58,7 +60,10 @@ export function LandingEditDialog({ landing, open, onOpenChange, onSaved }) {
           ...landing,
           location: landing.location || emptyForm.location,
           keywords: Array.isArray(landing.keywords) ? landing.keywords.join(', ') : (landing.keywords || ''),
+          // Landings antiguas: si no tienen productsMode, decidimos según featuredProductIds
+          productsMode: landing.productsMode || (landing.featuredProductIds?.length ? 'manual' : 'featured'),
           featuredProductIds: landing.featuredProductIds || [],
+          maxProducts: landing.maxProducts || 8,
         });
       } else {
         setForm(emptyForm);
@@ -242,23 +247,112 @@ Realizamos despachos a comunas cercanas: Villa Alemana, Viña del Mar, Valparaí
           </div>
 
           {/* Featured products */}
-          {products.length > 0 && (
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Productos destacados</div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {products.filter(p => p.active !== false).map(p => {
-                  const selected = form.featuredProductIds?.includes(p.id);
-                  return (
-                    <button key={p.id} type="button" onClick={() => toggleProduct(p.id)}
-                      className={`text-left p-2 rounded-lg border transition-all ${selected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                      <div className="text-xs font-semibold text-slate-800 truncate">{p.name}</div>
-                      <div className="text-[10px] text-slate-500">{p.category}</div>
-                    </button>
-                  );
-                })}
-              </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-2">
+              <span>Productos destacados</span>
+              {form.productsMode === 'featured' && (
+                <span className="rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-normal">Automático</span>
+              )}
+              {form.productsMode === 'all_active' && (
+                <span className="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-normal">Todos activos</span>
+              )}
             </div>
-          )}
+
+            {/* Selector de modo */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+              {[
+                { value: 'featured',   label: '⭐ Solo destacados',   desc: 'Usa products.featured=true' },
+                { value: 'all_active', label: '📦 Todos los activos', desc: 'Incluye nuevos productos automáticamente' },
+                { value: 'manual',     label: '🎯 Selección manual',  desc: 'Elige productos uno a uno' },
+              ].map((opt) => {
+                const active = form.productsMode === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setField({ productsMode: opt.value })}
+                    className={`text-left p-3 rounded-lg border transition-all ${
+                      active ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-200' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className={`text-sm font-semibold ${active ? 'text-indigo-900' : 'text-slate-800'}`}>{opt.label}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{opt.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Configuración por modo */}
+            {form.productsMode === 'manual' && products.length > 0 && (
+              <div>
+                <div className="text-[11px] text-slate-500 mb-2">Selecciona los productos que aparecerán en esta landing (en el orden clickeado):</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {products.filter(p => p.active !== false).map(p => {
+                    const selected = form.featuredProductIds?.includes(p.id);
+                    return (
+                      <button key={p.id} type="button" onClick={() => toggleProduct(p.id)}
+                        className={`text-left p-2 rounded-lg border transition-all relative ${selected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                        {p.featured && (
+                          <span className="absolute top-1 right-1 text-amber-500" title="Producto destacado">⭐</span>
+                        )}
+                        <div className="text-xs font-semibold text-slate-800 truncate pr-4">{p.name}</div>
+                        <div className="text-[10px] text-slate-500">{p.category}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {form.productsMode === 'featured' && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+                <p className="text-sm text-amber-900">
+                  <span className="font-semibold">Modo automático:</span> se mostrarán los productos que tienen la marca ⭐ activada en Inventario.
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                  <span>Productos destacados actualmente:</span>
+                  <span className="rounded-full bg-white border border-amber-300 px-2 py-0.5 font-semibold text-amber-800">
+                    {products.filter(p => p.featured && p.active !== false).length}
+                  </span>
+                </div>
+                {products.filter(p => p.featured && p.active !== false).length === 0 && (
+                  <p className="mt-2 text-xs text-rose-700">
+                    ⚠ No hay productos destacados aún. Ve a <a href="/inventario" className="underline font-semibold">Inventario</a> y marca al menos uno con ⭐ para que aparezcan aquí, o se usará un fallback automático de los primeros 4 activos.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {form.productsMode === 'all_active' && (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                <p className="text-sm text-emerald-900">
+                  <span className="font-semibold">Modo dinámico:</span> se mostrarán todos los productos activos, ordenados por más recientes. Cada producto nuevo que crees aparecerá aquí automáticamente.
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                  <span>Productos activos actualmente:</span>
+                  <span className="rounded-full bg-white border border-emerald-300 px-2 py-0.5 font-semibold text-emerald-800">
+                    {products.filter(p => p.active !== false).length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Límite máximo (solo para modos automáticos) */}
+            {form.productsMode !== 'manual' && (
+              <div className="mt-3 flex items-center gap-3">
+                <label htmlFor="maxProducts" className="text-xs font-medium text-slate-600">Máx. productos a mostrar:</label>
+                <input
+                  id="maxProducts"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={form.maxProducts}
+                  onChange={(e) => setField({ maxProducts: Math.max(1, Math.min(24, Number(e.target.value) || 8)) })}
+                  className="w-20 h-8 rounded-md border border-slate-200 px-2 text-sm font-mono"
+                />
+              </div>
+            )}
+          </div>
 
           {/* Active */}
           <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">

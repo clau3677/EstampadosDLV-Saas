@@ -3757,3 +3757,108 @@ agent_communication_v15:
         9. Eliminar cliente → confirmación → desaparece
       - En /pedidos: verificar que los pedidos de un cliente linkean a /clientes/:id
         (esto NO se implementó, sería mejora futura).
+
+
+# ============================================================================
+# ITERATION 16 — Productos destacados en landings (main agent, 27-jul-2026)
+# ============================================================================
+# User question:
+#   "como destaco los productos para crear la landing page con los productos
+#    destacados o se podria hacer con todos los productos de forma automatica
+#    cuando cree un producto nuevo"
+
+frontend_v16:
+  - task: "Campo `featured` en producto + toggle en Nuevo/Editar + quick action en Inventario"
+    implemented: true
+    working: true
+    file: "lib/api/products.js, components/new-product-dialog.jsx, components/edit-product-dialog.jsx, app/inventario/page.js, lib/mongo-indexes.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          - Nuevo campo `featured: boolean` en producto (default false).
+          - Toggle "⭐ Producto destacado" en el modal "Nuevo Producto" (nice card
+            con fondo amber cuando activo).
+          - Mismo toggle en "Editar Producto".
+          - Botón estrella en cada fila de Stock Comercial en Inventario Dual —
+            click marca/desmarca el producto (optimistic update + toast).
+          - Ítem también en el dropdown de la fila.
+          - El nombre del producto muestra ⭐ dorada cuando está featured.
+          - Índice MongoDB compuesto (featured+active) para queries eficientes.
+
+  - task: "3 modos de productos en landings SEO"
+    implemented: true
+    working: true
+    file: "lib/api/landings.js, components/landing-edit-dialog.jsx, app/servicios/[slug]/page.js"
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Reemplacé la única forma manual con 3 modos configurables por landing:
+          
+          Modo 1: '⭐ Solo destacados' (DEFAULT para landings nuevas)
+             - Auto: usa productos con featured=true
+             - Banner amber informativo
+             - Muestra contador de productos destacados en tiempo real
+             - Warning si no hay ninguno destacado (con link a /inventario)
+          
+          Modo 2: '📦 Todos los activos'
+             - Auto: todos los productos con active=true, ordenados por createdAt desc
+             - Banner verde "Modo dinámico"
+             - Cuando creas un producto nuevo, aparece automáticamente en TODAS las
+               landings con este modo (esto responde directo a "cuando cree un
+               producto nuevo" del usuario)
+          
+          Modo 3: '🎯 Selección manual' (comportamiento clásico)
+             - Grid de productos con click-to-toggle
+             - Estrella dorada visible junto a productos featured (hint visual)
+          
+          Configurable "Máx. productos a mostrar" (1-24, default 8) sólo para
+          modos automáticos.
+          
+          Fallback robusto en /servicios/[slug]: si el modo elegido no devuelve
+          productos, cae automáticamente a los primeros 4 activos.
+          
+          Migración de landings antiguas: si tienen featuredProductIds llenos →
+          modo 'manual' automáticamente; sino → modo 'featured'.
+
+metadata:
+  updated_by: "main_agent"
+  iteration: 16
+  test_sequence: 18
+
+agent_communication_v16:
+  - agent: "main"
+    message: |
+      # Iteración 16 - Productos destacados & Auto-populate en landings
+      
+      Usuario preguntó cómo destacar productos y si podía ser automático al
+      crear nuevos productos.
+      
+      RESPUESTA: implementé AMBAS opciones + una intermedia (3 modos configurables
+      por landing):
+      
+      1. ✅ Campo `featured` en cada producto:
+         - Toggle en modal Nuevo/Editar Producto
+         - Quick-toggle estrella en cada fila de inventario (optimistic UI)
+         - Icon dorado ⭐ en el nombre del producto cuando está featured
+      
+      2. ✅ Landing pages con 3 modos:
+         - Solo destacados: usa featured=true (recomendado)
+         - Todos los activos: DINÁMICO, incluye nuevos productos automáticamente
+         - Selección manual: comportamiento clásico
+      
+      Screenshots verificados:
+        - Inventario: 4 filas de Polera Algodón Clásica ahora tienen ⭐ dorada
+          tras un solo click en la estrella
+        - Nuevo Producto: card amber "Producto destacado" con switch funcional
+        - Landing editor: 3 modos con badges y banners informativos
+        - Modo Manual muestra ⭐ junto a productos featured para guiar la selección
+      
+      No requiere testing agent formal — cambios funcionales verificados en
+      pantalla y con curl. Zero breaking changes: landings antiguas migran
+      automáticamente al modo apropiado.

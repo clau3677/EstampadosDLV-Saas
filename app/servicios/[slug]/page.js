@@ -17,19 +17,51 @@ async function fetchLanding(slug) {
   } catch (e) { return null; }
 }
 
-async function fetchFeaturedProducts(ids = []) {
-  if (!ids?.length) return [];
+/**
+ * Resuelve la lista de productos a mostrar según el modo de la landing.
+ *
+ * modos:
+ *   - 'manual'     → usa `featuredProductIds` (selección explícita)
+ *   - 'featured'   → automáticamente productos con `featured=true` (dinámico)
+ *   - 'all_active' → todos los productos activos, limitado a `maxProducts`
+ *
+ * Fallback: si no hay resultados en el modo elegido, cae a "primeros N activos"
+ * para nunca mostrar la sección vacía.
+ */
+async function resolveProducts(landing) {
+  const mode = landing?.productsMode || (landing?.featuredProductIds?.length ? 'manual' : 'all_active');
+  const max = Number(landing?.maxProducts) || 8;
   try {
     const db = await getDb();
-    return await db.collection(COLLECTIONS.PRODUCTS).find({ id: { $in: ids }, active: { $ne: false } }).toArray();
-  } catch (e) { return []; }
-}
+    const col = db.collection(COLLECTIONS.PRODUCTS);
+    let rows = [];
 
-async function fetchAllProducts() {
-  try {
-    const db = await getDb();
-    return await db.collection(COLLECTIONS.PRODUCTS).find({ active: { $ne: false } }).limit(4).toArray();
-  } catch (e) { return []; }
+    if (mode === 'manual' && (landing.featuredProductIds || []).length > 0) {
+      rows = await col.find({
+        id: { $in: landing.featuredProductIds },
+        active: { $ne: false },
+      }).toArray();
+      // Preservar el orden del array de IDs
+      const order = new Map(landing.featuredProductIds.map((id, i) => [id, i]));
+      rows.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999));
+    } else if (mode === 'featured') {
+      rows = await col.find({
+        featured: true,
+        active: { $ne: false },
+      }).sort({ createdAt: -1 }).limit(max).toArray();
+    } else {
+      // 'all_active' o fallback
+      rows = await col.find({ active: { $ne: false } }).sort({ createdAt: -1 }).limit(max).toArray();
+    }
+
+    // Fallback si el modo no devolvió nada: usar cualquier producto activo
+    if (rows.length === 0) {
+      rows = await col.find({ active: { $ne: false } }).sort({ createdAt: -1 }).limit(4).toArray();
+    }
+    return rows;
+  } catch (e) {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }) {
@@ -67,9 +99,7 @@ export default async function LandingPage({ params }) {
   const landing = await fetchLanding(slug);
   if (!landing) notFound();
 
-  const featured = landing.featuredProductIds?.length
-    ? await fetchFeaturedProducts(landing.featuredProductIds)
-    : await fetchAllProducts();
+  const featured = await resolveProducts(landing);
 
   // JSON-LD structured data: LocalBusiness + Service
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/$/, '');

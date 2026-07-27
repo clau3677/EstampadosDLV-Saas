@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2, PackagePlus } from 'lucide-react';
+import { Loader2, Plus, Trash2, PackagePlus, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
@@ -29,13 +30,13 @@ export function NewProductDialog({ onCreated, trigger }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '', sku: '', category: '', subcategory: '',
-    description: '', basePrice: '', cost: '', images: [],
+    description: '', basePrice: '', cost: '', images: [], featured: false,
   });
   const [variants, setVariants] = useState([emptyVariant()]);
 
   useEffect(() => {
     if (open) {
-      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '', images: [] });
+      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '', images: [], featured: false });
       setVariants([emptyVariant()]);
     }
   }, [open]);
@@ -69,7 +70,7 @@ export function NewProductDialog({ onCreated, trigger }) {
         body: JSON.stringify({
           name: form.name, sku: form.sku, category: form.category, subcategory: form.subcategory,
           description: form.description, basePrice: Number(form.basePrice) || 0, cost: Number(form.cost) || 0,
-          images: form.images, variants: preparedVariants,
+          images: form.images, variants: preparedVariants, featured: !!form.featured,
         }),
       });
       const data = await r.json();
@@ -148,6 +149,23 @@ export function NewProductDialog({ onCreated, trigger }) {
                 <Label className="text-xs">Descripción</Label>
                 <Textarea rows={2} placeholder="Detalles del producto para la tienda web…" value={form.description}
                   onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label
+                  className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    form.featured ? 'border-amber-300 bg-amber-50/70' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <Star className={`h-5 w-5 shrink-0 ${form.featured ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-slate-900">Producto destacado</div>
+                    <div className="text-xs text-slate-500">Aparece automáticamente en landings SEO en modo &quot;Destacados&quot;.</div>
+                  </div>
+                  <Switch
+                    checked={!!form.featured}
+                    onCheckedChange={(v) => setForm(f => ({ ...f, featured: v }))}
+                  />
+                </label>
               </div>
             </div>
           </div>

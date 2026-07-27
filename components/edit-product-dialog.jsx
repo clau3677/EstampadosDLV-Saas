@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Save, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -83,6 +84,7 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
           description: form.description,
           basePrice: Number(form.basePrice) || 0, cost: Number(form.cost) || 0,
           images: form.images,
+          featured: !!form.featured,
           variants: preparedVariants,
         }),
       });
@@ -140,6 +142,23 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
                 <Label className="text-xs">Descripción</Label>
                 <Textarea rows={2} value={form.description || ''}
                   onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label
+                  className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    form.featured ? 'border-amber-300 bg-amber-50/70' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                  }`}
+                >
+                  <Star className={`h-5 w-5 shrink-0 ${form.featured ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-slate-900">Producto destacado</div>
+                    <div className="text-xs text-slate-500">Aparece automáticamente en landings SEO en modo &quot;Destacados&quot;.</div>
+                  </div>
+                  <Switch
+                    checked={!!form.featured}
+                    onCheckedChange={(v) => setForm(f => ({ ...f, featured: v }))}
+                  />
+                </label>
               </div>
             </div>
           </div>
