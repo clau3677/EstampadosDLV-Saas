@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
-  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck,
+  PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2, Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -43,6 +43,7 @@ const SECTIONS = [
       { href: '/clientes',     label: 'Clientes',          icon: Users },
       { href: '/proveedores/cottonext', label: 'Proveedor Cottonext', icon: Truck, badge: 'Ropa' },
       { href: '/proveedores/textilryu', label: 'Proveedor Textil Ryu', icon: Truck, badge: 'Gorras' },
+      { href: '/proveedores/treck',     label: 'Proveedor Treck',      icon: HardHat, badge: 'Seguridad' },
       { href: '/reportes',     label: 'Reportes',          icon: LineChart },
       { href: '/mantenimiento',label: 'Mantenimiento',     icon: Wrench },
     ],

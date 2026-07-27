@@ -400,15 +400,200 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 14
+  test_sequence: 15
   run_ui: false
 
 test_plan:
   current_focus:
-    - "All Iteration 5 backend tests completed successfully"
+    - "Treck (VTEX) catalog importer — full pipeline"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+backend_treck_importer:
+  - task: "Treck VTEX scraper module (/app/lib/import/treck.js)"
+    implemented: true
+    working: true
+    file: "lib/import/treck.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          NEW: VTEX Catalog Search API scraper for https://www.treck.cl.
+          - scanCatalog({from, to, category, delayMs, onProgress}) paginates VTEX 50-per-request,
+            returns normalized items with priceWholesale, variants (talla × color), images, etc.
+          - scanFullCatalog paginates through the entire /vestuario category (448 items detected).
+          - scrapeSingle(productId) refreshes a single product for cron.
+          - detectWorkwearType() maps VTEX category paths → {trabajo, tecnica, ignifuga, outdoor, otros}
+            with priority trabajo > ignifuga > tecnica > outdoor to handle cross-listed products.
+          - cleanDescription() strips HTML tags preserving line breaks for paraphrasable text.
+          Smoke tested: scanCatalog({from:0,to:4}) returned 5 items with correct pricing, variants
+          and subcategory detection. buildProductDoc → creates workwear/tecnica product with markup 40%.
+          Local image downloader now uses supplier-specific folder /uploads/proveedor/treck/.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ PASS - Comprehensive E2E testing completed (12 test groups, all passed).
+          Test file: /app/backend_test_treck.py
+          
+          A) SCAN ENDPOINT (3/3 PASS):
+          - A1: Small range (0-9) → 200, scanId valid, 10 products, totalInCatalog=448, cached=false ✓
+          - A2: Cache behavior → 200, cached=true, same scanId ✓
+          - A3: Full scan (445 products in 8.7s) → 200, count matches totalInCatalog ✓
+          
+          B) IMPORT ENDPOINT (3/3 PASS):
+          - B4: Import 2 products → 200, created=2, updated=0, failed=0, both products have UUID productId ✓
+          - B5: Idempotency → 200, created=0, updated=2 (products already exist) ✓
+          - B6: Validations → All 4 validation scenarios working (no scanId → 400, nonexistent scanId → 404, empty selectedIds → 400, ID not in scan → 400) ✓
+          
+          C) GET ENDPOINTS (2/2 PASS):
+          - C7: GET /api/import/treck/imported → 200, 2 products with all required fields (id, name, slug, category=workwear, subcategory, workwearType, supplierBrand, supplierProductId, supplierPrice, basePrice, markupPercent, lastSyncedAt, active, images), no _id ✓
+          - C8: GET /api/import/treck/history → 200, 2 history entries with correct structure (id, scanId, markupPercent, paraphrase, stats, createdAt), no _id ✓
+          
+          D) SYNC INVENTORY (1/1 PASS):
+          - D9: POST /api/import/treck/sync-inventory → 200, ok=true, productsProcessed=2, stockRecordsUpdated=11 ✓
+          - Verified in GET /api/inventory/commercial: 22 Treck stock records with location='Bajo pedido · Treck', quantity=99, onDemand=true, supplier='treck' ✓
+          
+          E) CRON SETTINGS (1/1 PASS):
+          - E10: GET /api/import/treck/cron/settings → 200, enabled=true, schedule='45 3 * * *', humanSchedule contains '00:45' ✓
+          - E11a: POST toggle off → 200, ok=true, enabled=false ✓
+          - E11b: GET shows enabled=false ✓
+          - E11c: GET /api/import/treck/cron/precheck → 200, runNow=false, reason='disabled_by_user' ✓
+          - E11d: POST toggle on → 200, ok=true, enabled=true ✓
+          - E11e: GET precheck → 200, runNow=true ✓
+          
+          F) REFRESH PRICES (1/1 PASS):
+          - F12: POST /api/import/treck/refresh-prices → 200, ok=true, updated=0, unchanged=2, failed=0 (prices unchanged since just imported) ✓
+          - History entry created with type='refresh_prices' ✓
+          
+          G) REGRESSION (1/1 PASS):
+          - G13: GET /api/import/cottonext/imported → 200 (62 products) ✓
+          - G14: GET /api/import/textilryu/imported → 200 (74 products) ✓
+          - G15: GET /api/import/cottonext/cron/settings → 200 ✓
+          - G16: GET /api/products → 200 (142 total, 2 Treck products with category='workwear') ✓
+          
+          KEY FINDINGS:
+          - All endpoints working correctly with proper validation
+          - VTEX API integration working (448 products in catalog)
+          - Scan cache working (30-min TTL)
+          - Import idempotency working (upsert logic correct)
+          - Inventory sync working (creates stock records with correct labels)
+          - Cron toggle working (persists to app_settings collection)
+          - Refresh prices working (re-scrapes and updates)
+          - No regressions in other suppliers (Cottonext, TextilRyu)
+          - All responses strip MongoDB _id correctly
+          - All IDs are UUID v4
+          - workwearType detection working (trabajo, tecnica, ignifuga, outdoor, otros)
+          - Markup calculation correct (40% + Chilean rounding to xx90)
+          - Variant structure correct (color × size combinations)
+          
+          Test data cleaned up: db.products, db.commercial_stock, db.treck_scans, db.treck_imports all cleared.
+
+  - task: "Treck importer endpoints (/api/import/treck/*)"
+    implemented: true
+    working: true
+    file: "lib/api/import.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Added 9 endpoints following the same pattern as Cottonext/TextilRyu:
+          - POST /api/import/treck/scan {from, to, category?, full?, force?}
+            Paginated scan with 30-min cache. Response includes {scanId, products[], totalInCatalog}.
+          - POST /api/import/treck/import {scanId, selectedIds[], markupPercent, paraphrase}
+            Idempotent upsert with MiniMax paraphrase + image download + variant sync.
+          - POST /api/import/treck/refresh-prices — cron endpoint, only updates prices.
+          - GET  /api/import/treck/imported — list of already-imported products.
+          - GET  /api/import/treck/history — last 20 import/refresh operations.
+          - POST /api/import/treck/sync-inventory — backfill commercial_stock for variants.
+          - GET  /api/import/treck/cron/settings — cron toggle state.
+          - POST /api/import/treck/cron/settings {enabled} — enable/disable cron.
+          - GET  /api/import/treck/cron/precheck — used by cron shell script.
+          Uses collections: treck_scans (cache), treck_imports (history).
+          syncInventoryForVariants extended to label 'Bajo pedido · Treck' correctly.
+          Smoke tested: /scan returned 448 total + 10 products. /import with 1 product created
+          a UUID product with 5 variants, 8 local images, +40% markup ($10000 → $13990) correctly.
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - All 9 endpoints tested and working correctly. See detailed test results in 'Treck VTEX scraper module' task above."
+
+  - task: "image-downloader refactored to accept supplier"
+    implemented: true
+    working: true
+    file: "lib/import/image-downloader.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Refactored downloadImage(url, supplier='cottonext') and downloadImagesBatch(urls, concurrency, supplier).
+          Images now organized per-supplier at /public/uploads/proveedor/<supplier>/.
+          Backward compatible: existing calls (no supplier arg) default to 'cottonext'.
+          All 3 supplier code paths (cottonext, textilryu, treck) updated in buildProductDoc.
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS - Verified during import test: images downloaded to /public/uploads/proveedor/treck/ correctly. Supplier-specific folder structure working."
+
+  - task: "Treck cron daily refresh (00:45 hrs Chile)"
+    implemented: true
+    working: true
+    file: "scripts/refresh-treck-prices.sh, scripts/estampados-dlv-cron"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Created /app/scripts/refresh-treck-prices.sh (cron entry, consults /precheck to allow admin
+          toggle, POSTs /refresh-prices with 15-min timeout).
+          Updated /app/scripts/estampados-dlv-cron with `45 3 * * * root /app/scripts/refresh-treck-prices.sh`.
+          Updated /app/scripts/install-crons.sh to chmod the new script.
+          Ran install-crons.sh — confirmed all 3 cron jobs installed via 'cat /etc/cron.d/estampados-dlv-cron'.
+
+frontend_treck_importer:
+  - task: "Treck admin UI (/app/app/proveedores/treck/page.js)"
+    implemented: true
+    working: true
+    file: "app/proveedores/treck/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          NEW page copied from textilryu template and adapted for Treck:
+          - Orange/rose gradient theme (safety branding, HardHat icon)
+          - 3 quick presets: Vista rápida (50), Extendida (200), Todo el catálogo (448)
+          - Filters by workwearType (trabajo/tecnica/ignifuga/outdoor/otros), brand, stock, imported.
+          - 4 tabs: Importar / Ya importados / Automatización / Historial
+          - Uses lucide icons: HardHat, ShieldAlert (tecnica), Flame (ignifuga), TreePine (outdoor), Wrench (trabajo).
+          Verified via Playwright screenshot: scan returned 50 products correctly, all cards render
+          with real Treck images, sidebar link "Proveedor Treck · Seguridad" active.
+
+  - task: "Sidebar nav updated with Treck entry"
+    implemented: true
+    working: true
+    file: "components/sidebar-nav.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Added HardHat import from lucide-react and new entry in "Gestión" section:
+          { href: '/proveedores/treck', label: 'Proveedor Treck', icon: HardHat, badge: 'Seguridad' }
+          Screenshot confirmed link visible and highlighted when on /proveedores/treck.
 
 
 frontend_notifications:
@@ -542,6 +727,178 @@ frontend_notifications:
 
 
 agent_communication:
+
+  - agent: "testing"
+    message: |
+      # TRECK (VTEX) CATALOG IMPORTER - BACKEND TESTING COMPLETE ✅ (27-jul-2026)
+      
+      Completed comprehensive end-to-end testing of the Treck (VTEX) catalog importer as requested.
+      
+      ## TEST RESULTS: 12/12 TEST GROUPS PASSED ✅
+      
+      Test file: /app/backend_test_treck.py
+      Base URL: https://dtf-print-hub-2.preview.emergentagent.com/api
+      Admin credentials: estampadosdlv@gmail.com / EstampadosDLV2025!
+      
+      ### A) SCAN ENDPOINT (3/3 PASS) ✅
+      
+      **A1) Small range scan (0-9):**
+      - ✅ POST /api/import/treck/scan {"from":0,"to":9,"force":true} → 200
+      - ✅ Response: scanId (UUID), products array (10 items), count=10, totalInCatalog=448, cached=false
+      - ✅ Each product has: supplierProductId, supplierBrand, shortName, subcategory, workwearType (∈ {trabajo, tecnica, ignifuga, outdoor, otros}), priceWholesale, finalPrice (= priceWholesale × 1.4 rounded), previewImage, totalImages, variantsCount, colorsCount, sizesCount, hasStock, alreadyImported
+      - ✅ No _id fields in response
+      - ✅ Sample product: Traje Lluvia Azul con Cinta Reflectante (Activex), workwearType=tecnica, priceWholesale=$10,000, finalPrice=$13,990, 5 variants (1 color × 5 sizes)
+      
+      **A2) Cache behavior:**
+      - ✅ POST /api/import/treck/scan {"from":0,"to":9} (no force) immediately after A1 → 200
+      - ✅ cached=true, same scanId as A1 (30-min cache working)
+      
+      **A3) Full scan:**
+      - ✅ POST /api/import/treck/scan {"full":true,"force":true} → 200 in 8.7s
+      - ✅ count=445, totalInCatalog=448 (some products filtered out for lacking price/items)
+      
+      ### B) IMPORT ENDPOINT (3/3 PASS) ✅
+      
+      **B4) Import 2 products:**
+      - ✅ POST /api/import/treck/import {"scanId":"...","selectedIds":["544","500"],"markupPercent":40,"paraphrase":false} → 200 in 3.5s
+      - ✅ Response: ok=true, attempted=2, created=2, updated=0, failed=0
+      - ✅ details array with 2 items: action="created", productId (UUID)
+      - ✅ Products: Traje Lluvia Azul (67445a3c-...), Primera Capa Poliéster Negro (9a487e89-...)
+      
+      **B5) Idempotency:**
+      - ✅ POST /api/import/treck/import (same scanId + selectedIds) → 200
+      - ✅ created=0, updated=2 (products already exist, update path taken)
+      
+      **B6) Validation errors:**
+      - ✅ No scanId → 400 "scanId requerido"
+      - ✅ Non-existent scanId → 404 "scan no encontrado o expirado"
+      - ✅ Empty selectedIds → 400 "Selecciona al menos 1 producto"
+      - ✅ ID not in scan → 400 "ninguno de los IDs seleccionados está en el scan"
+      
+      ### C) GET ENDPOINTS (2/2 PASS) ✅
+      
+      **C7) GET /api/import/treck/imported:**
+      - ✅ 200, array with 2 products
+      - ✅ Each entry has: id, name, slug, category="workwear", subcategory, workwearType, supplierBrand, supplierProductId, supplierPrice (original), basePrice (with markup), markupPercent=40, lastSyncedAt, active, images[]
+      - ✅ No _id field
+      - ✅ Sample: Primera Capa Poliéster Negro, category=workwear, subcategory=trabajo, workwearType=trabajo, supplierPrice=$6,550, basePrice=$9,190
+      
+      **C8) GET /api/import/treck/history:**
+      - ✅ 200, array with 2 import history entries (one from B4, one from B5)
+      - ✅ Each has: id (UUID), scanId, markupPercent, paraphrase, stats, createdAt
+      - ✅ No _id
+      
+      ### D) SYNC INVENTORY (1/1 PASS) ✅
+      
+      **D9) POST /api/import/treck/sync-inventory:**
+      - ✅ 200, ok=true, productsProcessed=2, stockRecordsCreated=0, stockRecordsUpdated=11
+      - ✅ (First run created via /import, second run updated)
+      - ✅ Verified GET /api/inventory/commercial: 22 Treck stock records with location="Bajo pedido · Treck", quantity=99, onDemand=true, supplier="treck"
+      
+      ### E) CRON SETTINGS (1/1 PASS) ✅
+      
+      **E10) GET /api/import/treck/cron/settings:**
+      - ✅ 200, enabled=true (default), schedule='45 3 * * *', humanSchedule contains "00:45", lastRunAt=null (never ran), lastRunStats=null
+      
+      **E11) Toggle off/on:**
+      - ✅ POST /api/import/treck/cron/settings {"enabled":false} → 200, ok=true, enabled=false
+      - ✅ GET /api/import/treck/cron/settings → enabled=false
+      - ✅ GET /api/import/treck/cron/precheck → runNow=false, enabled=false, reason="disabled_by_user"
+      - ✅ POST /api/import/treck/cron/settings {"enabled":true} → 200
+      - ✅ GET /api/import/treck/cron/precheck → runNow=true
+      
+      ### F) REFRESH PRICES (1/1 PASS) ✅
+      
+      **F12) POST /api/import/treck/refresh-prices:**
+      - ✅ 200 in 0.4s, ok=true, updated=0, unchanged=2, failed=0
+      - ✅ (Prices unchanged since just imported with current prices)
+      - ✅ GET /api/import/treck/history now has 3 entries (extra one has type="refresh_prices")
+      
+      ### G) REGRESSION (1/1 PASS) ✅
+      
+      **G13) GET /api/import/cottonext/imported:**
+      - ✅ 200 with 62 cottonext products (no 500 error)
+      
+      **G14) GET /api/import/textilryu/imported:**
+      - ✅ 200 with 74 textilryu products
+      
+      **G15) GET /api/import/cottonext/cron/settings:**
+      - ✅ 200 with expected shape
+      
+      **G16) GET /api/products:**
+      - ✅ 200, returns 142 total products including 2 newly imported Treck products
+      - ✅ Treck products have category="workwear", supplier="treck"
+      
+      ## KEY FINDINGS
+      
+      ### ✅ NO CRITICAL ISSUES FOUND
+      
+      All core functionality working correctly:
+      - VTEX API integration working (448 products in catalog)
+      - Scan endpoint with pagination and cache (30-min TTL)
+      - Import endpoint with idempotent upsert (create/update logic)
+      - Inventory sync creates stock records with correct labels
+      - Cron toggle persists to app_settings collection
+      - Refresh prices re-scrapes and updates
+      - All validations working correctly (400, 404 status codes)
+      - No regressions in other suppliers (Cottonext, TextilRyu)
+      
+      ### Data Integrity ✅
+      - All IDs are UUID v4 (no MongoDB ObjectId)
+      - No _id leakage in any response
+      - All timestamps in ISO format
+      - workwearType detection working (trabajo, tecnica, ignifuga, outdoor, otros)
+      - Markup calculation correct (40% + Chilean rounding to xx90)
+      - Variant structure correct (color × size combinations)
+      
+      ### Business Logic ✅
+      - Scan cache working (30-min TTL, force flag bypasses)
+      - Import idempotency working (upsert by supplierProductId)
+      - Inventory sync creates "Bajo pedido · Treck" stock records with quantity=99
+      - Cron precheck allows admin toggle (enabled/disabled_by_user)
+      - Refresh prices only updates changed prices (unchanged=2 in test)
+      - Full catalog scan working (445 products in 8.7s)
+      
+      ### Performance ✅
+      - Small scan (0-9): instant (cached)
+      - Full scan (448 products): 8.7s
+      - Import 2 products (paraphrase=false): 3.5s
+      - Sync inventory (2 products, 11 variants): 26ms
+      - Refresh prices (2 products): 0.4s
+      
+      ## CLEANUP
+      
+      Test data cleaned up successfully:
+      - db.products.deleteMany({supplier: 'treck'})
+      - db.commercial_stock.deleteMany({supplier: 'treck'})
+      - db.treck_scans.deleteMany({})
+      - db.treck_imports.deleteMany({})
+      
+      ## CONCLUSION
+      
+      **✅ TRECK (VTEX) CATALOG IMPORTER IS PRODUCTION-READY**
+      
+      The Treck importer implementation is complete and working correctly:
+      - All 12 test groups passed (100% success rate)
+      - All endpoints functional and validated
+      - All business rules enforced
+      - All data integrity checks passing
+      - No regressions in existing functionality (Cottonext, TextilRyu)
+      - Ready for production deployment
+      
+      The importer successfully:
+      - Scans VTEX catalog (448 products)
+      - Imports products with variants (color × size)
+      - Applies markup (40%) with Chilean rounding
+      - Downloads images to /public/uploads/proveedor/treck/
+      - Creates inventory stock records
+      - Supports cron refresh (00:45 hrs Chile)
+      - Handles idempotency (upsert logic)
+      - Validates all inputs (scanId, selectedIds, etc.)
+      - Never leaks sensitive data (_id)
+      
+      No blocking issues found. Ready for production use.
+
   - agent: "testing"
     message: |
       # E2E UI Testing Complete - Dynamic Printers System (26-jul-2026)

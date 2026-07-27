@@ -5,6 +5,8 @@
 
 set -e
 chmod 0755 /app/scripts/refresh-cottonext-prices.sh 2>/dev/null || true
+chmod 0755 /app/scripts/refresh-textilryu-prices.sh 2>/dev/null || true
+chmod 0755 /app/scripts/refresh-treck-prices.sh 2>/dev/null || true
 touch /var/log/dlv-cron.log
 chmod 0666 /var/log/dlv-cron.log
 

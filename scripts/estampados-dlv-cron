@@ -8,3 +8,6 @@
 
 # Refresh prices Textil Ryu — diariamente 00:30 hrs Chile (03:30 UTC)
 30 3 * * * root /app/scripts/refresh-textilryu-prices.sh
+
+# Refresh prices Treck — diariamente 00:45 hrs Chile (03:45 UTC)
+45 3 * * * root /app/scripts/refresh-treck-prices.sh
