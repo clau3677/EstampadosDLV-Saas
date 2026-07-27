@@ -58,6 +58,7 @@ export default function TiendaPage() {
   const [cats, setCats] = useState(DEFAULT_CATS);
   const [cat, setCat] = useState('all');
   const [q, setQ] = useState('');
+  const [subcat, setSubcat] = useState('all');
 
   const { data: prData, isLoading } = useSWR('/api/products', fetcher, { keepPreviousData: true });
   const { data: taxData } = useSWR('/api/taxonomies?kind=product_category', fetcher);
@@ -75,24 +76,52 @@ export default function TiendaPage() {
   useEffect(() => {
     const paramCat = searchParams.get('cat');
     if (paramCat) setCat(paramCat);
+    const paramSub = searchParams.get('sub');
+    if (paramSub) setSubcat(paramSub);
   }, [searchParams]);
+
+  // Subcategorías disponibles según la categoría actual.
+  // Poleras/Polerones/Pantalones/Shorts/Camisas/Otros aplican solo a 'apparel'.
+  const subcatDefs = useMemo(() => {
+    if (cat !== 'apparel' && cat !== 'all') return [];
+    const list = [
+      { code: 'poleras',    label: 'Poleras' },
+      { code: 'polerones',  label: 'Polerones' },
+      { code: 'pantalones', label: 'Pantalones' },
+      { code: 'shorts',     label: 'Shorts' },
+      { code: 'camisas',    label: 'Camisas' },
+      { code: 'otros',      label: 'Otros' },
+    ];
+    // Solo mostrar subcategorías que tengan al menos 1 producto
+    const withCounts = list.map(s => ({
+      ...s,
+      count: products.filter(p => (cat === 'all' ? p.category === 'apparel' : true) && p.subcategory === s.code).length,
+    })).filter(s => s.count > 0);
+    return withCounts;
+  }, [products, cat]);
+
+  // Reset subcategory cuando cambia la categoría principal (excepto 'all' o 'apparel')
+  useEffect(() => {
+    if (cat !== 'apparel' && cat !== 'all') setSubcat('all');
+  }, [cat]);
 
   const filtered = useMemo(() => {
     const qLow = q.trim().toLowerCase();
     return products.filter(p => {
       if (cat !== 'all' && p.category !== cat) return false;
+      if (subcat !== 'all' && p.subcategory !== subcat) return false;
       if (qLow &&
           !p.name?.toLowerCase().includes(qLow) &&
           !p.description?.toLowerCase().includes(qLow)) return false;
       return true;
     });
-  }, [products, cat, q]);
+  }, [products, cat, subcat, q]);
 
   const featured = useMemo(() =>
     products.filter(p => p.featured).slice(0, 4)
   , [products]);
 
-  const showFeaturedSection = featured.length >= 2 && cat === 'all' && !q;
+  const showFeaturedSection = featured.length >= 2 && cat === 'all' && subcat === 'all' && !q;
 
   return (
     <div>
@@ -247,7 +276,7 @@ export default function TiendaPage() {
         </div>
 
         {/* Chips de categoría */}
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-3">
           {cats.map((c) => {
             const active = cat === c.code;
             const count = c.code === 'all' ? products.length : products.filter(p => p.category === c.code).length;
@@ -271,6 +300,47 @@ export default function TiendaPage() {
             );
           })}
         </div>
+
+        {/* Chips de subcategoría (solo cuando hay prendas visibles) */}
+        {subcatDefs.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-8 pl-1">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 self-center pr-1">Tipo:</div>
+            <button
+              onClick={() => setSubcat('all')}
+              className={`
+                inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                ${subcat === 'all'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-700'}
+              `}
+            >
+              Todos
+            </button>
+            {subcatDefs.map((s) => {
+              const active = subcat === s.code;
+              return (
+                <button
+                  key={s.code}
+                  onClick={() => setSubcat(s.code)}
+                  className={`
+                    inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                    ${active
+                      ? 'bg-orange-500 text-white shadow-sm'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-700'}
+                  `}
+                >
+                  <span>{s.label}</span>
+                  <span className={`
+                    inline-flex items-center justify-center min-w-[20px] h-4 px-1 rounded-full text-[10px] font-bold
+                    ${active ? 'bg-white/25' : 'bg-slate-100 text-slate-600'}
+                  `}>{s.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {subcatDefs.length === 0 && <div className="mb-8" />}
 
         {/* Grid */}
         {isLoading ? (

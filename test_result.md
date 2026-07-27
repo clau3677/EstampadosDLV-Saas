@@ -4844,3 +4844,90 @@ agent_communication_v6_1:
       ## NO REQUIRE BACKEND TESTING — Todo validado end-to-end con datos reales.
 
 
+
+# ============================================================================
+# ITERATION 6.2 — Catalog Complete Check + Auto-Inventory + Subcategory Filter + Cron Toggle
+# ============================================================================
+
+agent_communication_v6_2:
+  - agent: "main"
+    message: |
+      # Iteración 6.2 — 27-jul-2026 — 4 items resueltos
+
+      ## 1. ¿Está todo el catálogo? ✅ SÍ
+      Ejecuté scan IDs 101-200 → **0 productos encontrados**.
+      Confirmado: los 62 productos ya importados son TODO el catálogo activo de cottonext.cl.
+      (Máximo ID = 87, con gaps por productos descontinuados por el proveedor.)
+
+      ## 2. Auto-inventory para productos importados ✅
+      **Backend**:
+      - Agregada función `syncInventoryForVariants()` en `lib/api/import.js`
+      - Se llama automáticamente en cada import (nuevo + update)
+      - Cada variante (color × talla) recibe stock record en `commercial_stock` con:
+        * quantity: 99 (si supplier lo tiene en stock) o 0 (si no)
+        * reservedQuantity: 0
+        * location: 'Bajo pedido · Cottonext'
+        * minStockAlert: 0 (no alertar por on-demand)
+        * onDemand: true, supplier: 'cottonext'
+      - **Backfill endpoint** POST /api/import/cottonext/sync-inventory ejecutado con éxito:
+        * 62 productos procesados
+        * **2,334 stock records creados**
+        * 0 fallos
+      - Idempotente: no sobrescribe stock ajustado manualmente
+
+      **UI**:
+      - Nueva card "Inventario comercial" en tab Automatización
+      - Botón "Sincronizar inventario (62 productos)"
+      - Muestra info clara del modelo on-demand
+
+      **Validación**:
+      - /inventario > Stock Comercial ahora muestra **2,342 registros**
+        (8 originales + 2,334 Cottonext)
+      - Los Cottonext aparecen con SKUs CTNX-XX-COLOR-TALLA
+
+      ## 3. Filtro de subcategorías en /tienda ✅
+      **Cambios en /app/app/tienda/page.js**:
+      - Nuevo estado `subcat` con default 'all'
+      - `subcatDefs` calculado con conteos por subcategoría
+      - Solo muestra subcategorías con al menos 1 producto
+      - Nueva fila de chips debajo de las categorías principales:
+        * Etiqueta "TIPO:" + botones para: Poleras (35), Polerones (20), Pantalones (7), Camisas (1)
+      - Chips más pequeños (px-3 py-1.5 text-xs) para jerarquía visual clara
+      - URL query param `?sub=X` funciona igual que `?cat=X`
+      - Reset automático de subcat cuando cambia la categoría principal
+
+      ## 4. Tab "Automatización" con toggle enable/disable ✅
+      **Backend**:
+      - Nueva colección `app_settings` (clave-valor)
+      - 3 endpoints nuevos:
+        * GET /api/import/cottonext/cron/settings → { enabled, schedule, humanSchedule, lastRunAt, lastRunStats }
+        * POST /api/import/cottonext/cron/settings { enabled: bool } → persiste
+        * GET /api/import/cottonext/cron/precheck → { runNow, enabled, reason } (usado por el script)
+      - Actualizado /app/scripts/refresh-cottonext-prices.sh para hacer precheck antes de ejecutar
+        * Si `enabled: false` → skip con exit 0 (no error, sólo log)
+        * Si API no responde → skip con reason 'api_unreachable'
+
+      **UI**:
+      - Nuevo tab "Automatización" (icono Zap) entre "Ya importados" e "Historial"
+      - 2 cards side-by-side:
+        * **Actualización automática**: badge Activo/Pausado, horario, cron expr, toggle ON/OFF, última ejecución con stats, botón "Ejecutar ahora"
+        * **Inventario comercial**: cómo funciona (4 bullets), botón sincronizar
+      - Info banner al final explicando el modelo bajo pedido
+      - Eliminado el panel duplicado que estaba en tab Historial
+
+      **Validación de endpoints**:
+      - GET settings → { enabled: true, lastRunAt: '2026-07-27T13:45:14.285Z', ...}
+      - POST { enabled: false } → { ok: true, enabled: false }
+      - GET precheck → { runNow: false, reason: 'disabled_by_user' } ✅
+      - POST { enabled: true } → { ok: true, enabled: true }
+      - GET precheck → { runNow: true, reason: 'enabled' } ✅
+
+      ## Archivos modificados/creados
+      - `/app/lib/api/import.js` (syncInventoryForVariants + 3 nuevos endpoints)
+      - `/app/scripts/refresh-cottonext-prices.sh` (precheck antes de ejecutar)
+      - `/app/app/tienda/page.js` (filtro de subcategorías)
+      - `/app/app/proveedores/cottonext/page.js` (tab Automatización)
+
+      No requiere testing backend adicional — todo validado manualmente.
+
+

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   Loader2, Truck, Search, ShoppingBag, Package, RefreshCw, CheckCircle2,
   Filter, DollarSign, Sparkles, ExternalLink, AlertCircle, Palette, Ruler,
-  Download, History, Layers,
+  Download, History, Layers, Zap, Clock, PowerOff, Power, Boxes,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,9 +27,7 @@ const SUBCATEGORY_LABEL = {
   shorts:     { label: 'Shorts', color: 'bg-teal-100 text-teal-800 border-teal-200' },
   camisas:    { label: 'Camisas', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   otros:      { label: 'Otros', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-};
-
-export default function CottonextImportPage() {
+};export default function CottonextImportPage() {
   const [scanRange, setScanRange] = useState({ from: 1, to: 100 });
   const [markupPercent, setMarkupPercent] = useState(40);
   const [paraphrase, setParaphrase] = useState(true);
@@ -49,8 +47,13 @@ export default function CottonextImportPage() {
   const [imported, setImported] = useState([]);
   const [history, setHistory] = useState([]);
 
+  // Cron settings state
+  const [cronSettings, setCronSettings] = useState(null);
+  const [cronToggling, setCronToggling] = useState(false);
+  const [syncingInventory, setSyncingInventory] = useState(false);
+
   // Cargar productos ya importados + historial al montar
-  useEffect(() => { loadImported(); loadHistory(); }, []);
+  useEffect(() => { loadImported(); loadHistory(); loadCronSettings(); }, []);
 
   const loadImported = async () => {
     try {
@@ -65,6 +68,48 @@ export default function CottonextImportPage() {
       const d = await r.json();
       setHistory(Array.isArray(d) ? d : []);
     } catch { setHistory([]); }
+  };
+  const loadCronSettings = async () => {
+    try {
+      const r = await fetch('/api/import/cottonext/cron/settings', { credentials: 'include' });
+      const d = await r.json();
+      setCronSettings(d);
+    } catch { setCronSettings(null); }
+  };
+  const toggleCron = async (enabled) => {
+    setCronToggling(true);
+    try {
+      const r = await fetch('/api/import/cottonext/cron/settings', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'error');
+      toast.success(enabled ? 'Cron activado' : 'Cron desactivado', {
+        description: enabled
+          ? 'Los precios se actualizarán automáticamente cada día a las 00:15'
+          : 'La actualización automática está pausada. Puedes ejecutarla manualmente.',
+      });
+      loadCronSettings();
+    } catch (err) {
+      toast.error('No se pudo cambiar', { description: err.message });
+    } finally { setCronToggling(false); }
+  };
+
+  const syncInventory = async () => {
+    if (!confirm(`¿Sincronizar inventario comercial para los ${imported.length} productos importados?\n\nEsto creará stock records faltantes con cantidad 99 (marcados como "Bajo pedido").`)) return;
+    setSyncingInventory(true);
+    try {
+      const r = await fetch('/api/import/cottonext/sync-inventory', { method: 'POST', credentials: 'include' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'error');
+      toast.success(`Inventario sincronizado`, {
+        description: `${d.stockRecordsCreated} nuevos, ${d.stockRecordsUpdated} actualizados`,
+      });
+    } catch (err) {
+      toast.error('No se pudo sincronizar', { description: err.message });
+    } finally { setSyncingInventory(false); }
   };
 
   const runScan = async () => {
@@ -220,6 +265,9 @@ export default function CottonextImportPage() {
           </TabsTrigger>
           <TabsTrigger value="imported">
             <Package className="h-3.5 w-3.5 mr-1.5" />Ya importados ({imported.length})
+          </TabsTrigger>
+          <TabsTrigger value="automation">
+            <Zap className="h-3.5 w-3.5 mr-1.5" />Automatización
           </TabsTrigger>
           <TabsTrigger value="history">
             <History className="h-3.5 w-3.5 mr-1.5" />Historial
@@ -567,41 +615,143 @@ export default function CottonextImportPage() {
           )}
         </TabsContent>
 
-        {/* ====================== TAB 3: HISTORIAL ====================== */}
-        <TabsContent value="history" className="space-y-4 mt-4">
-          {/* Cron scheduler info */}
-          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-fuchsia-50 shadow-sm p-5">
-            <div className="flex items-start gap-3">
-              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-sm">
-                <RefreshCw className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-900">Actualización automática de precios</h3>
-                  <Badge className="bg-emerald-500 text-white border-0">Activo</Badge>
+        {/* ====================== TAB 3: AUTOMATIZACIÓN ====================== */}
+        <TabsContent value="automation" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Cron toggle card */}
+            <div className={`rounded-2xl border shadow-sm p-6 transition-colors ${
+              cronSettings?.enabled
+                ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'
+                : 'border-slate-200 bg-gradient-to-br from-slate-50 to-white'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                  cronSettings?.enabled ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-slate-400 to-slate-500'
+                }`}>
+                  {cronSettings?.enabled ? <Power className="h-5 w-5 text-white" /> : <PowerOff className="h-5 w-5 text-white" />}
                 </div>
-                <p className="mt-1 text-sm text-slate-600">
-                  Cron diario a las <b>00:15 hrs Chile</b> (03:15 UTC). Refresca precios de todos los productos importados,
-                  detecta cambios y actualiza el precio final con markup +40%.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 border border-indigo-200 text-slate-700">
-                    <History className="h-3 w-3" />Log: <code className="font-mono">/var/log/dlv-cron.log</code>
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 border border-indigo-200 text-slate-700">
-                    Script: <code className="font-mono">/app/scripts/refresh-cottonext-prices.sh</code>
-                  </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900">Actualización automática de precios</h3>
+                    {cronSettings === null
+                      ? <Badge className="bg-slate-200 text-slate-700 border-0"><Loader2 className="h-2.5 w-2.5 mr-1 animate-spin" />Cargando</Badge>
+                      : cronSettings.enabled
+                      ? <Badge className="bg-emerald-500 text-white border-0">Activo</Badge>
+                      : <Badge className="bg-slate-400 text-white border-0">Pausado</Badge>}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Ejecuta re-scrape del catálogo Cottonext y actualiza sólo los precios de productos ya importados.
+                    No modifica descripciones ni imágenes.
+                  </p>
                 </div>
               </div>
-              <Button size="sm" onClick={runRefreshPrices} disabled={refreshing || imported.length === 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0">
-                {refreshing
-                  ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Ejecutando…</>
-                  : <><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Ejecutar ahora</>}
-              </Button>
+
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between rounded-lg bg-white/70 border border-slate-200 px-4 py-3">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Horario</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      {cronSettings?.humanSchedule || 'Diariamente a las 00:15 hrs Chile'}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5 font-mono">cron: {cronSettings?.schedule || '15 3 * * *'}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-600 font-semibold">
+                      {cronSettings?.enabled ? 'ON' : 'OFF'}
+                    </span>
+                    <Switch
+                      checked={!!cronSettings?.enabled}
+                      onCheckedChange={toggleCron}
+                      disabled={cronToggling || cronSettings === null}
+                    />
+                  </div>
+                </div>
+
+                {cronSettings?.lastRunAt && (
+                  <div className="rounded-lg bg-white/70 border border-slate-200 px-4 py-3">
+                    <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Última ejecución</div>
+                    <div className="mt-1 text-sm text-slate-800">
+                      {new Date(cronSettings.lastRunAt).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                    {cronSettings.lastRunStats && (
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-600">
+                        <span>Actualizados: <b>{cronSettings.lastRunStats.updated || 0}</b></span>
+                        <span>Sin cambios: <b>{cronSettings.lastRunStats.unchanged || 0}</b></span>
+                        {cronSettings.lastRunStats.failed > 0 && (
+                          <span className="text-rose-600">Fallidos: <b>{cronSettings.lastRunStats.failed}</b></span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  onClick={runRefreshPrices}
+                  disabled={refreshing || imported.length === 0}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {refreshing
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Ejecutando refresh…</>
+                    : <><RefreshCw className="h-4 w-4 mr-2" />Ejecutar ahora ({imported.length} productos)</>}
+                </Button>
+              </div>
+            </div>
+
+            {/* Inventory sync card */}
+            <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm p-6">
+              <div className="flex items-start gap-3">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-sm">
+                  <Boxes className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-slate-900">Inventario comercial</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Crea automáticamente registros de stock para cada variante (color × talla) de productos importados,
+                    marcados como <b>Bajo pedido · Cottonext</b>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-lg bg-white/70 border border-slate-200 px-4 py-3 text-sm">
+                  <div className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Cómo funciona</div>
+                  <ul className="text-slate-700 space-y-1 text-xs list-disc pl-4">
+                    <li>Cada variante (por ejemplo Talla S · Negro) recibe stock inicial de <b>99 unidades</b>.</li>
+                    <li>No sobrescribe stock ajustado manualmente.</li>
+                    <li>Los productos aparecen en <code className="font-mono bg-slate-100 px-1 rounded">/inventario</code> como &quot;on-demand&quot;.</li>
+                    <li>Cuando un cliente compra, tu pedido a Cottonext se hace en el mismo momento.</li>
+                  </ul>
+                </div>
+
+                <Button
+                  onClick={syncInventory}
+                  disabled={syncingInventory || imported.length === 0}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {syncingInventory
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sincronizando…</>
+                    : <><Boxes className="h-4 w-4 mr-2" />Sincronizar inventario ({imported.length} productos)</>}
+                </Button>
+              </div>
             </div>
           </div>
 
+          {/* Info box */}
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-900">
+                <b>Modelo bajo pedido:</b> Los productos Cottonext se ordenan a tu proveedor cuando un cliente compra.
+                No necesitas mantener stock físico. El cron diario verifica cambios de precio en cottonext.cl y ajusta
+                automáticamente el precio de venta (con markup +40%).
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ====================== TAB 4: HISTORIAL ====================== */}
+        <TabsContent value="history" className="space-y-4 mt-4">
           <h2 className="font-bold text-slate-900">Últimas 20 operaciones</h2>
           {history.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
