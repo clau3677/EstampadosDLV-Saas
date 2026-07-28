@@ -99,15 +99,29 @@ const SUBCAT_MAP = {
   ],
 };
 
+// Orden de negocio (solicitado jul-2026): Ropa Lisa → Gorras → Ropa de Trabajo
+// → Ropa Estampada → Merchandising → DTF por metro.
+const CATEGORY_ORDER = ['blank_apparel', 'caps_hats', 'workwear', 'printed_apparel', 'merch', 'dtf_meter'];
+
 const DEFAULT_CATS = [
   { code: 'all',             label: 'Todo el catálogo' },
-  { code: 'dtf_meter',       label: 'DTF por metro' },
   { code: 'blank_apparel',   label: 'Ropa Lisa' },
-  { code: 'printed_apparel', label: 'Ropa Estampada' },
   { code: 'caps_hats',       label: 'Gorras' },
-  { code: 'merch',           label: 'Merchandising' },
   { code: 'workwear',        label: 'Ropa de Trabajo' },
+  { code: 'printed_apparel', label: 'Ropa Estampada' },
+  { code: 'merch',           label: 'Merchandising' },
+  { code: 'dtf_meter',       label: 'DTF por metro' },
 ];
+
+// Ordena las categorías que vienen del servidor según el orden de negocio;
+// las que no estén en la lista van al final conservando su orden original.
+function sortCatsByBusiness(list) {
+  return [...list].sort((a, b) => {
+    const ia = CATEGORY_ORDER.indexOf(a.code);
+    const ib = CATEGORY_ORDER.indexOf(b.code);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+}
 
 const fetcher = (url) => fetch(url).then(r => r.json());
 
@@ -164,7 +178,7 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
 
   useEffect(() => {
     if (Array.isArray(taxData) && taxData.length > 0) {
-      setCats([{ code: 'all', label: 'Todos' }, ...taxData.map(t => ({ code: t.code, label: t.label }))]);
+      setCats([{ code: 'all', label: 'Todos' }, ...sortCatsByBusiness(taxData.map(t => ({ code: t.code, label: t.label })))]);
     }
   }, [taxData]);
 
@@ -338,7 +352,7 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
               <Package className="h-3 w-3" />Catálogo
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Todo el catálogo</h2>
-            <p className="text-sm text-slate-500 mt-1">DTF por metro, ropa lisa y estampada, gorras, merchandising y ropa de trabajo.</p>
+            <p className="text-sm text-slate-500 mt-1">Ropa lisa, gorras, ropa de trabajo, ropa estampada, merchandising y DTF por metro.</p>
           </div>
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
