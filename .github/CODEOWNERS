@@ -1,0 +1,55 @@
+# =============================================================================
+# CODEOWNERS - Estampados DLV SaaS
+# =============================================================================
+# Notifica automáticamente al owner cuando se modifican archivos críticos.
+# Sirve como recordatorio visual de qué archivos requieren coordinación.
+#
+# Como clau3677 es único owner, los reviews son informativos (no bloquean).
+# Ver /COLLABORATION.md para reglas completas de división por dominio.
+# =============================================================================
+
+# 🔴 Hot spots (tocados por Emergent Y Manus)
+/app/app/api/[[...path]]/route.js         @clau3677
+/app/components/sidebar-nav.jsx           @clau3677
+/app/lib/api/orders.js                    @clau3677
+/app/lib/models.js                        @clau3677
+/.env                                     @clau3677
+/.env.example                             @clau3677
+/package.json                             @clau3677
+/README.md                                @clau3677
+
+# 🟠 Dominios Emergent
+/app/app/tienda/                          @clau3677
+/app/app/pos/                             @clau3677
+/app/app/checkout/                        @clau3677
+/app/app/gang-sheet/                      @clau3677
+/app/app/admin/design-library/            @clau3677
+/app/app/kanban/                          @clau3677
+/app/app/inventario/                      @clau3677
+/app/lib/api/payments.js                  @clau3677
+/app/lib/api/drive/                       @clau3677
+/app/lib/api/design-library.js            @clau3677
+/app/lib/api/import/                      @clau3677
+/app/lib/api/kanban.js                    @clau3677
+/app/lib/api/inventory.js                 @clau3677
+/app/lib/gang-sheet-store.js              @clau3677
+/app/lib/gang-sheet/                      @clau3677
+/app/lib/payments.js                      @clau3677
+/app/components/gang-sheet-*.jsx          @clau3677
+/app/components/payments-*.jsx            @clau3677
+
+# 🔵 Dominios Manus
+/app/app/marketing/                       @clau3677
+/app/app/api/marketing/                   @clau3677
+/app/lib/api/marketing/                   @clau3677
+/app/lib/agent/                           @clau3677
+/app/lib/automation/                      @clau3677
+/app/lib/audit/                           @clau3677
+/app/lib/constants/business.js            @clau3677
+/.emergent/cron/                          @clau3677
+/app/components/marketing-*.jsx           @clau3677
+/app/components/agent-*.jsx               @clau3677
+
+# 📚 Documentación
+/COLLABORATION.md                         @clau3677
+/.github/                                 @clau3677
