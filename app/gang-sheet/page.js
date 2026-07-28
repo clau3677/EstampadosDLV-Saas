@@ -176,6 +176,8 @@ export default function GangSheetPage() {
     zoom, zoomIn, zoomOut, zoomReset,
     // Sprint 4
     alignSelected,
+    // Sprint 5 — QualityScorecard + Gap dinámico
+    qualityScore, canSubmit, nestGapMm, setNestGap,
   } = useGangSheet();
 
   const [uploading, setUploading] = useState(0);
@@ -187,6 +189,7 @@ export default function GangSheetPage() {
   const overlapping = detectOverlaps();
   const multiSelectCount = selectedIds?.length || 0;
   const lowDpiCount = designs.filter(d => effectiveDpi(d) < 300).length;
+  const quality = qualityScore();
 
   // ==========================================================================
   // Carga un borrador guardado en localStorage al builder actual (K)
@@ -503,6 +506,25 @@ export default function GangSheetPage() {
           <Button variant="outline" size="sm" onClick={() => autoArrange()} disabled={designs.length === 0} title="Auto-organizar con nesting inteligente (rotación automática)">
             <Wand2 className="h-3.5 w-3.5 mr-1.5" />Auto-organizar
           </Button>
+
+          {/* (G) Gap dinámico para auto-nesting */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <label htmlFor="nest-gap" className="whitespace-nowrap">Gap:</label>
+            <select
+              id="nest-gap"
+              value={nestGapMm}
+              onChange={(e) => setNestGap(Number(e.target.value))}
+              className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+              title="Espacio entre diseños al auto-organizar. 0mm para corte preciso, 5mm para seguridad."
+            >
+              <option value={0}>0 mm</option>
+              <option value={1}>1 mm</option>
+              <option value={2}>2 mm</option>
+              <option value={3}>3 mm</option>
+              <option value={5}>5 mm</option>
+              <option value={10}>10 mm</option>
+            </select>
+          </div>
           <Button variant="outline" size="sm" onClick={() => useGangSheet.getState().reset()}>Cambiar modo</Button>
         </div>
       </div>
@@ -896,12 +918,69 @@ export default function GangSheetPage() {
                     <span className="text-2xl font-bold text-slate-900 font-mono">{formatCLP(q.total)}</span>
                   </div>
 
+                  {/* (Q) QualityScorecard — Barra de calidad en tiempo real */}
+                  {designs.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Calidad del pliego</span>
+                        <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+                          quality.status === 'perfect' ? 'bg-emerald-100 text-emerald-700' :
+                          quality.status === 'good'    ? 'bg-blue-100 text-blue-700' :
+                          quality.status === 'warning' ? 'bg-amber-100 text-amber-700' :
+                                                         'bg-rose-100 text-rose-700'
+                        }`}>
+                          {quality.score}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            quality.status === 'perfect' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                            quality.status === 'good'    ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                            quality.status === 'warning' ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                                                           'bg-gradient-to-r from-rose-400 to-rose-600'
+                          }`}
+                          style={{ width: `${quality.score}%` }}
+                        />
+                      </div>
+                      {/* Detalles de calidad */}
+                      {quality.details.map((d, i) => (
+                        <div key={i} className={`text-[10px] mt-1 flex items-center gap-1 ${
+                          d.type === 'error'   ? 'text-rose-700' :
+                          d.type === 'warning' ? 'text-amber-700' :
+                                                 'text-emerald-700'
+                        }`}>
+                          {d.type === 'error'   ? '✕' :
+                           d.type === 'warning' ? '⚠' :
+                                                  '✓'}
+                          {d.msg}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Hard-Stop: botón deshabilitado si hay errores críticos */}
                   <Button
                     onClick={() => setPreviewOpen(true)}
-                    disabled={submitting || designs.length === 0}
-                    className="w-full mt-4 bg-orange-500 hover:bg-orange-600 h-11 text-base"
+                    disabled={submitting || designs.length === 0 || !canSubmit()}
+                    className={`w-full mt-4 h-11 text-base ${
+                      canSubmit()
+                        ? 'bg-orange-500 hover:bg-orange-600'
+                        : 'bg-slate-300 cursor-not-allowed'
+                    }`}
+                    title={!canSubmit()
+                      ? `No se puede confirmar: ${
+                          overlapping.size > 0
+                            ? `${overlapping.size} diseño${overlapping.size === 1 ? '' : 's'} solapado${overlapping.size === 1 ? '' : 's'}.`
+                            : 'Hay diseños con DPI < 150 (pixelados).'
+                        }`
+                      : undefined
+                    }
                   >
-                    <Eye className="h-4 w-4 mr-2" />Revisar y Confirmar
+                    {canSubmit()
+                      ? <><Eye className="h-4 w-4 mr-2" />Revisar y Confirmar</>
+                      : <><AlertTriangle className="h-4 w-4 mr-2" />Corrige los errores para confirmar</>
+                    }
                   </Button>
                 </>
               ) : (
