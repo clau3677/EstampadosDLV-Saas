@@ -32,6 +32,7 @@ import handleAuth         from '@/lib/api/auth';
 import handleContact      from '@/lib/api/contact';
 import handleImport       from '@/lib/api/import';
 import handleSettings     from '@/lib/api/settings';
+import handleMarketing    from '@/lib/api/marketing';
 import handlePayments     from '@/lib/api/payments';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
@@ -58,6 +59,7 @@ const HANDLERS = [
   handleUsers,
   handleWhatsapp,
   handleEmail,
+  handleMarketing,    // módulo Marketing: posts IA, Meta Ads, feed catálogo, métricas, reseñas
   handlePrePress,
   handleAgent,
   handleReports,
