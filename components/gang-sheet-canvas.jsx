@@ -25,15 +25,15 @@ export default function GangSheetCanvas() {
   const [containerW, setContainerW] = useState(800);
 
   const store = useGangSheet();
-  const { canvasWidthMm, designs, selectedId, select, updateDesign, computedLengthMm, designWarnings } = store;
+  const { canvasWidthMm, designs, selectedId, selectedIds, select, updateDesign, computedLengthMm, designWarnings, zoom, snapEnabled, snapGridMm } = store;
   const canvasLengthMm = computedLengthMm();
 
-  // ---- Escala: se ajusta al ancho disponible; si el pliego es más alto que MAX_H, aparece scroll ----
+  // ---- Escala: se ajusta al ancho disponible; el zoom del usuario multiplica ----
   const availW = Math.max(400, containerW - 24);
   const scaleX = (availW - RULER_W - 20) / canvasWidthMm;
   const scaleYFit = (MAX_H - RULER_H - 20) / canvasLengthMm;
-  // Priorizar escalado horizontal para llenar el ancho; permitir scroll vertical si es necesario
-  const scale = Math.min(Math.max(scaleX, MIN_SCALE), 3);
+  const baseScale = Math.min(Math.max(scaleX, MIN_SCALE), 3);
+  const scale = baseScale * (zoom || 1);
   const stageW = RULER_W + canvasWidthMm * scale + 10;
   const stageH = RULER_H + canvasLengthMm * scale + 10;
   const offX = RULER_W;
@@ -68,6 +68,8 @@ export default function GangSheetCanvas() {
     const transformer = new Konva.Transformer({
       keepRatio: true,
       rotateEnabled: true,
+      rotationSnaps: [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345],
+      rotationSnapTolerance: 5,
       enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
       borderStroke: '#f97316',
       anchorStroke: '#f97316',
@@ -83,6 +85,15 @@ export default function GangSheetCanvas() {
       if (e.target === stage || e.target.attrs.__isBg) {
         useGangSheet.getState().select(null);
       }
+    });
+
+    // (H) Zoom con Ctrl+wheel
+    stage.on('wheel', (e) => {
+      if (!e.evt.ctrlKey && !e.evt.metaKey) return;
+      e.evt.preventDefault();
+      const delta = e.evt.deltaY;
+      if (delta < 0) useGangSheet.getState().zoomIn();
+      else useGangSheet.getState().zoomOut();
     });
 
     return () => {
@@ -165,12 +176,25 @@ export default function GangSheetCanvas() {
       }
     }
 
+    // Detectar solapamientos (D) — se recalculan en cada render de la layer
+    const overlapping = useGangSheet.getState().detectOverlaps();
+
     // Crear o actualizar
     for (const d of designs) {
       let entry = nodesRef.current.get(d.id);
       const warns = designWarnings(d);
       const hasErr = warns.some(w => w.type === 'off_canvas');
       const hasLow = warns.some(w => w.type === 'low_dpi');
+      const hasOverlap = overlapping.has(d.id);
+      // Prioridad de colores: overlap > off_canvas > low_dpi > normal
+      const strokeColor = hasOverlap ? '#dc2626'
+                        : hasErr     ? '#ef4444'
+                        : hasLow     ? '#f59e0b'
+                        : '#f97316';
+      const dashPattern = hasOverlap ? [6, 3]
+                        : hasErr     ? [4, 4]
+                        : hasLow     ? [3, 3]
+                        : [];
 
       if (!entry) {
         // Nuevo grupo
@@ -188,14 +212,17 @@ export default function GangSheetCanvas() {
           x: image.x(), y: image.y(),
           width: image.width(), height: image.height(),
           rotation: d.rotation,
-          stroke: hasErr ? '#ef4444' : hasLow ? '#f59e0b' : '#f97316',
+          stroke: strokeColor,
           strokeWidth: 2,
-          dash: hasErr ? [4,4] : hasLow ? [3,3] : [],
+          dash: dashPattern,
           listening: false,
           visible: false,
         });
 
-        image.on('mousedown touchstart', () => useGangSheet.getState().select(d.id));
+        image.on('mousedown touchstart', (e) => {
+          const additive = e.evt?.ctrlKey || e.evt?.metaKey || e.evt?.shiftKey;
+          useGangSheet.getState().select(d.id, additive ? 'toggle' : 'replace');
+        });
 
         image.on('dragmove', () => {
           rect.position({ x: image.x(), y: image.y() });
@@ -203,8 +230,18 @@ export default function GangSheetCanvas() {
         });
 
         image.on('dragend', () => {
-          const newX = Math.round((image.x() - offX) / scale);
-          const newY = Math.round((image.y() - offY) / scale);
+          let newX = Math.round((image.x() - offX) / scale);
+          let newY = Math.round((image.y() - offY) / scale);
+          // (G) Snap to grid on drop
+          const s = useGangSheet.getState();
+          if (s.snapEnabled && s.snapGridMm > 0) {
+            newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
+            newY = Math.round(newY / s.snapGridMm) * s.snapGridMm;
+            // Reflejar snap visual inmediatamente
+            image.x(offX + newX * scale);
+            image.y(offY + newY * scale);
+            rect.position({ x: image.x(), y: image.y() });
+          }
           useGangSheet.getState().updateDesign(d.id, { xMm: newX, yMm: newY });
         });
 
@@ -215,9 +252,16 @@ export default function GangSheetCanvas() {
           image.scaleY(1);
           const newW = Math.max(5, Math.round((image.width() * sX) / scale));
           const newH = Math.max(5, Math.round((image.height() * sY) / scale));
+          const s = useGangSheet.getState();
+          let newX = Math.round((image.x() - offX) / scale);
+          let newY = Math.round((image.y() - offY) / scale);
+          if (s.snapEnabled && s.snapGridMm > 0) {
+            newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
+            newY = Math.round(newY / s.snapGridMm) * s.snapGridMm;
+          }
           useGangSheet.getState().updateDesign(d.id, {
-            xMm: Math.round((image.x() - offX) / scale),
-            yMm: Math.round((image.y() - offY) / scale),
+            xMm: newX,
+            yMm: newY,
             widthMm: newW,
             heightMm: newH,
             rotation: image.rotation(),
@@ -242,26 +286,30 @@ export default function GangSheetCanvas() {
         entry.rect.width(entry.image.width());
         entry.rect.height(entry.image.height());
         entry.rect.rotation(d.rotation);
-        entry.rect.stroke(hasErr ? '#ef4444' : hasLow ? '#f59e0b' : '#f97316');
-        entry.rect.dash(hasErr ? [4,4] : hasLow ? [3,3] : []);
+        entry.rect.stroke(strokeColor);
+        entry.rect.dash(dashPattern);
       }
 
-      // Mostrar borde si seleccionado, error o low DPI
-      entry.rect.visible(selectedId === d.id || hasErr || hasLow);
+      // Mostrar borde si seleccionado (multi), error, low DPI o solapamiento
+      const isSelected = selectedIds?.includes(d.id) || selectedId === d.id;
+      entry.rect.visible(isSelected || hasErr || hasLow || hasOverlap);
     }
 
     // Traer el Transformer al frente
     if (transformerRef.current) transformerRef.current.moveToTop();
 
-    // Configurar transformer con el nodo seleccionado
+    // Configurar transformer con TODOS los nodos seleccionados (E: multi-select)
     const tr = transformerRef.current;
     if (tr) {
-      const selEntry = selectedId ? nodesRef.current.get(selectedId) : null;
-      tr.nodes(selEntry ? [selEntry.image] : []);
+      const selEntries = (selectedIds && selectedIds.length > 0
+        ? selectedIds.map(id => nodesRef.current.get(id)).filter(Boolean)
+        : selectedId ? [nodesRef.current.get(selectedId)].filter(Boolean) : []
+      );
+      tr.nodes(selEntries.map(e => e.image));
     }
 
     layer.batchDraw();
-  }, [designs, selectedId, scale, offX, offY, canvasWidthMm, canvasLengthMm, designWarnings]);
+  }, [designs, selectedId, selectedIds, scale, offX, offY, canvasWidthMm, canvasLengthMm, designWarnings]);
 
   return (
     <div className="relative w-full bg-white rounded-xl border border-slate-200 shadow-sm">

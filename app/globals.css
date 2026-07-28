@@ -139,3 +139,20 @@ code {
     @apply bg-background text-foreground;
     }
 }
+/* Gang Sheet Builder — Keyboard shortcut key styles */
+.kbd {
+  display: inline-block;
+  padding: 1px 4px;
+  min-width: 1.2rem;
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: #334155;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.2;
+  margin-right: 4px;
+  box-shadow: 0 1px 0 #e2e8f0;
+}
