@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Settings2, Plus, Trash2, Edit3, Loader2, Save,
-  Tag, Beaker, Ruler, Truck, Printer, Building2,
+  Tag, Beaker, Ruler, Truck, Printer, Building2, CreditCard,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ import {
 import { invalidateTaxonomyCache } from '@/components/taxonomy-select';
 import PrintersManager from '@/components/printers-manager';
 import CompanySettingsPanel from '@/components/company-settings-panel';
+import PaymentsStatusPanel from '@/components/payments-status-panel';
 
 const KINDS = [
   { key: 'product_category', label: 'Categorías', icon: Tag,    desc: 'Categorías de productos comerciales.',        color: 'from-orange-500 to-rose-500' },
@@ -168,7 +169,10 @@ export default function ConfiguracionPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-slate-100/60 flex-wrap h-auto">
           <TabsTrigger value="company" className="text-xs">
-            <Building2 className="h-3.5 w-3.5 mr-1.5" />Empresa & Pagos
+            <Building2 className="h-3.5 w-3.5 mr-1.5" />Empresa & Banco
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="text-xs">
+            <CreditCard className="h-3.5 w-3.5 mr-1.5" />Pasarelas de Pago
           </TabsTrigger>
           {KINDS.map(k => (
             <TabsTrigger key={k.key} value={k.key} className="text-xs">
@@ -182,6 +186,10 @@ export default function ConfiguracionPage() {
 
         <TabsContent value="company" className="mt-4">
           <CompanySettingsPanel />
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-4">
+          <PaymentsStatusPanel />
         </TabsContent>
 
         <TabsContent value="printers" className="mt-4">

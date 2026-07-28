@@ -127,10 +127,39 @@ const HOW_IT_WORKS = [
 ];
 
 const TESTIMONIALS = [
-  { name: 'Camila Rojas',  role: 'Emprendedora, tienda de ropa', rating: 5, text: 'La calidad DTF supera al vinilo cortado y a la sublimación. Mis clientes notan la diferencia y ya voy por mi 8vo pedido.' },
-  { name: 'Jorge Vera',    role: 'Agencia BTL',                  rating: 5, text: 'Pedí gang sheet de 5m para un evento corporativo. Llegó en 36h, colores perfectos. 100% recomendado.' },
-  { name: 'María Luisa T.',role: 'Diseñadora textil',            rating: 5, text: 'Ellos me asesoraron con el arte, subieron el DPI de mis diseños y ajustaron márgenes gratis. Servicio 10/10.' },
+  { name: 'Camila Rojas',     role: 'Emprendedora, tienda de ropa',         rating: 5, short: 'La calidad supera al vinilo. Voy por mi 8vo pedido.',                     text: 'La calidad DTF supera al vinilo cortado y a la sublimación. Mis clientes notan la diferencia y ya voy por mi 8vo pedido.' },
+  { name: 'Jorge Vera',       role: 'Agencia BTL, Santiago',                rating: 5, short: 'Gang sheet de 5m en 36h. Colores perfectos.',                             text: 'Pedí gang sheet de 5m para un evento corporativo. Llegó en 36h, colores perfectos. 100% recomendado.' },
+  { name: 'María Luisa T.',   role: 'Diseñadora textil',                    rating: 5, short: 'Me asesoraron con el arte y subieron el DPI gratis.',                     text: 'Ellos me asesoraron con el arte, subieron el DPI de mis diseños y ajustaron márgenes gratis. Servicio 10/10.' },
+  { name: 'Francisco Núñez',  role: 'Constructora, Quilpué',                rating: 5, short: 'Uniformes de la empresa impecables tras 6 meses.',                         text: 'Encargué 40 poleras con logo bordado y estampado DTF. Tras 6 meses de uso diario en obra siguen impecables. Volveré a comprar.' },
+  { name: 'Paula Contreras',  role: 'Tienda urban Valparaíso',              rating: 5, short: 'Colores vibrantes en algodón oscuro, sin agrietarse.',                     text: 'Mando lotes de 30-50 poleras semanales. Los colores en algodón negro salen vibrantes y no se agrietan al lavado. Excelente.' },
+  { name: 'Diego S.',         role: 'Merchandising evento deportivo',       rating: 5, short: 'Despacho en 24h para un partido. Salvaron la campaña.',                    text: 'Necesitaba 200 poleras impresas para un partido de la selección. Me despacharon en 24h y el estampado quedó bacán. Salvaron la campaña.' },
+  { name: 'Antonia L.',       role: 'Escuela de fútbol infantil',           rating: 5, short: 'Los papás quedan felices con la calidad y precio.',                        text: 'Cada temporada renuevo las poleras del club. Los papás quedan felices con la calidad y el precio es imbatible. Ya somos clientes fieles.' },
+  { name: 'Rodrigo Muñoz',    role: 'Diseñador freelance',                  rating: 5, short: 'Preview antes de imprimir salva miles de errores.',                        text: 'El preview antes de imprimir me ha salvado de errores costosos varias veces. El editor detecta baja resolución antes de que sea tarde. Increíble.' },
+  { name: 'Karla V.',         role: 'Emprendedora, línea de merch',         rating: 5, short: 'Sin mínimo de compra: probé 3 diseños distintos.',                          text: 'Que no exijan mínimo me permitió probar 3 diseños con 5 unidades c/u antes de escalar. Gracias por confiar en los que recién parten.' },
+  { name: 'Tomás H.',         role: 'Agencia creativa Viña del Mar',        rating: 5, short: 'Colores idénticos al proof. Corporativo satisfecho.',                      text: 'Corrimos un evento corporativo con 300 piezas. Los colores calzaron exactamente con el proof digital que aprobó el cliente. Se los recomendé a 3 agencias más.' },
+  { name: 'Bárbara Fuentes',  role: 'Regalos personalizados',               rating: 5, short: 'Perfectos para regalos únicos, incluso 1 sola pieza.',                     text: 'Uso el servicio para regalos personalizados: totes, gorros, poleras. La flexibilidad de imprimir desde 1 unidad me permite ofrecerle a cada cliente algo único.' },
+  { name: 'Iván R.',          role: 'Uniformes ferretería industrial',      rating: 5, short: 'Ignífugas + estampado sin perder propiedades.',                             text: 'Necesitaba estampar sobre prendas ignífugas sin perder sus propiedades. Nadie más se animaba con eso. Aquí sí lo hicieron bien.' },
 ];
+
+/**
+ * Devuelve un testimonio determinístico según el slug de la landing.
+ * Mismo slug → siempre el mismo testimonio (evita mismatch SSR/CSR).
+ * Diferentes slugs → distribuye distintos testimonios entre landings.
+ */
+function pickTestimonial(slug = '') {
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) {
+    hash = ((hash << 5) - hash) + slug.charCodeAt(i);
+    hash |= 0; // Convertir a 32-bit int
+  }
+  const idx = Math.abs(hash) % TESTIMONIALS.length;
+  return TESTIMONIALS[idx];
+}
+
+function initials(name = '') {
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+}
 
 const FAQS = [
   { q: '¿Qué es la impresión DTF y por qué es mejor?',
@@ -215,6 +244,11 @@ export default async function LandingPage({ params }) {
 
   const paragraphs = (landing.body || '').split(/\n{2,}/).filter(Boolean);
   const cityLabel = landing.location?.city || 'Chile';
+
+  // Selecciona un testimonio de forma determinística según el slug de la landing.
+  // → Misma landing siempre muestra el mismo testimonio (consistente y SEO estable).
+  // → Distintas landings muestran distintos testimonios (variedad natural entre productos).
+  const heroTestimonial = pickTestimonial(landing.slug || slug);
 
   // Determinar destino del CTA principal:
   // - Si la landing es de un producto específico → llevar al detalle del producto (para agregar al carrito)
@@ -332,11 +366,11 @@ export default async function LandingPage({ params }) {
                 {/* Overlay gradient para legibilidad */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 via-transparent" />
 
-                {/* Testimonial flotante */}
+                {/* Testimonial flotante (rotativo determinístico por slug de landing) */}
                 <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-white/95 backdrop-blur p-4 shadow-xl">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm">
-                      CR
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                      {initials(heroTestimonial.name)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
@@ -345,9 +379,11 @@ export default async function LandingPage({ params }) {
                         ))}
                       </div>
                       <p className="text-xs text-slate-900 line-clamp-2 mt-0.5">
-                        “La calidad supera al vinilo. Voy por mi 8vo pedido.”
+                        “{heroTestimonial.short || heroTestimonial.text}”
                       </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">— Camila R., emprendedora</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        — {heroTestimonial.name}, {heroTestimonial.role}
+                      </p>
                     </div>
                   </div>
                 </div>
