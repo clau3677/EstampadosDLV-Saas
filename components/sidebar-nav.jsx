@@ -8,6 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X,
+  Library,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -64,6 +65,7 @@ const SECTIONS = [
     items: [
       { href: '/usuarios',      label: 'Usuarios / Cajeros', icon: Users },
       { href: '/landings',      label: 'Landings SEO',       icon: Globe },
+      { href: '/admin/design-library', label: 'Biblioteca GSB',      icon: Library },
       { href: '/configuracion', label: 'Configuración',      icon: Settings2 },
     ],
   },
