@@ -62,15 +62,24 @@ const nextConfig = {
     pagesBufferLength: 2,
   },
   async headers() {
+    // Seguridad endurecida (auditoría jul-2026):
+    //  - SAMEORIGIN / frame-ancestors 'self' → bloquea clickjacking sobre POS y admin.
+    //  - CORS restringido al dominio propio salvo override explícito por env CORS_ORIGINS.
+    //  - Permissions-Policy → deshabilita APIs del navegador no utilizadas.
+    // Para entornos de preview que necesiten iframe, definir ALLOW_IFRAME_EMBED=true.
+    const allowEmbed = process.env.ALLOW_IFRAME_EMBED === 'true';
+    const corsOrigins = process.env.CORS_ORIGINS
+      || 'https://estampadosdlv.com,https://www.estampadosdlv.com';
     return [
       {
         source: "/(.*)",
         headers: [
-          { key: "X-Frame-Options", value: "ALLOWALL" },
-          { key: "Content-Security-Policy", value: "frame-ancestors *;" },
-          { key: "Access-Control-Allow-Origin", value: process.env.CORS_ORIGINS || "*" },
+          { key: "X-Frame-Options", value: allowEmbed ? "ALLOWALL" : "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: allowEmbed ? "frame-ancestors *;" : "frame-ancestors 'self';" },
+          { key: "Access-Control-Allow-Origin", value: corsOrigins },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, DELETE, OPTIONS" },
-          { key: "Access-Control-Allow-Headers", value: "*" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
         ],
       },
     ];

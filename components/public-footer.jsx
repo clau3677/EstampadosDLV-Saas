@@ -1,6 +1,22 @@
 import Link from 'next/link';
-import { Printer, Mail, MapPin, Phone } from 'lucide-react';
+import { Printer, Mail, MapPin, Phone, Facebook, Instagram, Star, MessageCircle } from 'lucide-react';
 import { BUSINESS } from '@/lib/constants/business';
+
+// Icono de TikTok (lucide no lo incluye) — path oficial simple.
+function TikTokIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  );
+}
+
+const SOCIAL_LINKS = [
+  { href: BUSINESS.social?.facebook,  label: 'Facebook',  Icon: Facebook },
+  { href: BUSINESS.social?.instagram, label: 'Instagram', Icon: Instagram },
+  { href: BUSINESS.social?.tiktok,    label: 'TikTok',    Icon: TikTokIcon },
+  { href: BUSINESS.whatsapp?.plainUrl, label: 'WhatsApp', Icon: MessageCircle },
+].filter(s => !!s.href);
 
 export function PublicFooter() {
   return (
@@ -20,6 +36,38 @@ export function PublicFooter() {
             Impresión DTF profesional en Chile. Tres líneas de producción activas,
             entrega express disponible.
           </p>
+
+          {/* Redes sociales (auditoría jul-2026) */}
+          <div className="mt-4">
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Síguenos</div>
+            <div className="flex items-center gap-2">
+              {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${BUSINESS.name} en ${label}`}
+                  className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-white hover:bg-gradient-to-br hover:from-orange-500 hover:to-rose-500 hover:border-transparent transition-colors"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA de reseñas */}
+          {BUSINESS.reviews?.google && (
+            <a
+              href={BUSINESS.reviews.google}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700"
+            >
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              ¿Te gustó tu pedido? Déjanos una reseña en Google
+            </a>
+          )}
         </div>
 
         <div>
