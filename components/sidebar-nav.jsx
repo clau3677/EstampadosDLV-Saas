@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X,
-  Library,
+  Library, Megaphone,
 } from 'lucide-react';
 
 const SECTIONS = [
@@ -54,10 +54,11 @@ const SECTIONS = [
   {
     label: 'Automatización',
     items: [
-      { href: '/agente',   label: 'Agente IA',   icon: Sparkles,      badge: 'MiniMax' },
-      { href: '/bandeja',  label: 'Bandeja',     icon: MessageSquare },
-      { href: '/whatsapp', label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
-      { href: '/emails',   label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
+      { href: '/agente',    label: 'Agente IA',   icon: Sparkles,      badge: 'MiniMax' },
+      { href: '/bandeja',   label: 'Bandeja',     icon: MessageSquare },
+      { href: '/whatsapp',  label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
+      { href: '/emails',    label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
+      { href: '/marketing', label: 'Marketing',   icon: Megaphone,     badge: 'Meta' },
     ],
   },
   {
