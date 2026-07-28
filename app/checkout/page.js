@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -17,11 +17,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart, cartSubtotal } from '@/lib/cart-store';
 import { formatCLP, validateRut, formatRut } from '@/lib/format';
 
-const PAYMENT_METHODS = [
-  { key: 'transfer',    label: 'Transferencia Bancaria', icon: Wallet,     desc: 'Enviamos los datos al confirmar', enabled: true },
-  { key: 'cash',        label: 'Efectivo al retirar',    icon: Banknote,   desc: 'Solo con retiro en local',        enabled: true },
-  { key: 'webpay',      label: 'WebPay Plus',            icon: CreditCard, desc: 'Próximamente',                    enabled: false },
-  { key: 'mercadopago', label: 'MercadoPago',            icon: CreditCard, desc: 'Próximamente',                    enabled: false },
+// Métodos de pago disponibles.
+// El campo `enabled` se sobreescribe dinámicamente en useEffect según /api/payments/status.
+const BASE_PAYMENT_METHODS = [
+  { key: 'transfer',    label: 'Transferencia Bancaria', icon: Wallet,     desc: 'Enviamos los datos al confirmar',   enabled: true },
+  { key: 'cash',        label: 'Efectivo al retirar',    icon: Banknote,   desc: 'Solo con retiro en local',          enabled: true },
+  { key: 'webpay',      label: 'WebPay Plus',            icon: CreditCard, desc: 'Cargando…',                          enabled: false },
+  { key: 'mercadopago', label: 'MercadoPago',            icon: CreditCard, desc: 'Cargando…',                          enabled: false },
 ];
 
 export default function CheckoutPage() {
@@ -35,6 +37,36 @@ export default function CheckoutPage() {
   const [shippingAddress, setShippingAddress] = useState({ street: '', comuna: '', city: '', region: 'RM' });
   const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [notes, setNotes] = useState('');
+  const [paymentMethods, setPaymentMethods] = useState(BASE_PAYMENT_METHODS);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+
+  // Detectar dinámicamente qué pasarelas están configuradas.
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/payments/status', { cache: 'no-store' });
+        if (!r.ok) return;
+        const st = await r.json();
+        setPaymentStatus(st);
+        setPaymentMethods(BASE_PAYMENT_METHODS.map(m => {
+          if (m.key === 'webpay') {
+            const enabled = !!st.webpay?.enabled;
+            const mode = st.webpay?.mode === 'production' ? 'Pago con tarjeta seguro'
+                       : 'Pago con tarjeta (Sandbox — solo pruebas)';
+            return { ...m, enabled, desc: enabled ? mode : 'No disponible' };
+          }
+          if (m.key === 'mercadopago') {
+            const enabled = !!st.mercadopago?.enabled;
+            const mode = st.mercadopago?.mode === 'production' ? 'Tarjetas + billeteras'
+                       : st.mercadopago?.mode === 'sandbox' ? 'Tarjetas + billeteras (Sandbox)'
+                       : 'No disponible';
+            return { ...m, enabled, desc: enabled ? mode : 'No configurado' };
+          }
+          return m;
+        }));
+      } catch { /* silent */ }
+    })();
+  }, []);
 
   const subtotal = cartSubtotal(items);
   const shipping = deliveryMethod === 'shipping' ? 3990 : 0;
@@ -66,7 +98,7 @@ export default function CheckoutPage() {
     if (paymentMethod === 'cash' && deliveryMethod !== 'pickup') {
       return toast.error('Efectivo solo disponible con retiro en local');
     }
-    const method = PAYMENT_METHODS.find(m => m.key === paymentMethod);
+    const method = paymentMethods.find(m => m.key === paymentMethod);
     if (!method || method.enabled === false) {
       return toast.error('Método de pago no disponible aún');
     }
@@ -88,10 +120,43 @@ export default function CheckoutPage() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error);
 
+      const orderNumber = data.orderNumber;
+
+      // ---- Flujo específico según pasarela ----
+      if (paymentMethod === 'webpay') {
+        // Iniciar transacción WebPay Plus y redirigir a Transbank
+        toast.loading('Redirigiendo a WebPay…', { id: 'pay-redirect' });
+        const wr = await fetch('/api/payments/webpay/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber }),
+        });
+        const wd = await wr.json();
+        if (!wr.ok) throw new Error(wd.error || 'Error iniciando WebPay');
+        clear();
+        window.location.href = wd.redirectUrl;
+        return;
+      }
+      if (paymentMethod === 'mercadopago') {
+        // Crear preferencia MP y redirigir a Checkout Pro
+        toast.loading('Redirigiendo a MercadoPago…', { id: 'pay-redirect' });
+        const mr = await fetch('/api/payments/mercadopago/create-preference', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber }),
+        });
+        const md = await mr.json();
+        if (!mr.ok) throw new Error(md.error || 'Error iniciando MercadoPago');
+        clear();
+        window.location.href = md.redirectUrl;
+        return;
+      }
+
+      // transfer / cash → flujo tradicional
       clear();
-      router.push(`/checkout/gracias?order=${data.orderNumber}`);
+      router.push(`/checkout/gracias?order=${orderNumber}`);
     } catch (e) {
-      toast.error('Error al crear pedido', { description: e.message });
+      toast.error('Error al procesar el pedido', { description: e.message });
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +263,7 @@ export default function CheckoutPage() {
             <CardContent className="p-6">
               <h2 className="font-bold text-slate-900 mb-4">Método de pago</h2>
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PAYMENT_METHODS.map((m) => {
+                {paymentMethods.map((m) => {
                   const disabled = m.enabled === false;
                   return (
                     <label
@@ -216,7 +281,7 @@ export default function CheckoutPage() {
                         <div className="flex items-center gap-2">
                           <m.icon className="h-4 w-4 text-slate-500" />
                           <span className="font-semibold text-sm">{m.label}</span>
-                          {disabled && <span className="text-[10px] rounded-full bg-slate-200 text-slate-700 px-1.5 py-0.5 font-semibold uppercase tracking-wider">Próximo release</span>}
+                          {disabled && <span className="text-[10px] rounded-full bg-slate-200 text-slate-700 px-1.5 py-0.5 font-semibold uppercase tracking-wider">No disponible</span>}
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">{m.desc}</p>
                       </div>
@@ -225,7 +290,10 @@ export default function CheckoutPage() {
                 })}
               </RadioGroup>
               <div className="mt-3 text-[11px] text-slate-500 italic">
-                Actualmente aceptamos <b>transferencia bancaria</b> (te mostraremos los datos al confirmar) y <b>efectivo al retirar</b>. WebPay Plus y MercadoPago se habilitarán próximamente.
+                {paymentStatus?.webpay?.enabled || paymentStatus?.mercadopago?.enabled
+                  ? <>Ahora también aceptamos <b>pago con tarjeta</b> en línea. Con transferencia enviamos los datos al confirmar; con retiro en local puedes pagar en <b>efectivo</b>.</>
+                  : <>Actualmente aceptamos <b>transferencia bancaria</b> (te mostraremos los datos al confirmar) y <b>efectivo al retirar</b>. WebPay Plus y MercadoPago se habilitarán próximamente.</>
+                }
               </div>
             </CardContent>
           </Card>
