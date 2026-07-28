@@ -36,6 +36,7 @@ import handleMarketing    from '@/lib/api/marketing';
 import handlePayments     from '@/lib/api/payments';
 import handleDesignLib    from '@/lib/api/design-library';
 import handleDrive        from '@/lib/api/drive';
+import handleThumbnails     from '@/lib/api/thumbnails';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -69,6 +70,7 @@ const HANDLERS = [
   handleReports,
   handleMaintenance,
   handleSeed,         // pesado, poco frecuente
+  handleThumbnails,   // thumbnails on-demand para la biblioteca
 ];
 
 export async function OPTIONS() {
