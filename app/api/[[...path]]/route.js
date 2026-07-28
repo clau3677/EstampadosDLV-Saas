@@ -33,6 +33,7 @@ import handleContact      from '@/lib/api/contact';
 import handleImport       from '@/lib/api/import';
 import handleSettings     from '@/lib/api/settings';
 import handlePayments     from '@/lib/api/payments';
+import handleDesignLib    from '@/lib/api/design-library';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
 // usados para tener latencia consistente en producción.
@@ -41,6 +42,7 @@ const HANDLERS = [
   handleContact,      // public contact form
   handleSettings,     // company/bank info (public read + admin write)
   handlePayments,     // WebPay + MercadoPago gateway endpoints
+  handleDesignLib,    // biblioteca de plantillas de diseño para el Gang Sheet Builder
   handleImport,       // supplier catalog imports (cottonext)
   handleDashboard,
   handleProducts,
