@@ -18,7 +18,7 @@ import Image from 'next/image';
 import {
   MapPin, Sparkles, CheckCircle2, ArrowRight, Layers, Award, Truck, Zap,
   Star, Palette, Send, Package, ShieldCheck, Clock, Heart, MessageCircle,
-  Upload, Wallet,
+  Upload, Wallet, ShoppingBag,
 } from 'lucide-react';
 import { getDb } from '@/lib/mongo';
 import { COLLECTIONS, strip } from '@/lib/models';
@@ -216,6 +216,22 @@ export default async function LandingPage({ params }) {
   const paragraphs = (landing.body || '').split(/\n{2,}/).filter(Boolean);
   const cityLabel = landing.location?.city || 'Chile';
 
+  // Determinar destino del CTA principal:
+  // - Si la landing es de un producto específico → llevar al detalle del producto (para agregar al carrito)
+  // - Si la landing es de servicio (DTF textil, DTF UV, etc.) → llevar al Gang Sheet Builder
+  const primaryProduct = landing.productId
+    ? featured.find(p => p.id === landing.productId)
+    : null;
+  const primaryCtaHref = primaryProduct
+    ? `/producto/${primaryProduct.slug}`
+    : '/gang-sheet';
+
+  // Mensaje pre-llenado para WhatsApp (personalizado al producto si aplica)
+  const waMessage = primaryProduct
+    ? `Hola, quiero cotizar el producto "${primaryProduct.name}". Vi la landing en ${slug}.`
+    : `Hola, vi el servicio "${landing.h1}" y me gustaría más información.`;
+  const waHref = `https://wa.me/56954169052?text=${encodeURIComponent(waMessage)}`;
+
   return (
     <>
       <script
@@ -270,10 +286,12 @@ export default async function LandingPage({ params }) {
               {/* CTAs */}
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/gang-sheet"
+                  href={primaryCtaHref}
                   className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold px-6 py-3 shadow-lg shadow-orange-500/25 transition-all hover:scale-105"
                 >
-                  <Layers className="h-4 w-4" />{landing.ctaText || 'Cotiza tu diseño'}
+                  {primaryProduct
+                    ? <><ShoppingBag className="h-4 w-4" />{landing.ctaText || 'Comprar ahora'}</>
+                    : <><Layers className="h-4 w-4" />{landing.ctaText || 'Cotiza tu diseño'}</>}
                 </Link>
                 <Link
                   href="/tienda"
@@ -281,6 +299,15 @@ export default async function LandingPage({ params }) {
                 >
                   Ver catálogo <ArrowRight className="h-4 w-4" />
                 </Link>
+                {/* WhatsApp: prefiere abrir en app WhatsApp del móvil */}
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#25D366] hover:bg-[#20b858] text-white font-semibold px-6 py-3 shadow-lg shadow-emerald-500/25 transition-all hover:scale-105"
+                >
+                  <MessageCircle className="h-4 w-4" />WhatsApp
+                </a>
               </div>
 
               {/* Micro-benefits inline */}
@@ -334,7 +361,7 @@ export default async function LandingPage({ params }) {
                   </div>
                   <div>
                     <div className="text-xs text-slate-500">Garantía</div>
-                    <div className="text-sm font-bold text-slate-900">100% reimpresión</div>
+                    <div className="text-sm font-bold text-slate-900">100%</div>
                   </div>
                 </div>
               </div>
@@ -564,13 +591,15 @@ export default async function LandingPage({ params }) {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
-                href="/gang-sheet"
+                href={primaryCtaHref}
                 className="inline-flex items-center gap-2 rounded-lg bg-white text-rose-600 hover:bg-white/95 font-bold px-8 py-4 shadow-xl transition-all hover:scale-105"
               >
-                <Layers className="h-5 w-5" />{landing.ctaText || 'Cotiza tu diseño ahora'}
+                {primaryProduct
+                  ? <><ShoppingBag className="h-5 w-5" />{landing.ctaText || 'Comprar ahora'}</>
+                  : <><Layers className="h-5 w-5" />{landing.ctaText || 'Cotiza tu diseño ahora'}</>}
               </Link>
               <a
-                href={BUSINESS.whatsapp.url()}
+                href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-4 shadow-xl transition-all hover:scale-105"

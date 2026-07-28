@@ -6123,3 +6123,62 @@ agent_communication:
       
       No blocking issues found. Ready for production use.
 
+
+---
+
+# 2026-07-28 · Bugfix: 3 mejoras en landing pública `/servicios/[slug]`
+
+## Bugs reportados por el usuario
+1. **Badge de garantía dice "Garantía 100% reimpresión"** — el usuario pidió que sólo diga "Garantía 100%" (quitar la palabra "reimpresión")
+2. **CTA "Comprar ahora" en landings de producto redirige a `/gang-sheet`** — el usuario espera que lleve al detalle del producto (para agregar al carrito), no al editor de gang sheets
+3. **No hay botón WhatsApp junto a "Ver catálogo"** — usuario pidió agregarlo con el número `+56954169052`
+
+## Cambios implementados
+
+### `/app/app/servicios/[slug]/page.js`
+
+- **Fix bug 1**: badge cambiado de `"100% reimpresión"` → `"100%"` (línea ~340).
+- **Fix bug 2**: nuevas variables derivadas:
+  - `primaryProduct` = `featured.find(p => p.id === landing.productId)`
+  - `primaryCtaHref` = `primaryProduct ? "/producto/${primaryProduct.slug}" : "/gang-sheet"`
+  - Aplicado a los 2 CTAs principales (hero + final CTA).
+  - Icono cambia dinámicamente: `ShoppingBag` para producto vs `Layers` para gang sheet.
+- **Fix bug 3**: nuevo botón `<a>` con `bg-[#25D366]` (verde WhatsApp) al lado de "Ver catálogo".
+  - `href` con `wa.me/56954169052?text=...` y mensaje pre-llenado contextual al producto/servicio.
+  - Mismo botón WhatsApp también reutilizado en el CTA final (reemplaza `BUSINESS.whatsapp.url()` para consistencia).
+- Import agregado: `ShoppingBag` desde lucide-react.
+
+## Verificación manual (main agent)
+- Lint pass ✅
+- Compilación limpia en dev ✅
+- La landing regenerada con prompt honesto sigue funcionando ✅
+
+frontend:
+  - task: "Landing pública bugfix: badge, CTA producto, botón WhatsApp"
+    implemented: true
+    working: true
+    file: "/app/app/servicios/[slug]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "3 bugs fixeados en el template de landing pública. Necesita verificación con testing agent."
+        -working: true
+        -agent: "testing"
+        -comment: "✅ PASS - All 3 bugfixes verified successfully (5/5 tests passed). Test URL: https://dtf-print-hub-2.preview.emergentagent.com/servicios/gorra-animal-malla-panther. BUG 1 (Badge Garantía): ✅ PASS - Badge correctly shows 'Garantía 100%' without 'reimpresión'. Verified that final CTA section still has '100% satisfacción o reimprimimos gratis' (correct, different element). BUG 2 (CTA button href): ✅ PASS - Main CTA button 'Comprar ahora' correctly points to /producto/gorra-animal-malla-panther-textilryu10102 (not /gang-sheet). BUG 2 (CTA navigation): ✅ PASS - Clicking 'Comprar ahora' successfully navigates to product page. BUG 3 (WhatsApp hero): ✅ PASS - Hero WhatsApp button exists with bg-[#25D366] color, href starts with https://wa.me/56954169052?text=, target='_blank', rel='noopener noreferrer'. BUG 3 (WhatsApp final CTA): ✅ PASS - Final CTA WhatsApp button exists with bg-emerald-500 color, href starts with https://wa.me/56954169052?text=. Screenshots captured: hero-with-3-ctas.png (shows all 3 CTAs + Garantía badge), click-comprar-goes-to-product.png (product page after navigation), whatsapp-button-hero.png (WhatsApp button in hero). Console logs: Only minor network errors (CDN/RUM, aborted API calls), no critical errors. All 3 bugfixes working correctly."
+
+test_plan:
+  current_focus:
+    - "Landing pública bugfix: badge, CTA producto, botón WhatsApp"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Bugfix de 3 issues en la landing pública: (1) badge 'Garantía' debe decir sólo '100%' (sin 'reimpresión'). (2) botón 'Comprar ahora' en landings de producto debe llevar a /producto/{slug} en vez de /gang-sheet. (3) nuevo botón verde WhatsApp junto a 'Ver catálogo' con enlace a wa.me/56954169052. Test URL: http://localhost:3000/servicios/gorra-animal-malla-panther (esta landing tiene productId asociado). Verificar los 3 bugs simultáneamente."
+    -agent: "testing"
+    -message: "✅ ALL 3 BUGFIXES VERIFIED - TESTING COMPLETE (28-ene-2026). Comprehensive E2E testing completed on landing pública /servicios/gorra-animal-malla-panther. RESULTS: 5/5 tests PASSED, 0 FAILED, 0 ERRORS. BUG 1 ✅: Badge 'Garantía' correctly shows only '100%' without 'reimpresión' (verified in floating stat card). Final CTA section correctly still has '100% satisfacción o reimprimimos gratis' (different element, should not be changed). BUG 2 ✅: Main CTA button 'Comprar ahora' correctly points to /producto/gorra-animal-malla-panther-textilryu10102 (not /gang-sheet). Navigation verified - clicking button successfully navigates to product page. BUG 3 ✅: Hero WhatsApp button exists with correct green color (bg-[#25D366]), href starts with https://wa.me/56954169052?text=, target='_blank', rel='noopener noreferrer'. Final CTA WhatsApp button also verified with bg-emerald-500 color and correct href. Screenshots captured: hero-with-3-ctas.png, click-comprar-goes-to-product.png, whatsapp-button-hero.png. Console logs clean (only minor CDN/RUM errors, not critical). All 3 bugfixes working correctly. Ready for production."
+
