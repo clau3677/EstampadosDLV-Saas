@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/cart-store';
 import { formatCLP } from '@/lib/format';
 import { BUSINESS } from '@/lib/constants/business';
+import ProductLandingAdminBar from '@/components/product-landing-admin-bar';
 
 const CATEGORY_LABELS = {
   dtf_meter:        'DTF por metro',
@@ -158,6 +159,11 @@ export default function ProductDetailPage() {
           <ChevronRight className="h-3 w-3 text-slate-400" />
           <span className="text-slate-500 truncate">{product.name}</span>
         </nav>
+      </div>
+
+      {/* Admin bar: sólo se pinta si el usuario logueado es admin (auto-detecta) */}
+      <div className="container pt-4">
+        <ProductLandingAdminBar product={product} />
       </div>
 
       {/* MAIN */}
