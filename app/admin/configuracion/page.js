@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Settings2, Plus, Trash2, Edit3, Loader2, Save,
-  Tag, Beaker, Ruler, Truck, Printer, Building2, CreditCard,
+  Tag, Beaker, Ruler, Truck, Printer, Building2, CreditCard, Percent,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,7 @@ import { invalidateTaxonomyCache } from '@/components/taxonomy-select';
 import PrintersManager from '@/components/printers-manager';
 import CompanySettingsPanel from '@/components/company-settings-panel';
 import PaymentsStatusPanel from '@/components/payments-status-panel';
+import PricingPanel from '@/components/pricing-panel';
 
 const KINDS = [
   { key: 'product_category', label: 'Categorías', icon: Tag,    desc: 'Categorías de productos comerciales.',        color: 'from-orange-500 to-rose-500' },
@@ -182,6 +183,9 @@ export default function ConfiguracionPage() {
           <TabsTrigger value="printers" className="text-xs">
             <Printer className="h-3.5 w-3.5 mr-1.5" />Equipos ({printersCount})
           </TabsTrigger>
+          <TabsTrigger value="pricing" className="text-xs">
+            <Percent className="h-3.5 w-3.5 mr-1.5" />Margen de Ganancia
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-4">
@@ -194,6 +198,10 @@ export default function ConfiguracionPage() {
 
         <TabsContent value="printers" className="mt-4">
           <PrintersManager onCountChange={setPrintersCount} />
+        </TabsContent>
+
+        <TabsContent value="pricing" className="mt-4">
+          <PricingPanel />
         </TabsContent>
 
         {KINDS.map(k => (

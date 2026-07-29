@@ -36,6 +36,7 @@ import handleMarketing    from '@/lib/api/marketing';
 import handlePayments     from '@/lib/api/payments';
 import handleDesignLib    from '@/lib/api/design-library';
 import handleDrive        from '@/lib/api/drive';
+import handlePricing      from '@/lib/api/pricing';
 import handleThumbnails     from '@/lib/api/thumbnails';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
@@ -70,6 +71,7 @@ const HANDLERS = [
   handleReports,
   handleMaintenance,
   handleSeed,         // pesado, poco frecuente
+  handlePricing,      // ajuste masivo de margen de ganancia por proveedor
   handleThumbnails,   // thumbnails on-demand para la biblioteca
 ];
 
