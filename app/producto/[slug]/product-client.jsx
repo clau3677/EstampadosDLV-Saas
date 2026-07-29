@@ -44,6 +44,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   const [product, setProduct] = useState(initialProduct);
   const [allProducts, setAllProducts] = useState(Array.isArray(initialProducts) ? initialProducts : []);
   const [stockMap, setStockMap] = useState({});
+  const [stockLoaded, setStockLoaded] = useState(false);
   const [stockInfo, setStockInfo] = useState(null); // { onDemand, supplierInStock, supplier } para la variante seleccionada
   const [loading, setLoading] = useState(!initialProduct);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -83,6 +84,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
           };
         });
         setStockMap(map);
+        setStockLoaded(true);
         // Inicializar info para la variante seleccionada
         const firstVariantId = p.variants?.[0]?.id || null;
         setStockInfo(infoMap[firstVariantId] || null);
@@ -133,8 +135,9 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   );
 
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId) || product.variants?.[0];
-  const stockAvailable = stockMap[selectedVariant?.id] ?? 0;
-  const outOfStock = stockAvailable <= 0;
+  // Mientras el stock no ha cargado, no mostrar "Sin stock" (evita flash de agotado)
+  const stockAvailable = stockLoaded ? (stockMap[selectedVariant?.id] ?? 0) : 1; // 1 = no agotado durante carga
+  const outOfStock = stockLoaded && stockAvailable <= 0;
   const price = selectedVariant?.price || product.basePrice;
 
   // Indicadores de proveedor (bajo pedido)
@@ -260,6 +263,14 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                 )}
               </div>
 
+              {!stockLoaded && (
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center">
+                  <div className="bg-white rounded-2xl px-6 py-4 text-center shadow-xl">
+                    <Loader2 className="h-6 w-6 mx-auto text-orange-500 animate-spin mb-2" />
+                    <div className="text-slate-600 text-sm font-medium">Cargando stock…</div>
+                  </div>
+                </div>
+              )}
               {outOfStock && (
                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
                   <div className="bg-white rounded-2xl px-6 py-4 text-center shadow-xl">
@@ -517,14 +528,23 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
               {/* Stock indicator */}
               <div className="flex items-center gap-2 text-xs">
-                <span className={`inline-flex h-2 w-2 rounded-full ${outOfStock ? 'bg-rose-500' : stockAvailable < 5 ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`} />
-                <span className={`font-semibold ${outOfStock ? 'text-rose-600' : stockAvailable < 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
-                  {outOfStock
-                    ? 'Sin stock disponible'
-                    : stockAvailable < 5
-                    ? `¡Últimas ${stockAvailable} unidades!`
-                    : `${stockAvailable} unidades disponibles · listo para despacho`}
-                </span>
+                {!stockLoaded ? (
+                  <>
+                    <Loader2 className="h-3 w-3 text-orange-500 animate-spin" />
+                    <span className="font-semibold text-slate-500">Verificando stock…</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`inline-flex h-2 w-2 rounded-full ${outOfStock ? 'bg-rose-500' : stockAvailable < 5 ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`} />
+                    <span className={`font-semibold ${outOfStock ? 'text-rose-600' : stockAvailable < 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      {outOfStock
+                        ? 'Sin stock disponible'
+                        : stockAvailable < 5
+                        ? `¡Últimas ${stockAvailable} unidades!`
+                        : `${stockAvailable} unidades disponibles · listo para despacho`}
+                    </span>
+                  </>
+                )}
               </div>
 
               {/* CTA principal */}
