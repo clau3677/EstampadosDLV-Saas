@@ -83,6 +83,26 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
     }
   }, [open, product]);
 
+  // Re-corregir variantes cuando el producto DTF antiguo no tiene widthCm/lengthCm
+  // pero sí es de categoría DTF: extraer dimensiones del nombre de la variante (ej: "28x10")
+  useEffect(() => {
+    if (!open || !product) return;
+    const dim = isDimensionProduct(form.category);
+    if (!dim) return;
+    setVariants(prev => prev.map(v => {
+      // Si ya tiene widthCm/lengthCm, dejarlo
+      if (v.widthCm || v.lengthCm) return v;
+      // Si es variante existente sin dimensiones en attributes, intentar extraer del nombre
+      if (v._existing && v.name) {
+        const match = v.name.match(/(\d+)[\s]*[×xX*][\s]*(\d+)/);
+        if (match) {
+          return { ...v, widthCm: match[1], lengthCm: match[2] };
+        }
+      }
+      return v;
+    }));
+  }, [open, form.category]);
+
   // Cuando cambia la categoría, reconstruir variantes si cambia el tipo
   useEffect(() => {
     if (!open || !product) return;

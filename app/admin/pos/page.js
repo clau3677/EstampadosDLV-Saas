@@ -689,10 +689,24 @@ export default function PosPage() {
     );
   }, [products, fSupplier, fCategory, fSubcategory, fBrand]);
 
-  // Colores disponibles considerando filtros superiores (y tallas si están fijadas)
+  // Helper: detectar si un producto usa variantes de dimensiones (DTF)
+  const hasDimensionVariants = (p) => {
+    const code = (p.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return (p.variants || []).some(v =>
+      v.attributes?.widthCm !== undefined || v.attributes?.lengthCm !== undefined
+    ) || ['dtftextil', 'dtfuv'].includes(code);
+  };
+
+  // Productos que usan talla/color (para los filtros de Color/Talla)
+  const productsWithSizeColor = useMemo(() =>
+    productsForVariantFilters.filter(p => !hasDimensionVariants(p)),
+    [productsForVariantFilters]
+  );
+
+  // Colores disponibles considerando filtros superiores (solo productos con talla/color)
   const colorOptions = useMemo(() => {
     const counts = {};
-    for (const p of productsForVariantFilters) {
+    for (const p of productsWithSizeColor) {
       for (const v of (p.variants || [])) {
         if (fSize !== 'all' && v.attributes?.size !== fSize) continue;
         const c = v.attributes?.color || 'estándar';
@@ -700,7 +714,7 @@ export default function PosPage() {
       }
     }
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [productsForVariantFilters, fSize]);
+  }, [productsWithSizeColor, fSize]);
 
   // Tallas disponibles con orden natural (XS, S, M, L, XL, XXL, 2XL, 3XL, luego numéricos, luego otros)
   const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL', 'única'];
@@ -714,7 +728,7 @@ export default function PosPage() {
   };
   const sizeOptions = useMemo(() => {
     const counts = {};
-    for (const p of productsForVariantFilters) {
+    for (const p of productsWithSizeColor) {
       for (const v of (p.variants || [])) {
         if (fColor !== 'all' && v.attributes?.color !== fColor) continue;
         const s = v.attributes?.size || 'única';
@@ -722,7 +736,7 @@ export default function PosPage() {
       }
     }
     return Object.entries(counts).sort((a, b) => sizeSortKey(a[0]).localeCompare(sizeSortKey(b[0])));
-  }, [productsForVariantFilters, fColor]);
+  }, [productsWithSizeColor, fColor]);
 
   // Reset cascada cuando el nivel superior cambia
   useEffect(() => {
@@ -761,11 +775,18 @@ export default function PosPage() {
       if (fCategory !== 'all' && p.category !== fCategory) return false;
       if (fSubcategory !== 'all' && p.subcategory !== fSubcategory) return false;
       if (fBrand !== 'all' && (p.supplierBrand || 'Sin marca') !== fBrand) return false;
-      // Color/size: al menos una variante debe cumplir el criterio
-      if (fColor !== 'all' && !p.variants?.some(v => v.attributes?.color === fColor
-          && (fSize === 'all' || v.attributes?.size === fSize))) return false;
-      if (fSize !== 'all' && !p.variants?.some(v => v.attributes?.size === fSize
-          && (fColor === 'all' || v.attributes?.color === fColor))) return false;
+      // Color/size: solo aplicar si el producto NO es DTF (sin dimensiones)
+      // Productos DTF no tienen size/color, así que no se filtran por esos criterios
+      const productIsDimension = hasDimensionVariants(p);
+      if (!productIsDimension) {
+        if (fColor !== 'all' && !p.variants?.some(v => v.attributes?.color === fColor
+            && (fSize === 'all' || v.attributes?.size === fSize))) return false;
+        if (fSize !== 'all' && !p.variants?.some(v => v.attributes?.size === fSize
+            && (fColor === 'all' || v.attributes?.color === fColor))) return false;
+      } else {
+        // Para DTF: si fColor o fSize no son 'all', excluir (no aplica a DTF)
+        if (fColor !== 'all' || fSize !== 'all') return false;
+      }
       if (onlyInStock && getProductStock(p) === 0) return false;
       // Búsqueda
       if (q) {
@@ -778,7 +799,9 @@ export default function PosPage() {
   }, [products, stockMap, search, fSupplier, fCategory, fSubcategory, fBrand, fColor, fSize, onlyInStock]);
 
   // Filtro a nivel VARIANTE: sólo mostrar variantes que cumplen color/size
+  // Productos DTF no tienen color/size, así que pasan siempre
   const variantPassesFilters = (v) => {
+    if (v.attributes?.widthCm !== undefined || v.attributes?.lengthCm !== undefined) return true;
     if (fColor !== 'all' && v.attributes?.color !== fColor) return false;
     if (fSize !== 'all' && v.attributes?.size !== fSize) return false;
     return true;
