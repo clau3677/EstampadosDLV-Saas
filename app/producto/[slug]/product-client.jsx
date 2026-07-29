@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   ShoppingBag, ChevronRight, Package, Loader2, Minus, Plus, Check, Info,
   Layers, Truck, Shield, Sparkles, Clock, MessageCircle, Palette, Award,
-  ArrowRight, Star,
+  ArrowRight, Star, Ruler,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -147,6 +147,11 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
   const sizes = [...new Set(product.variants?.map(v => v.attributes?.size).filter(Boolean))];
   const colors = [...new Set(product.variants?.map(v => v.attributes?.color).filter(Boolean))];
+
+  // Detectar si el producto tiene variantes de dimensiones (DTF)
+  const hasDimensionVariants = product.variants?.some(v =>
+    v.attributes?.widthCm !== undefined || v.attributes?.lengthCm !== undefined
+  );
 
   const findVariantBy = (size, color) => (
     product.variants?.find(v =>
@@ -399,6 +404,40 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                         >
                           {isSelected && <Check className="h-3.5 w-3.5" />}
                           {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Selector de variantes por dimensiones (DTF) */}
+              {hasDimensionVariants && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs font-bold uppercase tracking-widest text-slate-600">Tamaño</div>
+                    <div className="text-xs text-slate-500">
+                      {selectedVariant?.name && <>Seleccionado: <b>{selectedVariant.name}</b></>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(product.variants || []).map((v) => {
+                      const isSelected = v.id === selectedVariantId;
+                      const stock = stockMap[v.id] ?? 0;
+                      const noStock = stock <= 0;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => !noStock && setSelectedVariantId(v.id)}
+                          disabled={noStock}
+                          className={`
+                            min-w-[4.5rem] px-4 h-11 rounded-lg border-2 font-bold text-sm transition-all
+                            ${isSelected ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-rose-50 text-orange-700 shadow-sm' :
+                              noStock ? 'border-slate-100 text-slate-300 line-through cursor-not-allowed' :
+                              'border-slate-200 hover:border-slate-400 text-slate-700 bg-white'}
+                          `}
+                        >
+                          {v.name || `${v.attributes?.widthCm || '?'}×${v.attributes?.lengthCm || '?'}cm`}
                         </button>
                       );
                     })}

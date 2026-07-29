@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Save, Plus, Trash2, Star } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Star, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,43 +16,96 @@ import {
 } from '@/components/ui/select';
 import { TaxonomySelect } from '@/components/taxonomy-select';
 import { ProductImagesUpload } from '@/components/product-images-upload';
-import { formatCLP } from '@/lib/format';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const COMMON_COLORS = ['Negro', 'Blanco', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Naranjo'];
+
+// Detección de categoría DTF (igual que new-product-dialog)
+function normalizeCode(code) {
+  return (code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+const DIMENSION_CATEGORIES = ['dtftextil', 'dtfuv'];
+function isDimensionProduct(categoryCode) {
+  return DIMENSION_CATEGORIES.includes(normalizeCode(categoryCode));
+}
+
+// Variante vacía según tipo
+function emptyVariant(isDimension) {
+  return isDimension
+    ? { id: undefined, name: '', widthCm: '', lengthCm: '', price: '', _initialStock: 0, _existing: false }
+    : { id: undefined, name: '', size: '', color: '', price: '', _initialStock: 0, _existing: false };
+}
+
+// Convertir variante existente al formato de edición
+function variantToEditForm(v, productBasePrice, isDimension) {
+  if (isDimension) {
+    return {
+      id: v.id,
+      name: v.name || '',
+      widthCm: v.attributes?.widthCm || '',
+      lengthCm: v.attributes?.lengthCm || '',
+      price: v.price || productBasePrice || 0,
+      sku: v.sku || '',
+      _existing: true,
+    };
+  }
+  return {
+    id: v.id,
+    name: v.name || '',
+    size: v.attributes?.size || '',
+    color: v.attributes?.color || '',
+    price: v.price || productBasePrice || 0,
+    sku: v.sku || '',
+    _existing: true,
+  };
+}
 
 export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
   const [variants, setVariants] = useState([]);
 
+  // Detectar si es producto de dimensiones
+  const isDimension = isDimensionProduct(form.category);
+
   useEffect(() => {
     if (open && product) {
+      const dim = isDimensionProduct(product.category);
       setForm({
         name: product.name || '', sku: product.sku || '',
         category: product.category || '', subcategory: product.subcategory || '',
         description: product.description || '',
         basePrice: product.basePrice || 0, cost: product.cost || 0,
         images: product.images || [],
+        featured: !!product.featured,
       });
-      // Convertir variantes existentes al formato de edición
-      setVariants((product.variants || []).map(v => ({
-        id: v.id, // preservar id (evita borrar y recrear stock)
-        name: v.name || '',
-        size: v.attributes?.size || '',
-        color: v.attributes?.color || '',
-        price: v.price || product.basePrice || 0,
-        sku: v.sku || '',
-        _existing: true,
-      })));
+      setVariants((product.variants || []).map(v => variantToEditForm(v, product.basePrice, dim)));
     }
   }, [open, product]);
 
+  // Cuando cambia la categoría, reconstruir variantes si cambia el tipo
+  useEffect(() => {
+    if (!open || !product) return;
+    const newDim = isDimensionProduct(form.category);
+    setVariants(prev => {
+      const wasDim = prev.length > 0 && 'widthCm' in prev[0];
+      if (wasDim !== newDim && prev.length > 0) {
+        // Cambió el tipo: mapear lo que se pueda
+        return prev.map(v => {
+          if (newDim) {
+            return { ...v, size: undefined, color: undefined, widthCm: v.widthCm || '', lengthCm: v.lengthCm || '' };
+          } else {
+            return { ...v, widthCm: undefined, lengthCm: undefined, size: v.size || '', color: v.color || '' };
+          }
+        });
+      }
+      return prev;
+    });
+  }, [form.category, open, product]);
+
   const updateVariant = (i, patch) => setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   const removeVariant = (i) => setVariants((vs) => vs.filter((_, idx) => idx !== i));
-  const addVariant = () => setVariants((vs) => [...vs, {
-    id: undefined, name: '', size: '', color: '', price: form.basePrice || 0, sku: '', _initialStock: 0, _existing: false,
-  }]);
+  const addVariant = () => setVariants((vs) => [...vs, emptyVariant(isDimension)]);
 
   if (!product) return null;
 
@@ -62,9 +115,16 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
     try {
       const preparedVariants = variants.map(v => {
         const attrs = {};
-        if (v.size && v.size !== 'none') attrs.size = v.size;
-        if (v.color) attrs.color = v.color;
-        const label = v.name || [v.size, v.color].filter(Boolean).filter(x => x !== 'none').join(' / ') || 'Único';
+        if (isDimension) {
+          if (v.widthCm) attrs.widthCm = Number(v.widthCm) || 0;
+          if (v.lengthCm) attrs.lengthCm = Number(v.lengthCm) || 0;
+        } else {
+          if (v.size && v.size !== 'none') attrs.size = v.size;
+          if (v.color) attrs.color = v.color;
+        }
+        const label = v.name || (isDimension
+          ? `${v.widthCm || '?'}×${v.lengthCm || '?'}cm`
+          : [v.size, v.color].filter(Boolean).filter(x => x !== 'none').join(' / ') || 'Único');
         return {
           id: v.id,
           name: label,
@@ -170,7 +230,16 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Variantes ({variants.length})</div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Variantes ({variants.length})
+                </div>
+                {isDimension && (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                    <Ruler className="h-2.5 w-2.5" /> Ancho × Largo (cm)
+                  </span>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={addVariant}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Agregar variante
               </Button>
@@ -178,36 +247,95 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
             <div className="space-y-2">
               {variants.map((v, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 rounded-lg bg-slate-50 border border-slate-200">
+                  {/* Nombre variante */}
                   <div className="col-span-3">
-                    <Label className="text-[10px]">Talla</Label>
-                    <Select value={v.size || undefined} onValueChange={(size) => updateVariant(i, { size })}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">— sin talla</SelectItem>
-                        {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-[10px]">Nombre variante</Label>
+                    <Input
+                      className="h-9"
+                      placeholder={isDimension ? '31×50cm' : 'M / Negro'}
+                      value={v.name || ''}
+                      onChange={(e) => updateVariant(i, { name: e.target.value })}
+                    />
                   </div>
-                  <div className="col-span-3">
-                    <Label className="text-[10px]">Color</Label>
-                    <Input className="h-9" value={v.color} placeholder="Negro"
-                      onChange={(e) => updateVariant(i, { color: e.target.value })} list={`e-colors-${i}`} />
-                    <datalist id={`e-colors-${i}`}>{COMMON_COLORS.map(c => <option key={c} value={c} />)}</datalist>
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-[10px]">Precio (CLP)</Label>
-                    <Input type="number" className="h-9 font-mono" min="0" value={v.price}
-                      onChange={(e) => updateVariant(i, { price: e.target.value })} />
-                  </div>
-                  {!v._existing ? (
-                    <div className="col-span-2">
-                      <Label className="text-[10px]">Stock inicial</Label>
-                      <Input type="number" className="h-9 font-mono" min="0" value={v._initialStock || 0}
-                        onChange={(e) => updateVariant(i, { _initialStock: e.target.value })} />
-                    </div>
+
+                  {isDimension ? (
+                    <>
+                      {/* Ancho */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Ancho (cm)</Label>
+                        <Input
+                          type="number" min="1" max="60" className="h-9 font-mono"
+                          placeholder="31"
+                          value={v.widthCm || ''}
+                          onChange={(e) => updateVariant(i, { widthCm: e.target.value })}
+                        />
+                      </div>
+                      {/* Largo */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Largo (cm)</Label>
+                        <Input
+                          type="number" min="1" max="1000" className="h-9 font-mono"
+                          placeholder="50"
+                          value={v.lengthCm || ''}
+                          onChange={(e) => updateVariant(i, { lengthCm: e.target.value })}
+                        />
+                      </div>
+                      {/* Precio */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio (CLP)</Label>
+                        <Input type="number" className="h-9 font-mono" min="0" value={v.price || 0}
+                          onChange={(e) => updateVariant(i, { price: e.target.value })} />
+                      </div>
+                      {/* Stock */}
+                      {!v._existing ? (
+                        <div className="col-span-2">
+                          <Label className="text-[10px]">Stock inicial</Label>
+                          <Input type="number" className="h-9 font-mono" min="0" value={v._initialStock || 0}
+                            onChange={(e) => updateVariant(i, { _initialStock: e.target.value })} />
+                        </div>
+                      ) : (
+                        <div className="col-span-2 pb-1.5 text-[10px] text-slate-500 self-end">Stock existente</div>
+                      )}
+                    </>
                   ) : (
-                    <div className="col-span-2 pb-1.5 text-[10px] text-slate-500 self-end">Stock existente</div>
+                    <>
+                      {/* Talla */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Talla</Label>
+                        <Select value={v.size || undefined} onValueChange={(size) => updateVariant(i, { size })}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">— sin talla</SelectItem>
+                            {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Color */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Color</Label>
+                        <Input className="h-9" value={v.color || ''} placeholder="Negro"
+                          onChange={(e) => updateVariant(i, { color: e.target.value })} list={`e-colors-${i}`} />
+                        <datalist id={`e-colors-${i}`}>{COMMON_COLORS.map(c => <option key={c} value={c} />)}</datalist>
+                      </div>
+                      {/* Precio */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio (CLP)</Label>
+                        <Input type="number" className="h-9 font-mono" min="0" value={v.price || 0}
+                          onChange={(e) => updateVariant(i, { price: e.target.value })} />
+                      </div>
+                      {/* Stock */}
+                      {!v._existing ? (
+                        <div className="col-span-2">
+                          <Label className="text-[10px]">Stock inicial</Label>
+                          <Input type="number" className="h-9 font-mono" min="0" value={v._initialStock || 0}
+                            onChange={(e) => updateVariant(i, { _initialStock: e.target.value })} />
+                        </div>
+                      ) : (
+                        <div className="col-span-2 pb-1.5 text-[10px] text-slate-500 self-end">Stock existente</div>
+                      )}
+                    </>
                   )}
+                  {/* Eliminar */}
                   <div className="col-span-1">
                     <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                       onClick={() => removeVariant(i)}
