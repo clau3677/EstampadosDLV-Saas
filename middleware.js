@@ -8,12 +8,12 @@ const AUTH_COOKIE = process.env.AUTH_COOKIE || 'dlv_token';
 // Rutas 100% públicas (sin token, sin redirect).
 const PUBLIC_PATHS = [
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
-  '/login', '/registro', '/gang-sheet', '/api', '/uploads',
+  '/login', '/registro', '/api', '/uploads',
   '/_next', '/favicon', '/robots', '/sitemap', '/manifest',
 ];
 
 // Rutas de cliente — requieren token pero cualquier rol (customer/admin/operator).
-const CUSTOMER_PATHS = ['/mi-cuenta'];
+const CUSTOMER_PATHS = ['/mi-cuenta', '/gang-sheet'];
 
 function isMatch(pathname, list) {
   return list.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
