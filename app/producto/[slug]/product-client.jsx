@@ -149,9 +149,12 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   const colors = [...new Set(product.variants?.map(v => v.attributes?.color).filter(Boolean))];
 
   // Detectar si el producto tiene variantes de dimensiones (DTF)
+  // Usa attributes (productos nuevos) o category code (productos antiguos sin attributes)
+  const dtfCategoryCodes = ['dtftextil', 'dtfuv'];
+  const productCodeNorm = (product.category || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const hasDimensionVariants = product.variants?.some(v =>
     v.attributes?.widthCm !== undefined || v.attributes?.lengthCm !== undefined
-  );
+  ) || dtfCategoryCodes.includes(productCodeNorm);
 
   const findVariantBy = (size, color) => (
     product.variants?.find(v =>

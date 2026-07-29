@@ -26,12 +26,12 @@ const TEMPLATES = {
   products: {
     title: 'Productos comerciales',
     endpoint: '/api/products/bulk',
-    headers: ['name', 'sku', 'category', 'basePrice', 'cost', 'description', 'variant_name', 'variant_size', 'variant_color', 'variant_price', 'variant_stock'],
-    sample: `name,sku,category,basePrice,cost,description,variant_name,variant_size,variant_color,variant_price,variant_stock
-"Polera Bambu Premium",POL-BAM,apparel,14990,7000,"Polera 100% bambu","Talla S / Negro",S,Negro,14990,10
-"Polera Bambu Premium",POL-BAM,apparel,14990,7000,"Polera 100% bambu","Talla M / Negro",M,Negro,14990,15
-"Polera Bambu Premium",POL-BAM,apparel,14990,7000,"Polera 100% bambu","Talla L / Negro",L,Negro,14990,12
-"Gorro Trucker Clásico",GOR-TRK,apparel,7990,3500,"Gorro trucker one size","Único",,Negro,7990,25`,
+    headers: ['name', 'sku', 'category', 'basePrice', 'cost', 'description', 'variant_name', 'variant_width_cm', 'variant_length_cm', 'variant_size', 'variant_color', 'variant_price', 'variant_stock'],
+    sample: `name,sku,category,basePrice,cost,description,variant_name,variant_width_cm,variant_length_cm,variant_size,variant_color,variant_price,variant_stock
+"Polera Bambu Premium",POL-BAM,apparel,14990,7000,"Polera 100% bambu","Talla S / Negro",,,S,Negro,14990,10
+"Polera Bambu Premium",POL-BAM,apparel,14990,7000,"Polera 100% bambu","Talla M / Negro",,,M,Negro,14990,15
+"DTF TEXTIL 001",DTF-T001,dtf_textil,2500,1200,"DTF Textil Premium","28x10",28,10,,,2500,50
+"DTF TEXTIL 001",DTF-T001,dtf_textil,2500,1200,"DTF Textil Premium","28x20",28,20,,,4500,50`,
     // Un producto por combinacion name+sku, sus variantes se agrupan
   },
   supplies: {
@@ -94,13 +94,19 @@ function rowsToItems(rows, kind) {
         });
       }
       const prod = map.get(key);
-      const hasVariant = r.variant_name || r.variant_size || r.variant_color;
+      const hasVariant = r.variant_name || r.variant_size || r.variant_color || r.variant_width_cm || r.variant_length_cm;
       if (hasVariant) {
         const attrs = {};
+        // DTF: ancho/largo en cm
+        if (r.variant_width_cm)  attrs.widthCm = Number(r.variant_width_cm) || 0;
+        if (r.variant_length_cm) attrs.lengthCm = Number(r.variant_length_cm) || 0;
+        // Ropa: talla/color
         if (r.variant_size)  attrs.size = r.variant_size;
         if (r.variant_color) attrs.color = r.variant_color;
         prod.variants.push({
-          name: r.variant_name || [r.variant_size, r.variant_color].filter(Boolean).join(' / ') || 'Único',
+          name: r.variant_name || (r.variant_width_cm || r.variant_length_cm
+            ? `${r.variant_width_cm || '?'}x${r.variant_length_cm || '?'}cm`
+            : [r.variant_size, r.variant_color].filter(Boolean).join(' / ') || 'Único'),
           attributes: attrs,
           price: Number(r.variant_price) || Number(r.basePrice) || 0,
           initialStock: Number(r.variant_stock) || 0,
