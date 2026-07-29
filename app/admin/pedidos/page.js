@@ -389,6 +389,7 @@ export default function PedidosPage() {
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wide">
                     <tr>
                       <th className="text-left px-4 py-3 font-medium">N° Pedido</th>
+                      <th className="text-left px-4 py-3 font-medium">Tipo</th>
                       <th className="text-left px-4 py-3 font-medium">Cliente</th>
                       <th className="text-left px-4 py-3 font-medium">Canal</th>
                       <th className="text-left px-4 py-3 font-medium">Estado</th>
@@ -424,6 +425,27 @@ export default function PedidosPage() {
                                 <Zap className="h-3 w-3 mr-0.5" />EXPRÉS
                               </Badge>
                             )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const hasGangSheet = o.items?.some(it => it.type === 'gang_sheet');
+                              const hasProduct = o.items?.some(it => it.type === 'product');
+                              if (hasGangSheet && hasProduct) return (
+                                <Badge variant="outline" className="h-5 text-[10px] border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                  <Layers className="h-3 w-3 mr-0.5" />MIXTO
+                                </Badge>
+                              );
+                              if (hasGangSheet) return (
+                                <Badge className="h-5 text-[10px] bg-fuchsia-500 hover:bg-fuchsia-500 text-white">
+                                  <Printer className="h-3 w-3 mr-0.5" />IMPRESIÓN
+                                </Badge>
+                              );
+                              return (
+                                <Badge variant="outline" className="h-5 text-[10px] border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-50">
+                                  <ShoppingCart className="h-3 w-3 mr-0.5" />PRODUCTO
+                                </Badge>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-900 truncate max-w-[220px]">
