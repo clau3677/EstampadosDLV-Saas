@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2, PackagePlus, Star } from 'lucide-react';
+import { Loader2, Plus, Trash2, PackagePlus, Star, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,9 +21,17 @@ import { formatCLP } from '@/lib/format';
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const COMMON_COLORS = ['Negro', 'Blanco', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Naranjo'];
 
-const emptyVariant = () => ({
-  name: '', size: '', color: '', price: '', initialStock: 0,
-});
+// Subcategorías que usan variantes de dimensiones (ancho x largo) en lugar de talla/color
+const DIMENSION_VARIANTS = ['dtf_textil', 'dtf_uv'];
+
+// Variantes por defecto según el tipo de producto
+const emptyVariant = (isDimension) => isDimension
+  ? { name: '', widthCm: '', lengthCm: '', price: '', initialStock: 0 }
+  : { name: '', size: '', color: '', price: '', initialStock: 0 };
+
+function isDimensionProduct(subcategory) {
+  return DIMENSION_VARIANTS.includes(subcategory);
+}
 
 export function NewProductDialog({ onCreated, trigger }) {
   const [open, setOpen] = useState(false);
@@ -32,30 +40,53 @@ export function NewProductDialog({ onCreated, trigger }) {
     name: '', sku: '', category: '', subcategory: '',
     description: '', basePrice: '', cost: '', images: [], featured: false,
   });
-  const [variants, setVariants] = useState([emptyVariant()]);
+  const [variants, setVariants] = useState([emptyVariant(false)]);
+
+  // Detectar si es producto de dimensiones
+  const isDimension = isDimensionProduct(form.subcategory);
 
   useEffect(() => {
     if (open) {
       setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '', images: [], featured: false });
-      setVariants([emptyVariant()]);
+      setVariants([emptyVariant(false)]);
     }
   }, [open]);
 
+  // Cuando cambia subcategoría, resetear variantes al tipo correcto
+  useEffect(() => {
+    const newIsDim = isDimensionProduct(form.subcategory);
+    setVariants((prev) => {
+      // Solo resetear si cambia el tipo (no en cada keystroke)
+      const wasDim = prev.length > 0 && 'widthCm' in prev[0];
+      if (wasDim !== newIsDim) {
+        return [emptyVariant(newIsDim)];
+      }
+      return prev;
+    });
+  }, [form.subcategory]);
+
   const updateVariant = (i, patch) => setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   const removeVariant = (i) => setVariants((vs) => vs.filter((_, idx) => idx !== i));
-  const addVariant = () => setVariants((vs) => [...vs, emptyVariant()]);
+  const addVariant = () => setVariants((vs) => [...vs, emptyVariant(isDimension)]);
 
   const submit = async () => {
     if (!form.name || !form.category) return toast.error('Nombre y categoría son obligatorios');
     setSaving(true);
     try {
       const preparedVariants = variants
-        .filter(v => v.name || v.size || v.color)
+        .filter(v => v.name || (isDimension ? (v.widthCm || v.lengthCm) : (v.size || v.color)))
         .map((v) => {
           const attrs = {};
-          if (v.size && v.size !== 'none') attrs.size = v.size;
-          if (v.color) attrs.color = v.color;
-          const label = v.name || [v.size, v.color].filter(Boolean).filter(x => x !== 'none').join(' / ') || 'Único';
+          if (isDimension) {
+            if (v.widthCm) attrs.widthCm = Number(v.widthCm) || 0;
+            if (v.lengthCm) attrs.lengthCm = Number(v.lengthCm) || 0;
+          } else {
+            if (v.size && v.size !== 'none') attrs.size = v.size;
+            if (v.color) attrs.color = v.color;
+          }
+          const label = v.name || (isDimension
+            ? `${v.widthCm || '?'}cm × ${v.lengthCm || '?'}cm`
+            : [v.size, v.color].filter(Boolean).filter(x => x !== 'none').join(' / ') || 'Único');
           return {
             name: label,
             price: Number(v.price) || Number(form.basePrice) || 0,
@@ -107,7 +138,7 @@ export function NewProductDialog({ onCreated, trigger }) {
               <div className="sm:col-span-2">
                 <Label className="text-xs">Nombre *</Label>
                 <Input
-                  placeholder="Ej: Polera Algodón Premium"
+                  placeholder={isDimension ? 'Ej: Láminas DTF Textil 31cm' : 'Ej: Polera Algodón Premium'}
                   value={form.name}
                   onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
                 />
@@ -115,7 +146,7 @@ export function NewProductDialog({ onCreated, trigger }) {
               <div>
                 <Label className="text-xs">SKU base (opcional)</Label>
                 <Input
-                  placeholder="POL-PREM"
+                  placeholder="DTF-TEXTIL-31"
                   value={form.sku}
                   onChange={(e) => setForm(f => ({ ...f, sku: e.target.value.toUpperCase() }))}
                 />
@@ -182,7 +213,16 @@ export function NewProductDialog({ onCreated, trigger }) {
           {/* Variantes */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Variantes ({variants.length})</div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Variantes ({variants.length})
+                </div>
+                {isDimension && (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-blue-50 text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                    <Ruler className="h-2.5 w-2.5" /> Ancho × Largo (cm)
+                  </span>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={addVariant}>
                 <Plus className="h-3.5 w-3.5 mr-1" />Agregar variante
               </Button>
@@ -190,33 +230,107 @@ export function NewProductDialog({ onCreated, trigger }) {
 
             <div className="space-y-2">
               {variants.map((v, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 rounded-lg bg-slate-50 border border-slate-200">
+                <div key={i} className={`grid gap-2 items-end p-2 rounded-lg border ${
+                  isDimension ? 'grid-cols-12' : 'grid-cols-12'
+                } bg-slate-50 border-slate-200`}>
+                  {/* Nombre de variante (siempre visible) */}
                   <div className="col-span-3">
-                    <Label className="text-[10px]">Talla</Label>
-                    <Select value={v.size || undefined} onValueChange={(size) => updateVariant(i, { size })}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">— sin talla</SelectItem>
-                        {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-[10px]">Nombre variante</Label>
+                    <Input
+                      className="h-9"
+                      placeholder={isDimension ? '31×50cm' : 'M / Negro'}
+                      value={v.name}
+                      onChange={(e) => updateVariant(i, { name: e.target.value })}
+                    />
                   </div>
-                  <div className="col-span-3">
-                    <Label className="text-[10px]">Color</Label>
-                    <Input className="h-9" placeholder="Negro" value={v.color}
-                      onChange={(e) => updateVariant(i, { color: e.target.value })} list={`colors-${i}`} />
-                    <datalist id={`colors-${i}`}>{COMMON_COLORS.map(c => <option key={c} value={c} />)}</datalist>
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-[10px]">Precio (CLP)</Label>
-                    <Input type="number" className="h-9 font-mono" min="0" placeholder={form.basePrice || '0'}
-                      value={v.price} onChange={(e) => updateVariant(i, { price: e.target.value })} />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-[10px]">Stock inicial</Label>
-                    <Input type="number" className="h-9 font-mono" min="0" value={v.initialStock}
-                      onChange={(e) => updateVariant(i, { initialStock: e.target.value })} />
-                  </div>
+
+                  {isDimension ? (
+                    <>
+                      {/* Ancho en cm */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Ancho (cm)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="60"
+                          className="h-9 font-mono"
+                          placeholder="31"
+                          value={v.widthCm}
+                          onChange={(e) => updateVariant(i, { widthCm: e.target.value })}
+                        />
+                      </div>
+                      {/* Largo en cm */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Largo (cm)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="1000"
+                          className="h-9 font-mono"
+                          placeholder="50"
+                          value={v.lengthCm}
+                          onChange={(e) => updateVariant(i, { lengthCm: e.target.value })}
+                        />
+                      </div>
+                      {/* Precio */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio (CLP)</Label>
+                        <Input
+                          type="number"
+                          className="h-9 font-mono"
+                          min="0"
+                          placeholder={form.basePrice || '0'}
+                          value={v.price}
+                          onChange={(e) => updateVariant(i, { price: e.target.value })}
+                        />
+                      </div>
+                      {/* Stock inicial */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Stock</Label>
+                        <Input
+                          type="number"
+                          className="h-9 font-mono"
+                          min="0"
+                          value={v.initialStock}
+                          onChange={(e) => updateVariant(i, { initialStock: e.target.value })}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Talla */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Talla</Label>
+                        <Select value={v.size || undefined} onValueChange={(size) => updateVariant(i, { size })}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">— sin talla</SelectItem>
+                            {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Color */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Color</Label>
+                        <Input className="h-9" placeholder="Negro" value={v.color}
+                          onChange={(e) => updateVariant(i, { color: e.target.value })} list={`colors-${i}`} />
+                        <datalist id={`colors-${i}`}>{COMMON_COLORS.map(c => <option key={c} value={c} />)}</datalist>
+                      </div>
+                      {/* Precio */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio (CLP)</Label>
+                        <Input type="number" className="h-9 font-mono" min="0" placeholder={form.basePrice || '0'}
+                          value={v.price} onChange={(e) => updateVariant(i, { price: e.target.value })} />
+                      </div>
+                      {/* Stock inicial */}
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Stock inicial</Label>
+                        <Input type="number" className="h-9 font-mono" min="0" value={v.initialStock}
+                          onChange={(e) => updateVariant(i, { initialStock: e.target.value })} />
+                      </div>
+                    </>
+                  )}
+                  {/* Eliminar */}
                   <div className="col-span-1">
                     <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                       disabled={variants.length === 1}
