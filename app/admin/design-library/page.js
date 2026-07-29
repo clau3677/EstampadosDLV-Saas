@@ -419,35 +419,97 @@ function DriveTab({ status, onChange }) {
 // ============================================================================
 // TAB 2: Biblioteca (grid con edición/toggle)
 // ============================================================================
-function LibraryTab({ onChange }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState('');
-  const [filterSource, setFilterSource] = useState('all'); // all | drive | manual
-  const [selectedIds, setSelectedIds] = useState(new Set());
+function thumbUrl(imageUrl, w = 200) {
+  if (!imageUrl) return '';
+  try {
+    const url = new URL(imageUrl);
+    return `/api/thumbnails?src=${encodeURIComponent(url.pathname.replace(/^\/uploads\//, ''))}&w=${w}&format=webp`;
+  } catch { return imageUrl; }
+}
 
-  const load = useCallback(async () => {
-    setLoading(true);
+function LibraryTab({ onChange }) {
+  const PAGE_SIZE = 96;
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [folders, setFolders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [q, setQ] = useState('');
+  const [filterSource, setFilterSource] = useState('all');
+  const [filterFolder, setFilterFolder] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const pageRef = useRef(0);
+  const loadGridRef = useRef(null);
+
+  const fetchPage = useCallback(async (reset = false) => {
+    if (reset) {
+      pageRef.current = 1;
+      setItems([]);
+      setHasMore(true);
+      setLoading(true);
+    } else if (loadingMore) return;
+
+    const isFirst = pageRef.current === 1 || reset;
+    if (!isFirst) setLoadingMore(true);
+
     try {
-      const r = await fetch('/api/design-library', { cache: 'no-store' });
+      const params = new URLSearchParams({
+        page: String(pageRef.current),
+        size: String(PAGE_SIZE),
+      });
+      if (q.trim()) params.set('search', q.trim());
+      if (filterFolder) params.set('folder', filterFolder);
+      const r = await fetch(`/api/design-library?${params.toString()}`, { cache: 'no-store' });
       const data = await r.json();
-      setItems(Array.isArray(data) ? data : []);
-    } catch (e) { toast.error('Error cargando', { description: e.message }); }
-    finally { setLoading(false); }
-  }, []);
+      const newItems = Array.isArray(data.items) ? data.items : [];
+      if (reset) {
+        setItems(newItems);
+      } else {
+        setItems(prev => {
+          const existing = new Set(prev.map(i => i.id));
+          return [...prev, ...newItems.filter(i => !existing.has(i.id))];
+        });
+      }
+      setTotal(data.total || 0);
+      if (data.folders) setFolders(data.folders);
+      setHasMore(pageRef.current < (data.totalPages || 1));
+      if (isFirst || reset) setLoading(false);
+      else setLoadingMore(false);
+    } catch (e) {
+      toast.error('Error cargando', { description: e.message });
+      if (isFirst || reset) setLoading(false);
+      else setLoadingMore(false);
+    }
+  }, [q, filterFolder, loadingMore]);
+
+  const loadMore = useCallback(() => {
+    if (hasMore && !loadingMore) {
+      pageRef.current += 1;
+      fetchPage(false);
+    }
+  }, [hasMore, loadingMore, fetchPage]);
+
+  const load = useCallback(() => { pageRef.current = 1; fetchPage(true); }, [fetchPage]);
   useEffect(() => { load(); }, [load]);
+
+  // Observer para scroll infinito
+  useEffect(() => {
+    if (!loadGridRef.current || !hasMore) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) loadMore(); },
+      { rootMargin: '300px' }
+    );
+    observer.observe(loadGridRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   const filtered = useMemo(() => {
     return items.filter(it => {
       if (filterSource !== 'all' && (it.source || 'manual') !== filterSource) return false;
-      if (q.trim()) {
-        const ql = q.toLowerCase();
-        return it.name?.toLowerCase().includes(ql) ||
-               (it.tags || []).some(t => t.toLowerCase().includes(ql));
-      }
       return true;
     });
-  }, [items, q, filterSource]);
+  }, [items, filterSource]);
 
   const toggle = (id) => {
     const next = new Set(selectedIds);
@@ -493,10 +555,19 @@ function LibraryTab({ onChange }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text" value={q} onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por nombre o tag…"
+              placeholder="Buscar por nombre o carpeta…"
               className="w-full h-9 pl-9 pr-3 rounded-md border border-slate-300 text-sm"
             />
           </div>
+          <select
+            value={filterFolder} onChange={(e) => setFilterFolder(e.target.value)}
+            className="h-9 px-2 rounded-md border border-slate-300 text-sm"
+          >
+            <option value="">Todas las carpetas</option>
+            {folders.map(f => (
+              <option key={f.name} value={f.name}>{f.name} ({f.count})</option>
+            ))}
+          </select>
           <select
             value={filterSource} onChange={(e) => setFilterSource(e.target.value)}
             className="h-9 px-2 rounded-md border border-slate-300 text-sm"
@@ -515,7 +586,7 @@ function LibraryTab({ onChange }) {
           )}
         </div>
         <div className="text-xs text-slate-500">
-          {filtered.length} de {items.length} plantillas
+          {filtered.length} cargadas de {total} plantillas{hasMore ? ' (scroll para más…)' : ''}
         </div>
       </CardHeader>
       <CardContent className="p-4">
@@ -532,7 +603,8 @@ function LibraryTab({ onChange }) {
               : `No hay resultados para "${q}"`}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {filtered.map(item => {
               const isSel = selectedIds.has(item.id);
               const isHidden = item.active === false;
@@ -561,7 +633,7 @@ function LibraryTab({ onChange }) {
                   </span>
 
                   <div className="aspect-square rounded bg-slate-50 flex items-center justify-center overflow-hidden mb-2">
-                    <img src={item.imageUrl} alt={item.name} className="max-w-full max-h-full object-contain" />
+                    <img src={thumbUrl(item.imageUrl)} alt={item.name} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
                   </div>
                   <div className="text-xs font-semibold text-slate-900 truncate" title={item.name}>{item.name}</div>
                   {item.tags?.length > 0 && (
@@ -586,6 +658,14 @@ function LibraryTab({ onChange }) {
               );
             })}
           </div>
+          {hasMore && !loadingMore && <div ref={loadGridRef} className="h-2" />}
+          {loadingMore && (
+            <div className="text-center py-6">
+              <Loader2 className="h-5 w-5 mx-auto animate-spin text-orange-500 mb-1" />
+              <p className="text-xs text-slate-500">Cargando más…</p>
+            </div>
+          )}
+          </>
         )}
       </CardContent>
     </Card>

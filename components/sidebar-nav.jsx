@@ -30,6 +30,7 @@ const SECTIONS = [
     label: 'Diseño',
     items: [
       { href: '/gang-sheet', label: 'Gang Sheet Builder', icon: Layers, badge: 'AI' },
+      { href: '/admin/design-library', label: 'Biblioteca GSB', icon: Library },
     ],
   },
   {
@@ -66,7 +67,6 @@ const SECTIONS = [
     items: [
       { href: '/usuarios',      label: 'Usuarios / Cajeros', icon: Users },
       { href: '/landings',      label: 'Landings SEO',       icon: Globe },
-      { href: '/admin/design-library', label: 'Biblioteca GSB',      icon: Library },
       { href: '/configuracion', label: 'Configuración',      icon: Settings2 },
     ],
   },
