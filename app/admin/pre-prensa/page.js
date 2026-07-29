@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import {
   Zap, ArrowLeft, RefreshCw, FolderOpen, FileImage, Download, RotateCcw,
   CheckCircle2, XCircle, AlertTriangle, Info, HardDrive, Printer, Trash2,
+  ScanLine, Database,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -34,6 +35,8 @@ export default function PrePrensaPage() {
   const [retryingId, setRetryingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -116,12 +119,44 @@ export default function PrePrensaPage() {
 
   const totalFolderFiles = status?.foldersHealth?.reduce((sum, f) => sum + (f.fileCount || 0), 0) || 0;
 
+  // (M5+M6) Regenerar todos los hot folders
+  const regenerateAll = async () => {
+    setRegenerating(true);
+    try {
+      const res = await fetch('/api/pre-press/regenerate-all', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'error');
+      toast.success(`Regenerados: ${data.exported}, Saltados: ${data.skipped}, Fallidos: ${data.failed}`);
+      refresh();
+    } catch (e) {
+      toast.error('Fallo: ' + e.message);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  // (M6) Escanear hot folders para detectar archivos consumidos por el RIP
+  const scanHotFolders = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch('/api/pre-press/scan', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'error');
+      toast.success(`Escaneados: ${data.scanned}, Consumidos: ${data.consumed}, En carpeta: ${data.stillPresent}`);
+      refresh();
+    } catch (e) {
+      toast.error('Fallo: ' + e.message);
+    } finally {
+      setScanning(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
       <div>
-        <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
-          <ArrowLeft className="h-3 w-3" /> Volver al Dashboard
+        <Link href="/admin" className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800">
+          <ArrowLeft className="h-3 w-3" /> Volver al Panel Admin
         </Link>
         <div className="mt-3 flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
@@ -223,6 +258,30 @@ export default function PrePrensaPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* (M5+M6) Acciones de mantenimiento */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={scanHotFolders}
+          disabled={scanning}
+          className="gap-1.5"
+        >
+          <ScanLine className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+          {scanning ? 'Escaneando...' : 'Escanear hot folders'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={regenerateAll}
+          disabled={regenerating}
+          className="gap-1.5"
+        >
+          <Database className={`h-3.5 w-3.5 ${regenerating ? 'animate-spin' : ''}`} />
+          {regenerating ? 'Regenerando...' : 'Regenerar todos los hot folders'}
+        </Button>
+      </div>
 
       {/* Export manual */}
       <Card>

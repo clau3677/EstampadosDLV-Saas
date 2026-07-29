@@ -10,6 +10,7 @@ import {
 import {
   ArrowLeft, KanbanSquare, Printer, Zap, User, Clock, Package,
   RefreshCw, ChevronRight, CheckCircle2, Loader2, X, Ban, Trash2,
+  FileImage, FileWarning,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -119,6 +120,27 @@ function QueueCard({ item, isDragging, printersMap, onRemoveClick }) {
           {formatCLP(item.order.total)}
         </div>
       )}
+
+      {/* (M3) Badge de estado de exportación Pre-Prensa */}
+      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1.5">
+        {item.fileStatus === 'ready' ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+            <FileImage className="h-2.5 w-2.5" /> Archivo listo
+          </span>
+        ) : item.fileStatus === 'failed' ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5">
+            <FileWarning className="h-2.5 w-2.5" /> Export failed
+          </span>
+        ) : item.fileUrl ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+            <FileImage className="h-2.5 w-2.5" /> Archivo listo
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">
+            <Loader2 className="h-2.5 w-2.5" /> Sin archivo
+          </span>
+        )}
+      </div>
     </div>
   );
 }

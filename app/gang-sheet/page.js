@@ -425,8 +425,8 @@ export default function GangSheetPage() {
     <div className="space-y-4 max-w-[1500px] mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/" className="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1">
-          <ArrowLeft className="h-3 w-3" />Dashboard
+        <Link href="/admin" className="text-xs text-slate-500 hover:text-slate-800 inline-flex items-center gap-1">
+          <ArrowLeft className="h-3 w-3" />Panel Admin
         </Link>
         <span className="text-slate-300">/</span>
         <div className="flex items-center gap-2">
