@@ -498,7 +498,7 @@ function LibraryTab({ onChange }) {
     if (!loadGridRef.current || !hasMore) return;
     const observer = new IntersectionObserver(
       entries => { if (entries[0].isIntersecting) loadMore(); },
-      { rootMargin: '300px' }
+      { rootMargin: '800px' }
     );
     observer.observe(loadGridRef.current);
     return () => observer.disconnect();
@@ -658,11 +658,19 @@ function LibraryTab({ onChange }) {
               );
             })}
           </div>
-          {hasMore && !loadingMore && <div ref={loadGridRef} className="h-2" />}
-          {loadingMore && (
+          <div ref={loadGridRef} className="h-1" />
+          {hasMore && (
             <div className="text-center py-6">
-              <Loader2 className="h-5 w-5 mx-auto animate-spin text-orange-500 mb-1" />
-              <p className="text-xs text-slate-500">Cargando más…</p>
+              {loadingMore ? (
+                <>
+                  <Loader2 className="h-5 w-5 mx-auto animate-spin text-orange-500 mb-1" />
+                  <p className="text-xs text-slate-500">Cargando más…</p>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={loadMore}>
+                  <ChevronRight className="h-3.5 w-3.5 mr-1" />Cargar más ({total - items.length} restantes)
+                </Button>
+              )}
             </div>
           )}
           </>
