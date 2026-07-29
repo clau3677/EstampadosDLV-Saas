@@ -388,15 +388,16 @@ export default function InventarioPage() {
                         <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Producto</th>
                         <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Variante</th>
                         <th className="text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">SKU</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Stock</th>
-                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Reservado</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Disponible</th>
+                        <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Total</th>
                         <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Mínimo</th>
                         <th className="text-right px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredStock.map(s => {
-                        const isLow = s.quantity <= s.minStockAlert;
+                        const available = (s.quantity || 0) - (s.reservedQuantity || 0);
+                        const isLow = available <= s.minStockAlert;
                         const product = productMap[s.productId];
                         const isFeatured = !!product?.featured;
                         return (
@@ -421,10 +422,12 @@ export default function InventarioPage() {
                             <td className="px-3 py-3 text-slate-700">{s.variantName || '—'}</td>
                             <td className="px-3 py-3 font-mono text-xs text-slate-500">{s.sku || '—'}</td>
                             <td className="px-3 py-3 text-right">
-                              <span className={`font-mono font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{s.quantity}</span>
+                              <span className={`font-mono font-bold ${isLow ? 'text-rose-600' : 'text-emerald-600'}`}>{available}</span>
                               {isLow && <AlertTriangle className="h-3 w-3 text-rose-500 inline ml-1" />}
                             </td>
-                            <td className="px-3 py-3 text-right font-mono text-slate-600">{s.reservedQuantity || 0}</td>
+                            <td className="px-3 py-3 text-right font-mono text-slate-600">
+                              {s.quantity || 0}{(s.reservedQuantity || 0) > 0 ? <span className="text-amber-500 text-xs ml-1">({(s.reservedQuantity || 0)} res.)</span> : ''}
+                            </td>
                             <td className="px-3 py-3 text-right font-mono text-slate-500">{s.minStockAlert}</td>
                             <td className="px-3 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
