@@ -10,8 +10,13 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Zap, ArrowLeft, RefreshCw, FolderOpen, FileImage, Download, RotateCcw,
-  CheckCircle2, XCircle, AlertTriangle, Info, HardDrive, Printer,
+  CheckCircle2, XCircle, AlertTriangle, Info, HardDrive, Printer, Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function formatBytes(bytes) {
   if (!bytes && bytes !== 0) return '—';
@@ -27,6 +32,8 @@ export default function PrePrensaPage() {
   const [gangSheetIdInput, setGangSheetIdInput] = useState('');
   const [exporting, setExporting] = useState(false);
   const [retryingId, setRetryingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -88,6 +95,22 @@ export default function PrePrensaPage() {
       toast.error('Fallo: ' + e.message);
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  const deleteExport = async (id) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/pre-press/exports/${id}/delete`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'error');
+      toast.success('Trabajo eliminado ✅');
+      refresh();
+    } catch (e) {
+      toast.error('Fallo: ' + e.message);
+    } finally {
+      setDeletingId(null);
+      setDeleteConfirmId(null);
     }
   };
 
@@ -317,6 +340,16 @@ export default function PrePrensaPage() {
                         <RotateCcw className={`h-3 w-3 ${retryingId === ex.id ? 'animate-spin' : ''}`} />
                         Reintentar
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        disabled={deletingId === ex.id}
+                        onClick={() => setDeleteConfirmId(ex.id)}
+                      >
+                        <Trash2 className={`h-3 w-3 ${deletingId === ex.id ? 'animate-spin' : ''}`} />
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
                 );
@@ -342,6 +375,29 @@ export default function PrePrensaPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmación de eliminación */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este trabajo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el registro de exportación y el archivo PNG generado.
+              Esta acción no se puede deshacer. Útil para trabajos cancelados, no realizados o pruebas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteExport(deleteConfirmId)}
+              className="bg-rose-600 hover:bg-rose-700"
+              disabled={!!deletingId}
+            >
+              {deletingId ? 'Eliminando…' : 'Sí, eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
