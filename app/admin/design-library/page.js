@@ -439,30 +439,45 @@ function LibraryTab({ onChange }) {
   const [filterSource, setFilterSource] = useState('all');
   const [filterFolder, setFilterFolder] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const pageRef = useRef(0);
+
+  // Refs para evitar stale closures en callbacks
+  const pageRef = useRef(1);
+  const fetchingRef = useRef(false);
+  const qRef = useRef('');
+  const folderRef = useRef('');
   const loadGridRef = useRef(null);
 
-  const fetchPage = useCallback(async (reset = false) => {
+  // Sincronizar refs con state
+  useEffect(() => { qRef.current = q; }, [q]);
+  useEffect(() => { folderRef.current = filterFolder; }, [filterFolder]);
+
+  // Core fetch function — siempre lee desde refs para evitar stale closures
+  const doFetch = useCallback(async (reset = false) => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    const currentPage = reset ? 1 : pageRef.current;
     if (reset) {
       pageRef.current = 1;
       setItems([]);
       setHasMore(true);
       setLoading(true);
-    } else if (loadingMore) return;
-
-    const isFirst = pageRef.current === 1 || reset;
-    if (!isFirst) setLoadingMore(true);
+    } else {
+      setLoadingMore(true);
+    }
 
     try {
       const params = new URLSearchParams({
-        page: String(pageRef.current),
+        page: String(currentPage),
         size: String(PAGE_SIZE),
       });
-      if (q.trim()) params.set('search', q.trim());
-      if (filterFolder) params.set('folder', filterFolder);
+      if (qRef.current.trim()) params.set('search', qRef.current.trim());
+      if (folderRef.current) params.set('folder', folderRef.current);
+
       const r = await fetch(`/api/design-library?${params.toString()}`, { cache: 'no-store' });
       const data = await r.json();
       const newItems = Array.isArray(data.items) ? data.items : [];
+
       if (reset) {
         setItems(newItems);
       } else {
@@ -471,38 +486,61 @@ function LibraryTab({ onChange }) {
           return [...prev, ...newItems.filter(i => !existing.has(i.id))];
         });
       }
+
       setTotal(data.total || 0);
       if (data.folders) setFolders(data.folders);
-      setHasMore(pageRef.current < (data.totalPages || 1));
-      if (isFirst || reset) setLoading(false);
+      setHasMore(currentPage < (data.totalPages || 1));
+
+      if (reset) setLoading(false);
       else setLoadingMore(false);
     } catch (e) {
       toast.error('Error cargando', { description: e.message });
-      if (isFirst || reset) setLoading(false);
+      if (reset) setLoading(false);
       else setLoadingMore(false);
+    } finally {
+      fetchingRef.current = false;
     }
-  }, [q, filterFolder, loadingMore]);
+  }, []);
 
+  // Load more — incrementa página y llama doFetch
   const loadMore = useCallback(() => {
-    if (hasMore && !loadingMore) {
-      pageRef.current += 1;
-      fetchPage(false);
-    }
-  }, [hasMore, loadingMore, fetchPage]);
+    if (fetchingRef.current) return;
+    pageRef.current += 1;
+    doFetch(false);
+  }, [doFetch]);
 
-  const load = useCallback(() => { pageRef.current = 1; fetchPage(true); }, [fetchPage]);
-  useEffect(() => { load(); }, [load]);
+  // Reset (botón Refrescar)
+  const load = useCallback(() => {
+    if (fetchingRef.current) return;
+    pageRef.current = 1;
+    setItems([]);
+    setTotal(0);
+    setHasMore(true);
+    setLoading(true);
+    setLoadingMore(false);
+    doFetch(true);
+  }, [doFetch]);
 
-  // Observer para scroll infinito
+  // Load initial
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Scroll infinito
   useEffect(() => {
     if (!loadGridRef.current || !hasMore) return;
     const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting) loadMore(); },
-      { rootMargin: '800px' }
+      entries => {
+        if (entries[0].isIntersecting && !fetchingRef.current && hasMore) {
+          pageRef.current += 1;
+          doFetch(false);
+        }
+      },
+      { rootMargin: '500px' }
     );
     observer.observe(loadGridRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loadMore]);
+  }, [hasMore, doFetch]);
 
   const filtered = useMemo(() => {
     return items.filter(it => {
