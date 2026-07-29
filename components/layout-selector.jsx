@@ -14,7 +14,7 @@ import MobileActionBar from '@/components/mobile-action-bar';
 const BARE_PREFIXES = ['/login', '/registro'];
 
 // Rutas públicas con PublicNav + Footer (incluye /mi-cuenta para clientes).
-const PUBLIC_PREFIXES = ['/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta'];
+const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta'];
 
 export default function LayoutSelector({ children }) {
   const pathname = usePathname();
