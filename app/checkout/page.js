@@ -168,6 +168,7 @@ export default function CheckoutPage() {
         <ArrowLeft className="h-3 w-3" />Seguir comprando
       </Link>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Checkout</h1>
+      <p className="text-sm text-slate-500 mt-1">Compra como invitado — no necesitas crear cuenta</p>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-8">
         {/* FORMULARIO */}
@@ -176,6 +177,7 @@ export default function CheckoutPage() {
           <Card>
             <CardContent className="p-6">
               <h2 className="font-bold text-slate-900 mb-4">Datos de contacto</h2>
+              <p className="text-xs text-slate-500 mb-3">Solo necesitas tu nombre y email. Sin registro obligatorio.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <Label className="text-xs">Nombre completo *</Label>

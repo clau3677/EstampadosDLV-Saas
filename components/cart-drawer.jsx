@@ -18,8 +18,6 @@ export function CartDrawer() {
 
   const subtotal = cartSubtotal(items);
   const count = cartCount(items);
-  const shippingEstimate = 3990;
-  const totalWithShipping = subtotal + (subtotal > 0 ? shippingEstimate : 0);
 
   const goCheckout = () => {
     close();
@@ -92,14 +90,7 @@ export function CartDrawer() {
                   <span>Subtotal (IVA incl.)</span>
                   <span className="font-mono font-semibold text-slate-900">{formatCLP(subtotal)}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Envío estimado</span>
-                  <span className="font-mono">{formatCLP(shippingEstimate)}</span>
-                </div>
-                <div className="flex items-center justify-between text-base font-bold pt-2 border-t border-slate-200">
-                  <span>Total</span>
-                  <span className="font-mono text-slate-900">{formatCLP(totalWithShipping)}</span>
-                </div>
+                <div className="text-[11px] text-slate-400 italic">Envío se calcula al hacer checkout</div>
               </div>
               <Button onClick={goCheckout} className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-base font-semibold">
                 Ir al checkout <ArrowRight className="h-4 w-4 ml-2" />
