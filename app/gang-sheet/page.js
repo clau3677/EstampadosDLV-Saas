@@ -72,7 +72,7 @@ function SetupModal({ onSelect }) {
         ) : printers.length === 0 ? (
           <div className="p-10 text-center">
             <div className="text-slate-500 text-sm mb-2">No hay equipos activos configurados.</div>
-            <Link href="/configuracion" className="text-orange-600 text-sm font-semibold hover:underline">
+            <Link href="/admin/configuracion" className="text-orange-600 text-sm font-semibold hover:underline">
               → Configurar equipos
             </Link>
           </div>
@@ -398,7 +398,7 @@ export default function GangSheetPage() {
         description: `${data.orderNumber} · ${formatCLP(data.total)} · Enviado a ${data.printerLabel}`,
         action: {
           label: 'Ver pedido',
-          onClick: () => { window.location.href = `/pedidos?highlight=${data.orderNumber}`; },
+          onClick: () => { window.location.href = `/admin/pedidos?highlight=${data.orderNumber}`; },
         },
       });
       // Limpiar el lienzo tras confirmar el pedido para no crear duplicados

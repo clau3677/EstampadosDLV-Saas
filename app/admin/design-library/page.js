@@ -62,7 +62,7 @@ export default function DesignLibraryAdminPage() {
       {/* Header */}
       <div className="border-b bg-white sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/dashboard" className="text-slate-500 hover:text-slate-900">
+          <Link href="/admin" className="text-slate-500 hover:text-slate-900">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex-1">

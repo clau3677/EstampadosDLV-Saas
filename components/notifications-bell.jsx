@@ -166,7 +166,7 @@ export function NotificationsBell() {
                 title="Mantenimientos vencidos"
                 count={maint.overdue.length}
                 tone="rose"
-                href="/mantenimiento"
+                href="/admin/mantenimiento"
                 onNavigate={() => setOpen(false)}
               >
                 {maint.overdue.slice(0, 4).map((it, idx) => (
@@ -191,7 +191,7 @@ export function NotificationsBell() {
                 title="Mantenimientos próximos"
                 count={maint.dueSoon.length}
                 tone="amber"
-                href="/mantenimiento"
+                href="/admin/mantenimiento"
                 onNavigate={() => setOpen(false)}
               >
                 {maint.dueSoon.slice(0, 4).map((it, idx) => (
@@ -216,7 +216,7 @@ export function NotificationsBell() {
                 title="Sin stock comercial"
                 count={inv.totalCommercialLow}
                 tone="rose"
-                href="/inventario?tab=commercial"
+                href="/admin/inventario?tab=commercial"
                 onNavigate={() => setOpen(false)}
               >
                 {inv.commercialLow.slice(0, 4).map((it, idx) => (
@@ -241,7 +241,7 @@ export function NotificationsBell() {
                 title="Insumos bajo mínimo"
                 count={inv.totalSuppliesLow}
                 tone="amber"
-                href="/inventario"
+                href="/admin/inventario"
                 onNavigate={() => setOpen(false)}
               >
                 {inv.suppliesLow.slice(0, 4).map((it, idx) => (
@@ -265,7 +265,7 @@ export function NotificationsBell() {
         <Separator />
         <div className="flex items-center justify-between px-3 py-2 bg-slate-50/60">
           <Link
-            href="/mantenimiento"
+            href="/admin/mantenimiento"
             className="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1"
             onClick={() => setOpen(false)}
           >

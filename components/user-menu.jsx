@@ -62,7 +62,7 @@ export function UserMenu() {
         {(isAdmin || isOperator) && (
           <>
             <DropdownMenuItem asChild>
-              <Link href="/" className="cursor-pointer"><Shield className="h-4 w-4 mr-2" />Panel de administración</Link>
+              <Link href="/admin" className="cursor-pointer"><Shield className="h-4 w-4 mr-2" />Panel de administración</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/tienda" className="cursor-pointer"><ShoppingBag className="h-4 w-4 mr-2" />Ver sitio público <ExternalLink className="h-3 w-3 ml-auto opacity-50" /></Link>

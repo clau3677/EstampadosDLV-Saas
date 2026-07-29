@@ -1,4 +1,4 @@
-// Next.js middleware — protege /mi-cuenta y rutas de admin.
+// Next.js middleware — protege /admin y /mi-cuenta.
 // Runs in the Edge Runtime — uses jose for JWT verification.
 import { NextResponse } from 'next/server';
 import { verifyTokenEdge } from '@/lib/auth/jwt-edge';
@@ -6,9 +6,7 @@ import { verifyTokenEdge } from '@/lib/auth/jwt-edge';
 const AUTH_COOKIE = process.env.AUTH_COOKIE || 'dlv_token';
 
 // Rutas 100% públicas (sin token, sin redirect).
-// '/' se incluye aquí para que el middleware no lo intercepte;
-// page.js (Server Component) decide: redirect a /tienda si no hay sesión,
-// o renderizar Dashboard si hay sesión admin.
+// '/' es la tienda pública — siempre accesible.
 const PUBLIC_PATHS = [
   '/',
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
@@ -18,6 +16,9 @@ const PUBLIC_PATHS = [
 
 // Rutas de cliente — requieren token pero cualquier rol (customer/admin/operator).
 const CUSTOMER_PATHS = ['/mi-cuenta', '/gang-sheet'];
+
+// Rutas de admin — requieren token admin/operator.
+const ADMIN_PATHS = ['/admin'];
 
 function isMatch(pathname, list) {
   return list.some(p => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'));
@@ -43,18 +44,27 @@ export async function middleware(req) {
     return NextResponse.next();
   }
 
-  // Everything else = admin/operator area.
+  // Admin paths — need admin/operator session.
+  if (isMatch(pathname, ADMIN_PATHS)) {
+    if (!payload) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('next', pathname + (search || ''));
+      return NextResponse.redirect(url);
+    }
+    if (payload.role !== 'admin' && payload.role !== 'operator') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/mi-cuenta';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  // Any other unmatched route — redirect to login.
   if (!payload) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', pathname + (search || ''));
-    return NextResponse.redirect(url);
-  }
-
-  // Only admin/operator can access admin routes.
-  if (payload.role !== 'admin' && payload.role !== 'operator') {
-    const url = req.nextUrl.clone();
-    url.pathname = '/mi-cuenta';
     return NextResponse.redirect(url);
   }
 

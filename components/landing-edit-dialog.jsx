@@ -516,7 +516,7 @@ Realizamos despachos a comunas cercanas: Villa Alemana, Viña del Mar, Valparaí
                 </div>
                 {products.filter(p => p.featured && p.active !== false).length === 0 && (
                   <p className="mt-2 text-xs text-rose-700">
-                    ⚠ No hay productos destacados aún. Ve a <a href="/inventario" className="underline font-semibold">Inventario</a> y marca al menos uno con ⭐ para que aparezcan aquí, o se usará un fallback automático de los primeros 4 activos.
+                    ⚠ No hay productos destacados aún. Ve a <a href="/admin/inventario" className="underline font-semibold">Inventario</a> y marca al menos uno con ⭐ para que aparezcan aquí, o se usará un fallback automático de los primeros 4 activos.
                   </p>
                 )}
               </div>

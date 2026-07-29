@@ -15,15 +15,15 @@ const SECTIONS = [
   {
     label: 'General',
     items: [
-      { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
     label: 'Ventas',
     items: [
-      { href: '/pos',    label: 'POS · Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
-      { href: '/pedidos',label: 'Pedidos',              icon: ClipboardList },
-      { href: '/tienda', label: 'Tienda Web',            icon: Store },
+      { href: '/admin/pos',    label: 'POS · Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
+      { href: '/admin/pedidos',label: 'Pedidos',              icon: ClipboardList },
+      { href: '/tienda', label: 'Ver tienda pública',          icon: Store },
     ],
   },
   {
@@ -36,38 +36,38 @@ const SECTIONS = [
   {
     label: 'Producción',
     items: [
-      { href: '/pre-prensa', label: 'Pre-Prensa (Zero-Click)', icon: Zap },
-      { href: '/kanban',     label: 'Kanban Producción',        icon: KanbanSquare },
+      { href: '/admin/pre-prensa', label: 'Pre-Prensa (Zero-Click)', icon: Zap },
+      { href: '/admin/kanban',     label: 'Kanban Producción',        icon: KanbanSquare },
     ],
   },
   {
     label: 'Gestión',
     items: [
-      { href: '/inventario',   label: 'Inventario Dual',   icon: PackageSearch },
-      { href: '/clientes',     label: 'Clientes',          icon: Users },
-      { href: '/proveedores/cottonext', label: 'Proveedor Cottonext', icon: Truck, badge: 'Ropa' },
-      { href: '/proveedores/textilryu', label: 'Proveedor Textil Ryu', icon: Truck, badge: 'Gorras' },
-      { href: '/proveedores/treck',     label: 'Proveedor Treck',      icon: HardHat, badge: 'Seguridad' },
-      { href: '/reportes',     label: 'Reportes',          icon: LineChart },
-      { href: '/mantenimiento',label: 'Mantenimiento',     icon: Wrench },
+      { href: '/admin/inventario',   label: 'Inventario Dual',   icon: PackageSearch },
+      { href: '/admin/clientes',     label: 'Clientes',          icon: Users },
+      { href: '/admin/proveedores/cottonext', label: 'Proveedor Cottonext', icon: Truck, badge: 'Ropa' },
+      { href: '/admin/proveedores/textilryu', label: 'Proveedor Textil Ryu', icon: Truck, badge: 'Gorras' },
+      { href: '/admin/proveedores/treck',     label: 'Proveedor Treck',      icon: HardHat, badge: 'Seguridad' },
+      { href: '/admin/reportes',     label: 'Reportes',          icon: LineChart },
+      { href: '/admin/mantenimiento',label: 'Mantenimiento',     icon: Wrench },
     ],
   },
   {
     label: 'Automatización',
     items: [
-      { href: '/agente',    label: 'Agente IA',   icon: Sparkles,      badge: 'MiniMax' },
-      { href: '/bandeja',   label: 'Bandeja',     icon: MessageSquare },
-      { href: '/whatsapp',  label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
-      { href: '/emails',    label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
-      { href: '/marketing', label: 'Marketing',   icon: Megaphone,     badge: 'Meta' },
+      { href: '/admin/agente',    label: 'Agente IA',   icon: Sparkles,      badge: 'MiniMax' },
+      { href: '/admin/bandeja',   label: 'Bandeja',     icon: MessageSquare },
+      { href: '/admin/whatsapp',  label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
+      { href: '/admin/emails',    label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
+      { href: '/admin/marketing', label: 'Marketing',   icon: Megaphone,     badge: 'Meta' },
     ],
   },
   {
     label: 'Sistema',
     items: [
-      { href: '/usuarios',      label: 'Usuarios / Cajeros', icon: Users },
+      { href: '/admin/usuarios',      label: 'Usuarios / Cajeros', icon: Users },
       { href: '/landings',      label: 'Landings SEO',       icon: Globe },
-      { href: '/configuracion', label: 'Configuración',      icon: Settings2 },
+      { href: '/admin/configuracion', label: 'Configuración',      icon: Settings2 },
     ],
   },
 ];
@@ -89,7 +89,7 @@ export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
     <>
       {/* Brand */}
       <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 min-w-0">
+        <Link href="/admin" className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
             <Printer className="h-5 w-5 text-white" />
           </div>
