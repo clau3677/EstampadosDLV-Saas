@@ -43,6 +43,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   const [product, setProduct] = useState(initialProduct);
   const [allProducts, setAllProducts] = useState(Array.isArray(initialProducts) ? initialProducts : []);
   const [stockMap, setStockMap] = useState({});
+  const [stockInfo, setStockInfo] = useState(null); // { onDemand, supplierInStock, supplier } para la variante seleccionada
   const [loading, setLoading] = useState(!initialProduct);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
@@ -70,12 +71,48 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
         const stockRows = await fetch('/api/inventory/commercial').then(r => r.json());
         const stockForProduct = (Array.isArray(stockRows) ? stockRows : []).filter(s => s.productId === p.id);
         const map = {};
-        stockForProduct.forEach(s => { map[s.variantId] = s.quantity - (s.reservedQuantity || 0); });
+        const infoMap = {}; // variante → { onDemand, supplierInStock, supplier }
+        stockForProduct.forEach(s => {
+          map[s.variantId] = s.quantity - (s.reservedQuantity || 0);
+          infoMap[s.variantId] = {
+            onDemand: !!s.onDemand,
+            supplierInStock: s.supplierInStock !== false,
+            supplier: s.supplier || null,
+            location: s.location || null,
+          };
+        });
         setStockMap(map);
+        // Inicializar info para la variante seleccionada
+        const firstVariantId = p.variants?.[0]?.id || null;
+        setStockInfo(infoMap[firstVariantId] || null);
       } finally { setLoading(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  // Actualizar stockInfo cuando cambia la variante seleccionada
+  useEffect(() => {
+    // Re-fetch del stock para obtener info de la variante
+    if (!selectedVariantId || !product?.id) return;
+    (async () => {
+      try {
+        const stockRows = await fetch('/api/inventory/commercial').then(r => r.json());
+        const s = (Array.isArray(stockRows) ? stockRows : []).find(
+          r => r.productId === product.id && r.variantId === selectedVariantId
+        );
+        if (s) {
+          setStockInfo({
+            onDemand: !!s.onDemand,
+            supplierInStock: s.supplierInStock !== false,
+            supplier: s.supplier || null,
+            location: s.location || null,
+          });
+        } else {
+          setStockInfo(null);
+        }
+      } catch { /* noop */ }
+    })();
+  }, [selectedVariantId, product?.id]);
 
   if (loading) return (
     <div className="container py-20 flex items-center justify-center text-slate-500">
@@ -98,6 +135,15 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   const stockAvailable = stockMap[selectedVariant?.id] ?? 0;
   const outOfStock = stockAvailable <= 0;
   const price = selectedVariant?.price || product.basePrice;
+
+  // Indicadores de proveedor (bajo pedido)
+  const currentStockInfo = stockInfo || (stockMap ? {} : null);
+  const isOnDemand = !!currentStockInfo?.onDemand;
+  const supplierLabel = currentStockInfo?.supplier === 'cottonext' ? 'Cottonext'
+    : currentStockInfo?.supplier === 'textilryu' ? 'Textil Ryu'
+    : currentStockInfo?.supplier === 'treck' ? 'Treck'
+    : null;
+  const supplierOutOfStock = isOnDemand && currentStockInfo?.supplierInStock === false;
 
   const sizes = [...new Set(product.variants?.map(v => v.attributes?.size).filter(Boolean))];
   const colors = [...new Set(product.variants?.map(v => v.attributes?.color).filter(Boolean))];
@@ -256,6 +302,23 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
               <div className="text-4xl font-mono font-bold text-slate-900">{formatCLP(price)}</div>
               <div className="text-xs text-slate-500 font-medium">IVA incluido</div>
             </div>
+
+            {/* Badge de proveedor (bajo pedido) */}
+            {isOnDemand && (
+              <div className="mt-3">
+                {supplierOutOfStock ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+                    <Clock className="h-3.5 w-3.5" />
+                    Bajo pedido · {supplierLabel || 'Proveedor'} — Agotado, pedido especial 7-10 días hábiles
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold">
+                    <Truck className="h-3.5 w-3.5" />
+                    Bajo pedido · {supplierLabel || 'Proveedor'} — Entrega 5-7 días hábiles
+                  </div>
+                )}
+              </div>
+            )}
 
             {product.description && (
               <p className="mt-4 text-slate-600 leading-relaxed">{product.description}</p>

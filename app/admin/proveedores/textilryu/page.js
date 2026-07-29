@@ -128,7 +128,7 @@ const SUBCATEGORY_LABEL = {
       if (!r.ok) throw new Error(d.error || 'error');
       setScanResult(d);
       toast.success(`Escaneo completo: ${d.count} productos encontrados`, {
-        description: d.cached ? 'Usando cache reciente' : 'Escaneo fresco desde Cottonext',
+        description: d.cached ? 'Usando cache reciente' : 'Escaneo fresco desde Textil Ryu',
       });
     } catch (err) {
       toast.error('Escaneo falló', { description: err.message });
@@ -521,10 +521,10 @@ const SUBCATEGORY_LABEL = {
           {!scanResult && !scanning && (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
               <Truck className="h-10 w-10 mx-auto text-slate-400" />
-              <div className="mt-3 font-semibold text-slate-800">Escanea el catálogo de Cottonext</div>
+              <div className="mt-3 font-semibold text-slate-800">Escanea el catálogo de Textil Ryu</div>
               <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-                Elige el rango de IDs de producto (por defecto 1-100). El sistema descargará automáticamente nombres,
-                fotos, colores, tallas y precios mayoristas.
+                El sistema escaneará /catalogo/ de textilryu.cl y descargará automáticamente nombres,
+                fotos, colores, tallas y precios mayoristas de todos los productos disponibles.
               </p>
             </div>
           )}
@@ -653,9 +653,9 @@ const SUBCATEGORY_LABEL = {
                     <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Horario</div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
                       <Clock className="h-3.5 w-3.5 text-slate-400" />
-                      {cronSettings?.humanSchedule || 'Diariamente a las 00:15 hrs Chile'}
+                      {cronSettings?.humanSchedule || 'Diariamente a las 00:30 hrs Chile'}
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5 font-mono">cron: {cronSettings?.schedule || '15 3 * * *'}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5 font-mono">cron: {cronSettings?.schedule || '30 3 * * *'}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-600 font-semibold">
@@ -721,7 +721,7 @@ const SUBCATEGORY_LABEL = {
                     <li>Cada variante (por ejemplo Talla S · Negro) recibe stock inicial de <b>99 unidades</b>.</li>
                     <li>No sobrescribe stock ajustado manualmente.</li>
                     <li>Los productos aparecen en <code className="font-mono bg-slate-100 px-1 rounded">/inventario</code> como &quot;on-demand&quot;.</li>
-                    <li>Cuando un cliente compra, tu pedido a Cottonext se hace en el mismo momento.</li>
+                    <li>Cuando un cliente compra, tu pedido a Textil Ryu se hace en el mismo momento.</li>
                   </ul>
                 </div>
 
@@ -743,8 +743,8 @@ const SUBCATEGORY_LABEL = {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900">
-                <b>Modelo bajo pedido:</b> Los productos Cottonext se ordenan a tu proveedor cuando un cliente compra.
-                No necesitas mantener stock físico. El cron diario verifica cambios de precio en textilryu.cl y ajusta
+                <b>Modelo bajo pedido:</b> Los productos de Textil Ryu se ordenan a tu proveedor cuando un cliente compra.
+                No necesitas mantener stock físico. El cron diario (00:30 hrs Chile) verifica cambios de precio en textilryu.cl y ajusta
                 automáticamente el precio de venta (con markup +40%).
               </div>
             </div>

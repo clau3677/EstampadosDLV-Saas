@@ -1031,6 +1031,7 @@ export default function PosPage() {
                 const key = `${p.id}-${v.id}`;
                 const stock = stockMap[key] || 0;
                 const disabled = stock === 0;
+                const isOnDemand = p.supplier && p.supplier !== 'manual';
                 return (
                   <button
                     key={key}
@@ -1054,7 +1055,13 @@ export default function PosPage() {
                     <div className="text-[11px] text-slate-500 line-clamp-1">{v.name}</div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="font-mono font-bold text-sm text-slate-900">{formatCLP(v.price)}</span>
-                      <Badge variant="outline" className={`text-[9px] h-4 ${stock < 5 ? 'border-amber-300 text-amber-700' : ''}`}>{stock} un.</Badge>
+                      {isOnDemand ? (
+                        <Badge variant="outline" className="text-[9px] h-4 border-blue-300 text-blue-700">
+                          <Truck className="h-2.5 w-2.5 mr-0.5" />Bajo pedido
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className={`text-[9px] h-4 ${stock < 5 ? 'border-amber-300 text-amber-700' : ''}`}>{stock} un.</Badge>
+                      )}
                     </div>
                   </button>
                 );
