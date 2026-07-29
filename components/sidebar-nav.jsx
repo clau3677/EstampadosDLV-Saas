@@ -1,9 +1,9 @@
 'use client';
-
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
@@ -11,7 +11,8 @@ import {
   Library, Megaphone,
 } from 'lucide-react';
 
-const SECTIONS = [
+// Secciones completas para admin/operator
+const ADMIN_SECTIONS = [
   {
     label: 'General',
     items: [
@@ -72,11 +73,27 @@ const SECTIONS = [
   },
 ];
 
+// Secciones minimal para customers (solo las que necesitan)
+const CUSTOMER_SECTIONS = [
+  {
+    label: 'General',
+    items: [
+      { href: '/tienda', label: 'Tienda Pública', icon: Store },
+    ],
+  },
+  {
+    label: 'Mis pedidos',
+    items: [
+      { href: '/mi-cuenta', label: 'Mis Pedidos', icon: ClipboardList },
+    ],
+  },
+];
+
 export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
 
   // Bloquear scroll del body cuando el drawer está abierto en mobile.
-  // El cierre automático al navegar ya se gestiona vía onClick={onMobileClose} en cada <Link/>.
   useEffect(() => {
     if (mobileOpen) {
       const prev = document.body.style.overflow;
@@ -85,17 +102,31 @@ export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
     }
   }, [mobileOpen]);
 
+  // Determinar secciones según rol
+  const isAdmin = user?.role === 'admin' || user?.role === 'operator';
+  const sections = isAdmin ? ADMIN_SECTIONS : CUSTOMER_SECTIONS;
+
+  // Datos del usuario para el footer
+  const userDisplayName = user?.name || user?.email?.split('@')[0] || 'Usuario';
+  const userEmail = user?.email || '';
+  const userInitials = user?.name
+    ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : (user?.email || 'U')[0].toUpperCase();
+  const roleLabel = isAdmin ? 'ADMIN' : 'CLIENTE';
+
   const sidebarContent = (
     <>
       {/* Brand */}
       <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between">
-        <Link href="/admin" className="flex items-center gap-3 min-w-0">
+        <Link href={isAdmin ? '/admin' : '/tienda'} className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
             <Printer className="h-5 w-5 text-white" />
           </div>
           <div className="min-w-0">
             <div className="font-bold text-white leading-tight tracking-tight truncate">Estampados DLV</div>
-            <div className="text-[10px] uppercase tracking-widest text-orange-400/80">Sistema Operativo</div>
+            <div className="text-[10px] uppercase tracking-widest text-orange-400/80">
+              {isAdmin ? 'Sistema Operativo' : roleLabel}
+            </div>
           </div>
         </Link>
 
@@ -112,7 +143,7 @@ export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label}>
             <div className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
               {section.label}
@@ -149,19 +180,19 @@ export function SidebarNav({ mobileOpen = false, onMobileClose = () => {} }) {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer con datos reales del usuario */}
       <div className="px-3 py-3 border-t border-slate-800">
         <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-900 transition-colors">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-xs font-bold ring-1 ring-slate-700">
-            DL
+            {loading ? '?' : userInitials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-200 truncate">Diego (Admin)</div>
-            <div className="text-[11px] text-slate-500 truncate">admin@estampadosdlv.cl</div>
+            <div className="text-sm font-medium text-slate-200 truncate">{loading ? '...' : userDisplayName}</div>
+            <div className="text-[11px] text-slate-500 truncate">{loading ? 'Cargando...' : `${userEmail} · ${roleLabel}`}</div>
           </div>
-          <button className="text-slate-500 hover:text-slate-200" title="Cerrar sesión">
+          <Link href="/login" className="text-slate-500 hover:text-slate-200" title="Cerrar sesión">
             <LogOut className="h-4 w-4" />
-          </button>
+          </Link>
         </div>
       </div>
     </>

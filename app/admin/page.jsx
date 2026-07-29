@@ -164,7 +164,7 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-slate-900">Estado de Impresoras</h2>
             <p className="text-sm text-slate-500">Enrutamiento automático · Digital Factory v11</p>
           </div>
-          <Link href="/kanban">
+          <Link href="/admin/kanban">
             <Button variant="ghost" size="sm" className="text-slate-600">Ver Kanban <ArrowUpRight className="h-3 w-3 ml-1" /></Button>
           </Link>
         </div>
@@ -182,11 +182,11 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-slate-900">Accesos rápidos</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ModuleCard href="/pos"         title="POS · Punto de Venta"  description="Apertura/cierre de caja, boletas y ventas en local con sincronización omnicanal."       icon={ShoppingCart} accent="bg-gradient-to-br from-orange-500 to-rose-500" />
+            <ModuleCard href="/admin/pos"         title="POS · Punto de Venta"  description="Apertura/cierre de caja, boletas y ventas en local con sincronización omnicanal."       icon={ShoppingCart} accent="bg-gradient-to-br from-orange-500 to-rose-500" />
             <ModuleCard href="/gang-sheet"  title="Gang Sheet Builder"    description="Editor visual, cotización por mm, IA para quitar fondo y escalar resolución."          icon={Layers}       accent="bg-gradient-to-br from-purple-500 to-fuchsia-500" />
-            <ModuleCard href="/pre-prensa"  title="Pre-Prensa Zero-Click"  description="Exporta PNG/TIFF 300 DPI y enruta a Hot Folders de Digital Factory automáticamente."    icon={Zap}          accent="bg-gradient-to-br from-amber-500 to-orange-500" />
-            <ModuleCard href="/kanban"     title="Kanban Producción"      description="3 colas independientes con estados Recibido → Impresión → Curado → Listo."            icon={KanbanSquare} accent="bg-gradient-to-br from-blue-500 to-indigo-500" />
-            <ModuleCard href="/inventario" title="Inventario Dual"        description="Stock comercial + insumos de producción (film, tintas CMYK+W+V, poliamida)."          icon={PackageSearch} accent="bg-gradient-to-br from-emerald-500 to-teal-500" />
+            <ModuleCard href="/admin/pre-prensa"  title="Pre-Prensa Zero-Click"  description="Exporta PNG/TIFF 300 DPI y enruta a Hot Folders de Digital Factory automáticamente."    icon={Zap}          accent="bg-gradient-to-br from-amber-500 to-orange-500" />
+            <ModuleCard href="/admin/kanban"     title="Kanban Producción"      description="3 colas independientes con estados Recibido → Impresión → Curado → Listo."            icon={KanbanSquare} accent="bg-gradient-to-br from-blue-500 to-indigo-500" />
+            <ModuleCard href="/admin/inventario" title="Inventario Dual"        description="Stock comercial + insumos de producción (film, tintas CMYK+W+V, poliamida)."          icon={PackageSearch} accent="bg-gradient-to-br from-emerald-500 to-teal-500" />
             <ModuleCard href="/tienda"     title="Tienda Web Pública"     description="Catálogo SEO-friendly de prendas y DTF por metro con checkout omnicanal."            icon={ShoppingCart} accent="bg-gradient-to-br from-slate-700 to-slate-900" />
           </div>
         </div>
