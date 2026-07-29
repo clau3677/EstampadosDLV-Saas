@@ -70,8 +70,8 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
         setSelectedImage(0);
         setSelectedVariantId(prev => prev || p.variants?.[0]?.id || null);
 
-        const stockRows = await fetch('/api/inventory/commercial').then(r => r.json());
-        const stockForProduct = (Array.isArray(stockRows) ? stockRows : []).filter(s => s.productId === p.id);
+        const stockRows = await fetch(`/api/inventory/commercial?productId=${p.id}`).then(r => r.json());
+        const stockForProduct = Array.isArray(stockRows) ? stockRows : [];
         const map = {};
         const infoMap = {}; // variante → { onDemand, supplierInStock, supplier }
         stockForProduct.forEach(s => {
@@ -95,13 +95,13 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
   // Actualizar stockInfo cuando cambia la variante seleccionada
   useEffect(() => {
-    // Re-fetch del stock para obtener info de la variante
+    // Re-fetch del stock para obtener info de la variante (filtrado por productId)
     if (!selectedVariantId || !product?.id) return;
     (async () => {
       try {
-        const stockRows = await fetch('/api/inventory/commercial').then(r => r.json());
+        const stockRows = await fetch(`/api/inventory/commercial?productId=${product.id}`).then(r => r.json());
         const s = (Array.isArray(stockRows) ? stockRows : []).find(
-          r => r.productId === product.id && r.variantId === selectedVariantId
+          r => r.variantId === selectedVariantId
         );
         if (s) {
           setStockInfo({
