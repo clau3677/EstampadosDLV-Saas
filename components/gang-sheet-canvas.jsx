@@ -230,14 +230,22 @@ export default function GangSheetCanvas() {
         });
 
         image.on('dragend', () => {
+          const s = useGangSheet.getState();
           let newX = Math.round((image.x() - offX) / scale);
           let newY = Math.round((image.y() - offY) / scale);
+          // Clamp al lienzo: no salir por la izquierda ni por el ancho
+          newX = Math.max(0, Math.min(newX, s.canvasWidthMm - d.widthMm));
+          newY = Math.max(0, newY);
           // (G) Snap to grid on drop
-          const s = useGangSheet.getState();
           if (s.snapEnabled && s.snapGridMm > 0) {
             newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
             newY = Math.round(newY / s.snapGridMm) * s.snapGridMm;
             // Reflejar snap visual inmediatamente
+            image.x(offX + newX * scale);
+            image.y(offY + newY * scale);
+            rect.position({ x: image.x(), y: image.y() });
+          } else {
+            // Reflejar clamp visual
             image.x(offX + newX * scale);
             image.y(offY + newY * scale);
             rect.position({ x: image.x(), y: image.y() });
@@ -250,15 +258,28 @@ export default function GangSheetCanvas() {
           const sY = image.scaleY();
           image.scaleX(1);
           image.scaleY(1);
-          const newW = Math.max(5, Math.round((image.width() * sX) / scale));
-          const newH = Math.max(5, Math.round((image.height() * sY) / scale));
+          // Usar el máximo de scaleX/scaleY para mantener aspect ratio (keepRatio: true)
+          const maxS = Math.max(sX, sY);
+          const newW = Math.max(5, Math.round((image.width() * maxS) / scale));
+          const newH = Math.max(5, Math.round((image.height() * maxS) / scale));
           const s = useGangSheet.getState();
           let newX = Math.round((image.x() - offX) / scale);
           let newY = Math.round((image.y() - offY) / scale);
+          // Clamp al lienzo
+          newX = Math.max(0, Math.min(newX, s.canvasWidthMm - newW));
+          newY = Math.max(0, newY);
           if (s.snapEnabled && s.snapGridMm > 0) {
             newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
             newY = Math.round(newY / s.snapGridMm) * s.snapGridMm;
           }
+          // Reflejar visual
+          image.x(offX + newX * scale);
+          image.y(offY + newY * scale);
+          image.width(newW * scale);
+          image.height(newH * scale);
+          rect.position({ x: image.x(), y: image.y() });
+          rect.width(image.width());
+          rect.height(image.height());
           useGangSheet.getState().updateDesign(d.id, {
             xMm: newX,
             yMm: newY,

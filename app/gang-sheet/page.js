@@ -167,7 +167,7 @@ export default function GangSheetPage() {
     mode, printerCode, printerData, canvasWidthMm, designs, selectedId, selectedIds, express,
     manualLengthMm,
     setMode, addDesign, removeDesign, removeMany, duplicate, duplicateNTimes, rotate90,
-    select, selectAll, setExpress, autoArrange, currentQuote, effectiveDpi, designWarnings,
+    select, selectAll, setExpress, autoArrange, resolveOverlaps, currentQuote, effectiveDpi, designWarnings,
     computedLengthMm, setManualLengthMm, reset,
     undo, redo, canUndo, canRedo,
     applyTrimResult, hasOverlaps, detectOverlaps, moveSelected,
@@ -584,7 +584,7 @@ export default function GangSheetPage() {
               Los bordes rojos punteados indican los diseños afectados. Sepáralos manualmente o usa <b>Auto-organizar</b>.
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={() => autoArrange()} className="border-rose-300 text-rose-700 hover:bg-rose-100">
+          <Button size="sm" variant="outline" onClick={() => resolveOverlaps()} className="border-rose-300 text-rose-700 hover:bg-rose-100">
             <Wand2 className="h-3.5 w-3.5 mr-1.5" />Resolver
           </Button>
         </div>
