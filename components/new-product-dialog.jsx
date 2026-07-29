@@ -21,16 +21,21 @@ import { formatCLP } from '@/lib/format';
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const COMMON_COLORS = ['Negro', 'Blanco', 'Gris', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Naranjo'];
 
-// Subcategorías que usan variantes de dimensiones (ancho x largo) en lugar de talla/color
-const DIMENSION_VARIANTS = ['dtf_textil', 'dtf_uv'];
+// Categorías que usan variantes de dimensiones (ancho x largo) en lugar de talla/color
+// Se detecta por el código de la categoría (normalizado a minúsculas, sin espacios ni guiones)
+function normalizeCode(code) {
+  return (code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const DIMENSION_CATEGORIES = ['dtftextil', 'dtfuv'];
 
 // Variantes por defecto según el tipo de producto
 const emptyVariant = (isDimension) => isDimension
   ? { name: '', widthCm: '', lengthCm: '', price: '', initialStock: 0 }
   : { name: '', size: '', color: '', price: '', initialStock: 0 };
 
-function isDimensionProduct(subcategory) {
-  return DIMENSION_VARIANTS.includes(subcategory);
+function isDimensionProduct(categoryCode) {
+  return DIMENSION_CATEGORIES.includes(normalizeCode(categoryCode));
 }
 
 export function NewProductDialog({ onCreated, trigger }) {
@@ -42,8 +47,8 @@ export function NewProductDialog({ onCreated, trigger }) {
   });
   const [variants, setVariants] = useState([emptyVariant(false)]);
 
-  // Detectar si es producto de dimensiones
-  const isDimension = isDimensionProduct(form.subcategory);
+  // Detectar si es producto de dimensiones (por categoría, no subcategoría)
+  const isDimension = isDimensionProduct(form.category);
 
   useEffect(() => {
     if (open) {
@@ -52,18 +57,17 @@ export function NewProductDialog({ onCreated, trigger }) {
     }
   }, [open]);
 
-  // Cuando cambia subcategoría, resetear variantes al tipo correcto
+  // Cuando cambia la categoría, resetear variantes al tipo correcto
   useEffect(() => {
-    const newIsDim = isDimensionProduct(form.subcategory);
+    const newIsDim = isDimensionProduct(form.category);
     setVariants((prev) => {
-      // Solo resetear si cambia el tipo (no en cada keystroke)
       const wasDim = prev.length > 0 && 'widthCm' in prev[0];
       if (wasDim !== newIsDim) {
         return [emptyVariant(newIsDim)];
       }
       return prev;
     });
-  }, [form.subcategory]);
+  }, [form.category]);
 
   const updateVariant = (i, patch) => setVariants((vs) => vs.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
   const removeVariant = (i) => setVariants((vs) => vs.filter((_, idx) => idx !== i));
