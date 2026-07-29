@@ -6,7 +6,11 @@ import { verifyTokenEdge } from '@/lib/auth/jwt-edge';
 const AUTH_COOKIE = process.env.AUTH_COOKIE || 'dlv_token';
 
 // Rutas 100% públicas (sin token, sin redirect).
+// '/' se incluye aquí para que el middleware no lo intercepte;
+// page.js (Server Component) decide: redirect a /tienda si no hay sesión,
+// o renderizar Dashboard si hay sesión admin.
 const PUBLIC_PATHS = [
+  '/',
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
   '/login', '/registro', '/api', '/uploads',
   '/_next', '/favicon', '/robots', '/sitemap', '/manifest',
