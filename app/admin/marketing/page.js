@@ -3,7 +3,7 @@
 // =============================================================================
 // Módulo Marketing — Panel admin (auditoría jul-2026)
 // -----------------------------------------------------------------------------
-// Pestañas: Publicaciones · Anuncios (Meta Ads) · Métricas · Conexiones
+// Pestañas: Publicaciones · Anuncios (Meta) · Google Ads · Métricas · Conexiones
 // Backend: /api/marketing/* (lib/api/marketing.js)
 // =============================================================================
 
@@ -23,6 +23,7 @@ import {
   Megaphone, RefreshCw, Sparkles, Send, CalendarClock, Trash2, Pencil,
   Facebook, Instagram, Link2, Unlink, CheckCircle2, XCircle, AlertTriangle,
   BarChart3, Rocket, ExternalLink, Copy, Clock, ImageIcon, Loader2,
+  Search, Target, TrendingUp, Zap,
 } from 'lucide-react';
 
 const fmtCLP = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n ?? 0);
@@ -74,9 +75,10 @@ export default function MarketingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Megaphone className="h-6 w-6 text-orange-500" /> Marketing
             <Badge className="bg-blue-100 text-blue-700 ml-1">Meta</Badge>
+            <Badge className="bg-orange-100 text-orange-700 ml-1">Google Ads</Badge>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Posts automáticos con IA, anuncios en Facebook e Instagram y métricas — todo desde el panel.
+            Posts automáticos con IA, anuncios en Facebook, Instagram y Google — todo desde el panel.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1351,3 +1353,4 @@ function GoogleAdsTab() {
     </div>
   );
 }
+

@@ -15,6 +15,9 @@ const BASE = (process.env.NEXT_PUBLIC_BASE_URL || 'https://estampadosdlv.com').r
 
 const absImage = (img) => (img ? (img.startsWith('http') ? img : `${BASE}${img}`) : undefined);
 
+// Imagen OG de fallback para productos sin foto propia
+const DEFAULT_OG_IMAGE = `${BASE}/uploads/fallback/product-placeholder.png`;
+
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   const product = await getPublicProductBySlug(slug);
@@ -26,6 +29,13 @@ export async function generateMetadata({ params }) {
   }
   const title = `${product.name} · Estampados DLV`;
   const description = (product.description || `${product.name} — impresión DTF profesional con despacho a todo Chile.`).slice(0, 160);
+
+  // Determinar imagen OG: usar la primera imagen del producto, o fallback
+  const firstImage = product.images?.[0];
+  const ogImages = firstImage
+    ? [{ url: absImage(firstImage), width: 800, height: 800, alt: product.name }]
+    : [{ url: DEFAULT_OG_IMAGE, width: 800, height: 800, alt: `${product.name} — Estampados DLV` }];
+
   return {
     title,
     description,
@@ -37,7 +47,13 @@ export async function generateMetadata({ params }) {
       siteName: BUSINESS.name,
       locale: 'es_CL',
       type: 'website',
-      images: product.images?.length ? [{ url: absImage(product.images[0]) }] : undefined,
+      images: ogImages,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: ogImages,
     },
   };
 }
