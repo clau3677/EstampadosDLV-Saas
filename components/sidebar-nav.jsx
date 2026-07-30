@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X,
-  Library, Megaphone,
+  Library, Megaphone, Box,
 } from 'lucide-react';
 
 // Secciones completas para admin/operator
@@ -32,6 +32,7 @@ const ADMIN_SECTIONS = [
     items: [
       { href: '/gang-sheet', label: 'Gang Sheet Builder', icon: Layers, badge: 'AI' },
       { href: '/admin/design-library', label: 'Biblioteca GSB', icon: Library },
+      { href: '/mockup', label: 'Mockup 3D', icon: Box, badge: '3D' },
     ],
   },
   {
