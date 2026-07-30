@@ -158,7 +158,7 @@ function FeatureCard({ icon: Icon, from, to, title, desc }) {
 export default function TiendaPage({ initialProducts = null, initialCategories = null }) {
   const searchParams = useSearchParams();
   const [cats, setCats] = useState(DEFAULT_CATS);
-  const [cat, setCat] = useState('all');
+  const [cat, setCat] = useState('blank_apparel');
   const [q, setQ] = useState('');
   const [subcat, setSubcat] = useState('all');
 
@@ -351,8 +351,8 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
             <div className="inline-flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-semibold mb-2">
               <Package className="h-3 w-3" />Catálogo
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Todo el catálogo</h2>
-            <p className="text-sm text-slate-500 mt-1">Ropa lisa, gorras, ropa de trabajo, ropa estampada, merchandising y DTF por metro.</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">Catálogo de productos</h2>
+            <p className="text-sm text-slate-500 mt-1">Explora nuestra línea de Ropa Lisa y descubre todo el catálogo.</p>
           </div>
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
