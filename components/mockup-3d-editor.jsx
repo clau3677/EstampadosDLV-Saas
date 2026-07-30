@@ -38,7 +38,12 @@ const GARMENT_COLORS = {
   menta:        { label: 'Menta',          hex: '#98FF98' },
 };
 
-const MODEL_URL = '/mockups/shirt_baked.glb';
+// ============================================================================
+// MODELOS DISPONIBLES
+// ============================================================================
+const GARMENT_MODELS = {
+  polera: { label: 'Polera', url: '/mockups/shirt_baked.glb' },
+};
 
 // ============================================================================
 // THREE.JS SCENE MANAGER
@@ -70,6 +75,10 @@ class ThreeScene {
     this.designOffsetX = 0;
     this.designOffsetY = 0;
     this.modelBounds = null;
+    this.modelScale = 1;
+    // Track front-facing vertices for better design placement
+    this.frontVertices = [];
+    this.frontNormal = new THREE.Vector3();
   }
 
   init() {
@@ -210,9 +219,9 @@ class ThreeScene {
           const maxDim = Math.max(size.x, size.y, size.z);
 
           // Scale to fit nicely in viewport
-          const scale = 1.3 / maxDim;
-          this.model.scale.setScalar(scale);
-          this.model.position.sub(center.multiplyScalar(scale));
+          this.modelScale = 1.3 / maxDim;
+          this.model.scale.setScalar(this.modelScale);
+          this.model.position.sub(center.multiplyScalar(this.modelScale));
           this.model.position.y += 0.05;
 
           // Compute bounds after scaling for design placement
@@ -222,29 +231,45 @@ class ThreeScene {
             size: scaledBox.getSize(new THREE.Vector3()),
           };
 
-          // Store original materials and identify garment meshes
-          // CRITICAL: Remove baked texture maps to prevent them from
-          // rendering on top of the design decal
+          // Process meshes: tint the baked texture color but keep lighting info
           this.garmentMeshes = [];
+          this.frontVertices = [];
           this.model.traverse((child) => {
             if (child.isMesh) {
-              // Clone and clean: remove baked texture to prevent ghosting over design
-              const cleanedMat = child.material.clone();
-              cleanedMat.map = null;
-              cleanedMat.normalMap = null;
-              cleanedMat.aoMap = null;
-              cleanedMat.roughnessMap = null;
-              cleanedMat.metalnessMap = null;
-              cleanedMat.emissiveMap = null;
-              this.originalMaterials.set(child, cleanedMat);
+              // Clone the original material
+              const mat = child.material.clone();
               
-              // Set clean material immediately to remove baked shadows
-              child.material = cleanedMat;
+              // Store original for color changes
+              this.originalMaterials.set(child, mat);
+              
+              // Apply the cloned material
+              child.material = mat;
               child.castShadow = true;
               child.receiveShadow = true;
               this.garmentMeshes.push(child);
+
+              // Collect front-facing vertices (z > 0 in model space)
+              const geo = child.geometry;
+              const posAttr = geo.attributes.position;
+              const worldMatrix = new THREE.Matrix4();
+              child.getWorldMatrix(worldMatrix);
+              
+              for (let i = 0; i < posAttr.count; i++) {
+                const x = posAttr.getX(i);
+                const y = posAttr.getY(i);
+                const z = posAttr.getZ(i);
+                const worldPos = new THREE.Vector3(x, y, z).applyMatrix4(worldMatrix);
+                
+                // Only keep vertices on the front (positive z after model transformation)
+                if (worldPos.z > this.modelBounds.center.z - 0.05) {
+                  this.frontVertices.push({ x, y, z, worldX: worldPos.x, worldY: worldPos.y, worldZ: worldPos.z });
+                }
+              }
             }
           });
+
+          // Set initial color
+          this._applyGarmentColor(new THREE.Color(this.currentColorHex));
 
           this.scene.add(this.model);
           resolve(gltf);
@@ -255,36 +280,50 @@ class ThreeScene {
     });
   }
 
-  setColor(hexColor) {
-    this.currentColorHex = hexColor;
-    if (!this.model) return;
-
-    const targetColor = new THREE.Color(hexColor);
-
+  _applyGarmentColor(targetColor) {
     this.garmentMeshes.forEach((child) => {
       const original = this.originalMaterials.get(child);
       if (!original) return;
 
       const mat = original.clone();
 
-      // Color the garment material
+      // Tint the material color
       mat.color.copy(targetColor);
-      mat.emissive = targetColor.clone();
-      mat.emissiveIntensity = 0.3;
 
-      // For white garment, increase emissive to make it visible
-      if (hexColor === '#FFFFFF' || hexColor === '#F8F8F8') {
+      // Add slight emissive for visibility
+      mat.emissive = targetColor.clone();
+      mat.emissiveIntensity = 0.15;
+
+      // For white garment, use neutral emissive
+      if (this.currentColorHex === '#FFFFFF' || this.currentColorHex === '#F8F8F8') {
         mat.emissive = new THREE.Color(0x333333);
-        mat.emissiveIntensity = 0.15;
+        mat.emissiveIntensity = 0.08;
       }
 
-      mat.roughness = 0.7;
-      mat.metalness = 0.0;
+      // Keep reasonable material properties
+      if (mat.roughness === undefined || mat.roughness === 1) {
+        mat.roughness = 0.7;
+      }
+      if (mat.metalness === undefined) {
+        mat.metalness = 0.0;
+      }
+
       mat.needsUpdate = true;
       child.material = mat;
     });
   }
 
+  setColor(hexColor) {
+    this.currentColorHex = hexColor;
+    if (!this.model) return;
+    const targetColor = new THREE.Color(hexColor);
+    this._applyGarmentColor(targetColor);
+  }
+
+  /**
+   * Create a curved plane that follows the torso surface better.
+   * Uses a cylindrical projection with adjustable curvature.
+   */
   setDesignTexture(imageUrl) {
     if (!imageUrl) {
       this._removeDesign();
@@ -298,41 +337,58 @@ class ThreeScene {
       imageUrl,
       (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
         texture.needsUpdate = true;
         this.designTexture = texture;
 
-        // Create a curved plane for the chest area
-        const width = 0.35;
-        const height = 0.35;
-        const segments = 20;
-        const geometry = new THREE.PlaneGeometry(width, height, segments, segments);
+        // Create a curved plane that wraps around the chest
+        const width = 0.40;
+        const height = 0.40;
+        const segmentsW = 32;
+        const segmentsH = 32;
+        const geometry = new THREE.PlaneGeometry(width, height, segmentsW, segmentsH);
 
         // Apply cylindrical curvature to match the chest shape
+        // The curvature simulates the cylindrical form of a human torso
         const positions = geometry.attributes.position;
+        const radius = 0.25; // approximate torso radius
+
         for (let i = 0; i < positions.count; i++) {
           const x = positions.getX(i);
+          const y = positions.getY(i);
           const normalizedX = x / (width * 0.5);
-          const z = normalizedX * normalizedX * 0.018;
-          positions.setZ(i, z);
+
+          // Cylindrical projection: map flat plane to cylinder surface
+          const angle = normalizedX * 0.35; // limited angle for chest area
+          const cylZ = Math.cos(angle) * radius - radius + 0.02; // bulge outward
+          const cylX = Math.sin(angle) * radius;
+
+          // Apply gentle S-curve for vertical curvature (chest shape)
+          const normalizedY = y / (height * 0.5);
+          const vertCurve = normalizedY * normalizedY * 0.008;
+
+          positions.setX(i, cylX);
+          positions.setZ(i, cylZ + vertCurve);
         }
         geometry.computeVertexNormals();
 
-        // MeshBasicMaterial for the decal - NOT affected by lighting or garment color
-        // polygonOffset pushes it FORWARD (negative factor) to prevent z-fighting
+        // Material: transparent, respects original image colors
         const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          alphaTest: 0.05,
+          alphaTest: 0.02,
           depthTest: true,
           depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -5,
-          polygonOffsetUnits: -5,
           side: THREE.DoubleSide,
+          // Use polygon offset to ensure it renders slightly in front of the garment
+          polygonOffset: true,
+          polygonOffsetFactor: -3,
+          polygonOffsetUnits: -3,
         });
 
         this.designPlane = new THREE.Mesh(geometry, material);
-        this.designPlane.renderOrder = 100; // Render after all garment meshes
+        this.designPlane.renderOrder = 999;
 
         this._updateDesignPosition();
         this.scene.add(this.designPlane);
@@ -359,12 +415,11 @@ class ThreeScene {
     const { center, size } = this.modelBounds;
 
     // Place the design on the front of the shirt (chest area)
-    // The shirt model center is roughly at the center of the torso
-    // Push the design CLEARLY in front of the garment surface to avoid z-fighting
+    // Position it slightly in front of the torso surface
     this.designPlane.position.set(
       center.x + this.designOffsetX,
-      center.y + this.designOffsetY + size.y * 0.1,
-      center.z + size.z * 0.47 + 0.015  // Clear distance in front of the shirt surface
+      center.y + this.designOffsetY + size.y * 0.08,
+      center.z + size.z * 0.45 + 0.012
     );
     this.designPlane.scale.setScalar(this.designScale);
   }
@@ -544,7 +599,7 @@ export default function Mockup3DEditor() {
             }
           }, 15000);
 
-          scene.loadModel(MODEL_URL)
+          scene.loadModel(GARMENT_MODELS.polera.url)
             .then(() => {
               clearTimeout(timeoutId);
               setLoading(false);
