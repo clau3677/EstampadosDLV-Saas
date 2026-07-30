@@ -9,8 +9,28 @@ import {
   RotateCw, Box,
 } from 'lucide-react';
 
-import * as THREE from 'three';
+// Importaciones específicas de Three.js para reducir bundle size
+import { Scene } from 'three';
+import { Color } from 'three';
+import { PerspectiveCamera } from 'three';
+import { WebGLRenderer } from 'three';
+import { PCFSoftShadowMap, ACESFilmicToneMapping, SRGBColorSpace, DoubleSide, LinearFilter } from 'three';
+import { AmbientLight } from 'three';
+import { DirectionalLight } from 'three';
+import { PlaneGeometry } from 'three';
+import { ShadowMaterial, MeshBasicMaterial } from 'three';
+import { Mesh } from 'three';
+import { Box3, Vector3, Matrix4 } from 'three';
+import { TextureLoader } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+// Re-exportar como namespace para compatibilidad con la clase ThreeScene
+const THREE = {
+  Scene, Color, PerspectiveCamera, WebGLRenderer,
+  PCFSoftShadowMap, ACESFilmicToneMapping, SRGBColorSpace, DoubleSide, LinearFilter,
+  AmbientLight, DirectionalLight, PlaneGeometry,
+  ShadowMaterial, MeshBasicMaterial, Mesh, Box3, Vector3, Matrix4, TextureLoader,
+};
 
 // ============================================================================
 // COLORES REALES DEL CATÁLOGO
@@ -42,7 +62,11 @@ const GARMENT_COLORS = {
 // MODELOS DISPONIBLES
 // ============================================================================
 const GARMENT_MODELS = {
-  polera: { label: 'Polera', url: '/mockups/shirt_baked.glb' },
+  polera: {
+    label: 'Polera',
+    url: '/mockups/shirt_baked.glb',
+    fallbackUrl: '/mockups/shirt_baked_simple.glb',
+  },
 };
 
 // ============================================================================
@@ -599,17 +623,36 @@ export default function Mockup3DEditor() {
             }
           }, 15000);
 
-          scene.loadModel(GARMENT_MODELS.polera.url)
+          // Intentar cargar modelo principal, con fallback al simplificado
+          const modelConfig = GARMENT_MODELS.polera;
+          scene.loadModel(modelConfig.url)
             .then(() => {
               clearTimeout(timeoutId);
               setLoading(false);
               scene.setColor(GARMENT_COLORS.blanco.hex);
             })
             .catch((err) => {
-              clearTimeout(timeoutId);
-              console.error('Error loading model:', err);
-              setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
-              setLoading(false);
+              console.error('Error loading main model, trying fallback:', err);
+              // Intentar con el modelo simplificado
+              if (modelConfig.fallbackUrl) {
+                scene.loadModel(modelConfig.fallbackUrl)
+                  .then(() => {
+                    clearTimeout(timeoutId);
+                    setLoading(false);
+                    scene.setColor(GARMENT_COLORS.blanco.hex);
+                  })
+                  .catch((err2) => {
+                    clearTimeout(timeoutId);
+                    console.error('Error loading fallback model:', err2);
+                    setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
+                    setLoading(false);
+                  });
+              } else {
+                clearTimeout(timeoutId);
+                console.error('Error loading model:', err);
+                setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
+                setLoading(false);
+              }
             });
         });
       });
