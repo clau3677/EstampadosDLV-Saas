@@ -56,8 +56,8 @@ class ThreeScene {
     this.targetRotationY = 0.0;
     this.pitch = 0.0;
     this.targetPitch = 0.0;
-    this.distance = 2.2;
-    this.targetDistance = 2.2;
+    this.distance = 2.6;
+    this.targetDistance = 2.6;
     this.animationId = null;
     this.isPlaying = true;
     this.materialsReplaced = false;
@@ -214,7 +214,7 @@ class ThreeScene {
         const scale = targetSize / maxDim;
         this.model.scale.setScalar(scale);
         this.model.position.sub(center.multiplyScalar(scale));
-        this.model.position.y += 0.05;
+        this.model.position.y += 0.1;
 
         this.scene.add(this.model);
 
@@ -374,10 +374,10 @@ function LibraryTab({ onSelect }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/design-library?search=${encodeURIComponent(search)}&page=${page}&limit=20`)
+    fetch(`/api/design-library?page=${page}&size=20${search ? '&search=' + encodeURIComponent(search) : ''}`)
       .then(r => r.json())
       .then(data => {
-        setDesigns(data.designs || []);
+        setDesigns(data.items || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -407,7 +407,7 @@ function LibraryTab({ onSelect }) {
               onClick={() => onSelect(d)}
               className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 transition-colors group"
             >
-              <img src={d.url || d.thumbnailUrl} alt={d.name || 'Diseño'} className="w-full h-full object-cover" />
+              <img src={d.imageUrl || d.url || d.thumbnailUrl} alt={d.name || 'Diseño'} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                 <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 px-2 py-1 rounded">Usar</span>
               </div>
@@ -528,7 +528,7 @@ export default function Mockup3DEditor() {
   }, [pushHistory]);
 
   const handleLibrarySelect = useCallback((design) => {
-    const url = design.url || design.thumbnailUrl;
+    const url = design.imageUrl || design.url || design.thumbnailUrl;
     if (!url) { toast.error('Este diseño no tiene imagen'); return; }
     const newDesign = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
@@ -615,10 +615,10 @@ export default function Mockup3DEditor() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Canvas 3D */}
-        <div className="flex-1 relative p-3">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full relative">
+        <div className="flex-1 relative p-3 min-h-0">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full relative min-h-[400px]">
             {error && (
               <div className="flex flex-col items-center justify-center h-full bg-rose-50/60 px-6 text-center">
                 <span className="text-2xl mb-3">⚠️</span>

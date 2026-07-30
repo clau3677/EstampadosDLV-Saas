@@ -11,13 +11,13 @@ import ChatWidget from '@/components/chat-widget';
 import MobileActionBar from '@/components/mobile-action-bar';
 
 // Rutas totalmente aisladas: login/registro se pintan solas, sin nav, sin footer.
-const BARE_PREFIXES = ['/login', '/registro'];
+const BARE_PREFIXES = ['/login', '/registro', '/mockup'];
 
 // Rutas de admin con sidebar (verificar ANTES que las públicas).
 const ADMIN_PREFIXES = ['/admin', '/gang-sheet'];
 
 // Rutas públicas con PublicNav + Footer.
-const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta', '/mockup'];
+const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta'];
 
 function startsWithExactPrefix(pathname, prefixes) {
   return prefixes.some(p => {

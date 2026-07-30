@@ -28,7 +28,7 @@ export const metadata = {
 
 export default function MockupPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-6">
+    <div className="h-screen bg-slate-50">
       <Mockup3DWrapper />
     </div>
   );
