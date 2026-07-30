@@ -114,9 +114,10 @@ export default function MarketingPage() {
       )}
 
       <Tabs defaultValue="posts" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full md:w-auto">
+        <TabsList className="grid grid-cols-5 w-full md:w-auto">
           <TabsTrigger value="posts">Publicaciones</TabsTrigger>
-          <TabsTrigger value="ads">Anuncios</TabsTrigger>
+          <TabsTrigger value="ads">Meta Ads</TabsTrigger>
+          <TabsTrigger value="google-ads">Google Ads</TabsTrigger>
           <TabsTrigger value="metrics">Métricas</TabsTrigger>
           <TabsTrigger value="connections">Conexiones</TabsTrigger>
         </TabsList>
@@ -126,6 +127,9 @@ export default function MarketingPage() {
         </TabsContent>
         <TabsContent value="ads">
           <AdsTab isConnected={isConnected} hasAdAccount={!!account?.adAccountId} />
+        </TabsContent>
+        <TabsContent value="google-ads">
+          <GoogleAdsTab />
         </TabsContent>
         <TabsContent value="metrics">
           <MetricsTab isConnected={isConnected} />
@@ -1009,6 +1013,341 @@ function ConnectionsTab({ status, loading, onChanged }) {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pestaña: Google Ads
+// ---------------------------------------------------------------------------
+function GoogleAdsTab() {
+  const [googleStatus, setGoogleStatus] = useState(null);
+  const [subTab, setSubTab] = useState('connection');
+  const [campaigns, setCampaigns] = useState([]);
+  const [metrics, setMetrics] = useState([]);
+  const [optimization, setOptimization] = useState(null);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [loadingOpt, setLoadingOpt] = useState(false);
+  // Crear campaña
+  const [newName, setNewName] = useState('');
+  const [newBudget, setNewBudget] = useState('50');
+  const [newMaxCpc, setNewMaxCpc] = useState('0.50');
+  const [creating, setCreating] = useState(false);
+
+  const refreshGoogleStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/marketing/google/oauth/status');
+      if (res.ok) setGoogleStatus(await res.json());
+    } catch (e) { console.warn(e); }
+  }, []);
+
+  const refreshCampaigns = useCallback(async () => {
+    setLoadingCampaigns(true);
+    try {
+      const res = await fetch('/api/marketing/google/campaigns');
+      if (res.ok) { const d = await res.json(); setCampaigns(d.campaigns || []); }
+    } catch (e) { console.warn(e); }
+    finally { setLoadingCampaigns(false); }
+  }, []);
+
+  const refreshMetrics = useCallback(async () => {
+    setLoadingMetrics(true);
+    try {
+      const res = await fetch('/api/marketing/google/metrics');
+      if (res.ok) { const d = await res.json(); setMetrics(d.metrics || []); }
+    } catch (e) { console.warn(e); }
+    finally { setLoadingMetrics(false); }
+  }, []);
+
+  const refreshOptimization = useCallback(async () => {
+    setLoadingOpt(true);
+    try {
+      const res = await fetch('/api/marketing/google/optimization');
+      if (res.ok) setOptimization(await res.json());
+    } catch (e) { console.warn(e); }
+    finally { setLoadingOpt(false); }
+  }, []);
+
+  useEffect(() => { refreshGoogleStatus(); }, [refreshGoogleStatus]);
+
+  const connect = async () => {
+    try {
+      const res = await fetch('/api/marketing/google/oauth/authorize');
+      if (res.ok) {
+        const { url } = await res.json();
+        window.location.href = url;
+      } else {
+        toast.error('Google Ads no configurado en el servidor');
+      }
+    } catch (e) { toast.error('Error al conectar'); }
+  };
+
+  const disconnect = async () => {
+    try {
+      await fetch('/api/marketing/google/oauth/disconnect', { method: 'DELETE' });
+      refreshGoogleStatus();
+      toast.success('Google Ads desconectado');
+    } catch (e) { toast.error('Error al desconectar'); }
+  };
+
+  const createCampaign = async () => {
+    if (!newName.trim()) return toast.error('Ponle nombre a la campaña');
+    setCreating(true);
+    try {
+      const res = await fetch('/api/marketing/google/campaigns', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName, budgetUsd: Number(newBudget), maxCpcUsd: Number(newMaxCpc) }),
+      });
+      if (res.ok) {
+        toast.success('Campaña creada exitosamente');
+        setNewName(''); setNewBudget('50'); setNewMaxCpc('0.50');
+        refreshCampaigns();
+      } else {
+        const d = await res.json();
+        toast.error(d.message || 'Error creando campaña');
+      }
+    } catch (e) { toast.error('Error creando campaña'); }
+    finally { setCreating(false); }
+  };
+
+  const toggleCampaign = async (resourceName, currentStatus) => {
+    const newStatus = currentStatus === 'ENABLED' ? 'PAUSED' : 'ENABLED';
+    try {
+      const res = await fetch('/api/marketing/google/campaigns/status', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resource_name: resourceName, status: newStatus }),
+      });
+      if (res.ok) {
+        toast.success(`Campaña ${newStatus === 'ENABLED' ? 'activada' : 'pausada'}`);
+        refreshCampaigns();
+      } else {
+        const d = await res.json();
+        toast.error(d.message || 'Error actualizando campaña');
+      }
+    } catch (e) { toast.error('Error actualizando campaña'); }
+  };
+
+  const isConnected = googleStatus?.connected;
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <Tabs defaultValue="connection" value={subTab} onValueChange={setSubTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="connection">Conexión</TabsTrigger>
+          <TabsTrigger value="create">Crear Campaña</TabsTrigger>
+          <TabsTrigger value="metrics">Métricas</TabsTrigger>
+          <TabsTrigger value="optimization">IA Optimización</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="connection">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Google Ads — Estado de Conexión</CardTitle>
+              <CardDescription>Conecta tu cuenta de Google Ads para crear y gestionar campañas desde el panel.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {googleStatus?.configured === false && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-800">
+                  <AlertTriangle className="h-4 w-4 inline mr-1" />
+                  Google Ads no configurado en el servidor. Faltan variables de entorno: GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CUSTOMER_ID
+                </div>
+              )}
+              {isConnected && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <div>
+                      <p className="font-medium text-emerald-800">Google Ads conectado</p>
+                      <p className="text-xs text-emerald-600">Customer ID: {googleStatus.customerId} · Conectado desde {fmtDate(googleStatus.connectedAt)}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={disconnect} className="text-rose-600 border-rose-300 hover:bg-rose-50">
+                    <Unlink className="h-3.5 w-3.5 mr-1" /> Desconectar
+                  </Button>
+                </div>
+              )}
+              {!isConnected && googleStatus?.configured !== false && (
+                <Button onClick={connect} size="lg">
+                  <Link2 className="h-4 w-4 mr-2" /> Conectar con Google Ads
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="create">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Crear Campaña de Búsqueda</CardTitle>
+              <CardDescription>Crea una campaña de búsqueda con presupuesto y puja máxima configurables.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Nombre</label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: DTF UV - Impresión" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Presupuesto diario (USD)</label>
+                  <Input type="number" value={newBudget} onChange={(e) => setNewBudget(e.target.value)} min="1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Puja máxima CPC (USD)</label>
+                  <Input type="number" value={newMaxCpc} onChange={(e) => setNewMaxCpc(e.target.value)} step="0.01" min="0.01" />
+                </div>
+              </div>
+              <Button onClick={createCampaign} disabled={!isConnected || creating || !newName.trim()}>
+                {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
+                Crear Campaña
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Lista de campañas */}
+          <div className="space-y-2 mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">Campañas existentes</h3>
+              <Button variant="outline" size="sm" onClick={refreshCampaigns}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Actualizar
+              </Button>
+            </div>
+            {loadingCampaigns ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Cargando campañas...
+              </div>
+            ) : campaigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay campañas aún.</p>
+            ) : (
+              <div className="space-y-2">
+                {campaigns.map((c, i) => (
+                  <Card key={i}>
+                    <CardContent className="py-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{c.campaign?.name || 'Sin nombre'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {c.campaign?.advertisingChannelType || 'SEARCH'} ·
+                          Status: {c.campaign?.status || 'UNKNOWN'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => toggleCampaign(c.resourceName || c.campaign?.resourceName, c.campaign?.status)}>
+                          {c.campaign?.status === 'ENABLED' ? 'Pausar' : 'Activar'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="metrics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Métricas Google Ads</CardTitle>
+              <CardDescription>Rendimiento de tus campañas en los últimos 30 días.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button variant="outline" size="sm" onClick={refreshMetrics}>
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Actualizar métricas
+              </Button>
+              {loadingMetrics ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
+                </div>
+              ) : metrics.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin datos de métricas.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2">Campaña</th>
+                        <th className="py-2">Clics</th>
+                        <th className="py-2">Impresiones</th>
+                        <th className="py-2">CTR</th>
+                        <th className="py-2">CPC</th>
+                        <th className="py-2">Gasto</th>
+                        <th className="py-2">Conv.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metrics.map((m, i) => (
+                        <tr key={i} className="border-b">
+                          <td className="py-2 font-medium">{m.campaign?.name || '—'}</td>
+                          <td className="py-2">{m.metrics?.clicks || '0'}</td>
+                          <td className="py-2">{m.metrics?.impressions || '0'}</td>
+                          <td className="py-2">{((Number(m.metrics?.ctr) || 0) * 100).toFixed(2)}%</td>
+                          <td className="py-2">${((Number(m.metrics?.averageCpc) || 0) / 1000000).toFixed(2)}</td>
+                          <td className="py-2">${((Number(m.metrics?.costMicros) || 0) / 1000000).toFixed(2)}</td>
+                          <td className="py-2">{m.metrics?.conversions || '0'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="optimization">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">IA Optimización de Campañas</CardTitle>
+              <CardDescription>La IA analiza tus métricas y genera recomendaciones para optimizar rendimiento.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button onClick={refreshOptimization} disabled={loadingOpt}>
+                {loadingOpt ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                Analizar y Optimizar
+              </Button>
+              {optimization && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{optimization.summary}</p>
+                  {optimization.stats && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                      <Card className="p-3">
+                        <p className="text-muted-foreground">Campañas</p>
+                        <p className="text-lg font-bold">{optimization.stats.campaigns}</p>
+                      </Card>
+                      <Card className="p-3">
+                        <p className="text-muted-foreground">Clics</p>
+                        <p className="text-lg font-bold">{optimization.stats.totalClicks}</p>
+                      </Card>
+                      <Card className="p-3">
+                        <p className="text-muted-foreground">CTR Prom.</p>
+                        <p className="text-lg font-bold">{optimization.stats.avgCtr}</p>
+                      </Card>
+                      <Card className="p-3">
+                        <p className="text-muted-foreground">Gasto Total</p>
+                        <p className="text-lg font-bold">${optimization.stats.totalCostUsd}</p>
+                      </Card>
+                    </div>
+                  )}
+                  {optimization.recommendations?.map((r, i) => (
+                    <div key={i} className={`rounded-lg border p-3 text-sm ${
+                      r.type === 'warning' ? 'bg-amber-50 border-amber-300' :
+                      r.type === 'success' ? 'bg-emerald-50 border-emerald-300' :
+                      'bg-blue-50 border-blue-300'
+                    }`}>
+                      <p className="font-medium">{r.title} {r.campaign !== 'General' && <span className="text-muted-foreground font-normal">({r.campaign})</span>}</p>
+                      <p className="text-muted-foreground mt-1">{r.detail}</p>
+                      <p className="mt-1">{r.suggestion}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!optimization && !loadingOpt && (
+                <p className="text-sm text-muted-foreground">Haz clic en "Analizar y Optimizar" para obtener recomendaciones.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
