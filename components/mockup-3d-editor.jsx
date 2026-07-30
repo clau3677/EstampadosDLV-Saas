@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three-stdlib';
 
 // ============================================================================
 // COLORES REALES DEL CATÁLOGO
