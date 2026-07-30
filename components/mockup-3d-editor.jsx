@@ -20,7 +20,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ============================================================================
-// DATOS DE COLORES
+// DATOS DE COLORES Y PRENDAS
 // ============================================================================
 const GARMENT_COLORS = {
   white:  { label: 'Blanco',     hex: '#F5F5F0' },
@@ -29,6 +29,10 @@ const GARMENT_COLORS = {
   navy:   { label: 'Azul Marino',hex: '#1B2A4A' },
   red:    { label: 'Rojo',       hex: '#C41E1E' },
   forest: { label: 'Verde',      hex: '#1E5E3A' },
+};
+
+const GARMENTS = {
+  tshirt: { label: 'Polera Oversize', model: '/mockups/shirt_baked.glb' },
 };
 
 // ============================================================================
@@ -47,14 +51,15 @@ class ThreeScene {
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
-    this.rotationY = 0;
-    this.targetRotationY = 0;
-    this.pitch = 0;
-    this.targetPitch = 0;
-    this.distance = 3;
-    this.targetDistance = 3;
+    this.rotationY = 0.3;
+    this.targetRotationY = 0.3;
+    this.pitch = 0.1;
+    this.targetPitch = 0.1;
+    this.distance = 2.5;
+    this.targetDistance = 2.5;
     this.animationId = null;
     this.isPlaying = true;
+    this.materialsReplaced = false;
 
     this.init();
   }
@@ -65,7 +70,8 @@ class ThreeScene {
     this.scene.background = new THREE.Color(0xf8fafc);
 
     // Camera
-    this.camera = new THREE.PerspectiveCamera(30, this.container.clientWidth / this.container.clientHeight, 0.1, 100);
+    const aspect = this.container.clientWidth / this.container.clientHeight;
+    this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
     this.camera.position.set(0, 0, 3);
 
     // Renderer
@@ -80,48 +86,55 @@ class ThreeScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lighting - professional studio setup
+    // Key light (warm, from upper right)
+    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.5);
+    keyLight.position.set(3, 4, 3);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.1;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.bias = -0.001;
+    this.scene.add(keyLight);
+
+    // Fill light (cool, from left)
+    const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.6);
+    fillLight.position.set(-3, 2, 2);
+    this.scene.add(fillLight);
+
+    // Rim light (back light for edge definition)
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    rimLight.position.set(0, 3, -4);
+    this.scene.add(rimLight);
+
+    // Ambient light (soft fill)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight1.position.set(5, 5, 5);
-    dirLight1.castShadow = true;
-    dirLight1.shadow.mapSize.width = 1024;
-    dirLight1.shadow.mapSize.height = 1024;
-    this.scene.add(dirLight1);
-
-    const dirLight2 = new THREE.DirectionalLight(0xc8d8ff, 0.3);
-    dirLight2.position.set(-5, 3, -5);
-    this.scene.add(dirLight2);
-
-    const pointLight = new THREE.PointLight(0xffffff, 0.5);
-    pointLight.position.set(0, 5, 0);
-    this.scene.add(pointLight);
+    // Hemisphere light (sky/ground)
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x886644, 0.3);
+    this.scene.add(hemiLight);
 
     // Floor for shadow
-    const floorGeo = new THREE.PlaneGeometry(10, 10);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.25 });
+    const floorGeo = new THREE.PlaneGeometry(8, 8);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.2 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.5;
+    floor.position.y = -1.2;
     floor.receiveShadow = true;
     this.scene.add(floor);
-
-    // Grid helper (subtle)
-    const gridHelper = new THREE.GridHelper(10, 20, 0xe2e8f0, 0xe2e8f0);
-    gridHelper.position.y = -1.49;
-    this.scene.add(gridHelper);
 
     // Mouse events for orbit
     this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
     this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
     this.renderer.domElement.addEventListener('mouseleave', () => this.onMouseUp());
-    this.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e));
+    this.renderer.domElement.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     this.renderer.domElement.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
     this.renderer.domElement.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
     this.renderer.domElement.addEventListener('touchend', () => this.onMouseUp());
@@ -143,9 +156,9 @@ class ThreeScene {
     if (!this.mouseDown) return;
     const dx = e.clientX - this.mouseX;
     const dy = e.clientY - this.mouseY;
-    this.targetRotationY += dx * 0.005;
-    this.targetPitch += dy * 0.005;
-    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
+    this.targetRotationY += dx * 0.008;
+    this.targetPitch += dy * 0.008;
+    this.targetPitch = Math.max(-0.6, Math.min(0.6, this.targetPitch));
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   }
@@ -167,9 +180,9 @@ class ThreeScene {
     if (!this.mouseDown || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - this.mouseX;
     const dy = e.touches[0].clientY - this.mouseY;
-    this.targetRotationY += dx * 0.005;
-    this.targetPitch += dy * 0.005;
-    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
+    this.targetRotationY += dx * 0.008;
+    this.targetPitch += dy * 0.008;
+    this.targetPitch = Math.max(-0.6, Math.min(0.6, this.targetPitch));
     this.mouseX = e.touches[0].clientX;
     this.mouseY = e.touches[0].clientY;
   }
@@ -177,41 +190,107 @@ class ThreeScene {
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
-    this.targetDistance = Math.max(2, Math.min(6, this.targetDistance));
+    this.targetDistance = Math.max(1.5, Math.min(6, this.targetDistance));
   }
 
   onResize() {
-    if (!this.container) return;
-    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    if (!this.container || !this.camera || !this.renderer) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setSize(w, h);
   }
 
   async loadModel(url) {
     const loader = new GLTFLoader();
     return new Promise((resolve, reject) => {
       loader.load(url, (gltf) => {
+        // Remove the existing model if any
+        if (this.model) {
+          this.scene.remove(this.model);
+        }
+        
         this.model = gltf.scene;
+        this.materialsReplaced = false;
+
         this.model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
+
+        // Center and scale the model
+        const box = new THREE.Box3().setFromObject(this.model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.2 / maxDim;
+        this.model.scale.setScalar(scale);
+        this.model.position.sub(center.multiplyScalar(scale));
+        // Lift model slightly so it sits on the floor
+        this.model.position.y += 0.3 * scale;
+
         this.scene.add(this.model);
+
+        // Apply color after model is added (need to wait a frame)
+        requestAnimationFrame(() => {
+          this.replaceMaterials();
+          this.applyColor();
+        });
+
         resolve(gltf);
       }, undefined, reject);
     });
   }
 
+  replaceMaterials() {
+    if (this.materialsReplaced || !this.model) return;
+    this.materialsReplaced = true;
+
+    this.model.traverse((child) => {
+      if (child.isMesh && child.material) {
+        // Create a new MeshStandardMaterial that supports color
+        const newMat = new THREE.MeshStandardMaterial({
+          color: this.currentColor.clone(),
+          roughness: 0.85,
+          metalness: 0.0,
+          side: THREE.DoubleSide,
+        });
+
+        // If original material has a map, we can use it as a roughness texture
+        // but don't use it as the color map (because it's baked)
+        if (child.material.map) {
+          // We'll keep the map as a roughness map for fabric texture detail
+          newMat.roughnessMap = child.material.map;
+        }
+
+        child.material = newMat;
+      }
+    });
+  }
+
+  applyColor() {
+    if (!this.model) return;
+    this.model.traverse((child) => {
+      if (child.isMesh && child.material && !Array.isArray(child.material)) {
+        child.material.color.copy(this.currentColor);
+      }
+    });
+  }
+
   setColor(hex) {
     this.targetColor.set(hex);
+    this.replaceMaterials();
   }
 
   setDesignTexture(url) {
     if (!url) {
       if (this.decalMesh) {
         this.scene.remove(this.decalMesh);
+        if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
+        this.decalMesh.material.dispose();
         this.decalMesh.geometry.dispose();
         this.decalMesh = null;
       }
@@ -221,15 +300,18 @@ class ThreeScene {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(url, (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
 
       // Remove old decal
       if (this.decalMesh) {
         this.scene.remove(this.decalMesh);
+        if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
+        this.decalMesh.material.dispose();
         this.decalMesh.geometry.dispose();
       }
 
-      // Create decal mesh
-      const decalGeo = new THREE.PlaneGeometry(0.3, 0.3);
+      // Create decal mesh positioned on the chest area of the t-shirt
+      const decalGeo = new THREE.PlaneGeometry(0.35, 0.35);
       const decalMat = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
@@ -237,7 +319,10 @@ class ThreeScene {
         depthWrite: true,
       });
       this.decalMesh = new THREE.Mesh(decalGeo, decalMat);
-      this.decalMesh.position.set(0, 0.04, 0.16);
+      
+      // Position on the chest area (front of the model)
+      this.decalMesh.position.set(0, 0.15, 0.35);
+      
       this.scene.add(this.decalMesh);
     });
   }
@@ -247,29 +332,19 @@ class ThreeScene {
     this.animationId = requestAnimationFrame(() => this.animate());
 
     // Smooth interpolation
-    this.rotationY += (this.targetRotationY - this.rotationY) * 0.08;
-    this.pitch += (this.targetPitch - this.pitch) * 0.08;
-    this.distance += (this.targetDistance - this.distance) * 0.08;
-    this.currentColor.lerp(this.targetColor, 0.06);
+    this.rotationY += (this.targetRotationY - this.rotationY) * 0.1;
+    this.pitch += (this.targetPitch - this.pitch) * 0.1;
+    this.distance += (this.targetDistance - this.distance) * 0.1;
+    this.currentColor.lerp(this.targetColor, 0.08);
 
     // Update camera position (orbit)
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
-    this.camera.position.y = Math.sin(this.pitch) * this.distance;
+    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.2;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.lookAt(0, 0, 0);
 
     // Update model color
-    if (this.model) {
-      this.model.traverse((child) => {
-        if (child.isMesh && child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => { m.color.copy(this.currentColor); });
-          } else {
-            child.material.color.copy(this.currentColor);
-          }
-        }
-      });
-    }
+    this.applyColor();
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -284,7 +359,9 @@ class ThreeScene {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.renderer) {
       this.renderer.dispose();
-      this.container.removeChild(this.renderer.domElement);
+      if (this.container && this.renderer.domElement.parentNode === this.container) {
+        this.container.removeChild(this.renderer.domElement);
+      }
     }
     if (this.model) {
       this.scene.remove(this.model);
@@ -372,6 +449,7 @@ function LibraryTab({ onSelect }) {
 export default function Mockup3DEditor() {
   const [activeTab, setActiveTab] = useState('garment');
   const [color, setColor] = useState('white');
+  const [garment, setGarment] = useState('tshirt');
   const [designs, setDesigns] = useState([]);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -389,7 +467,8 @@ export default function Mockup3DEditor() {
     sceneRef.current = scene;
 
     // Load model
-    scene.loadModel('/mockups/shirt_baked.glb')
+    const modelUrl = GARMENTS[garment].model;
+    scene.loadModel(modelUrl)
       .then(() => {
         setLoading(false);
         scene.setColor(GARMENT_COLORS.white.hex);
@@ -624,6 +703,7 @@ export default function Mockup3DEditor() {
               <div className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 {activeTab === 'garment' && (
                   <div className="space-y-4">
+                    {/* Color selector */}
                     <div>
                       <h3 className="text-sm font-semibold text-slate-700 mb-2">
                         <Palette className="h-3.5 w-3.5 inline mr-1" />
@@ -649,9 +729,31 @@ export default function Mockup3DEditor() {
                       </p>
                     </div>
 
+                    {/* Garment type selector */}
+                    <div className="border-t border-slate-100 pt-3">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                        Tipo de prenda
+                      </h3>
+                      <div className="space-y-1">
+                        {Object.entries(GARMENTS).map(([key, val]) => (
+                          <button
+                            key={key}
+                            onClick={() => setGarment(key)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                              garment === key
+                                ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                                : 'text-slate-600 hover:bg-slate-50 border border-transparent'}
+                            `}
+                          >
+                            {val.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="border-t border-slate-100 pt-3">
                       <p className="text-xs text-slate-500">
-                        <strong>Polera Oversize T-Shirt</strong> — Modelo 3D con iluminación realista.
+                        <strong>Polera Oversize T-Shirt</strong> — Modelo 3D con iluminación de estudio profesional.
                         Arrastra para rotar, scroll para zoom.
                       </p>
                     </div>
