@@ -354,10 +354,12 @@ class ThreeScene {
     if (!this.designPlane || !this.modelBounds) return;
     const { center, size } = this.modelBounds;
 
+    // Place the design on the front of the shirt (chest area)
+    // The shirt model center is roughly at the center of the torso
     this.designPlane.position.set(
       center.x + this.designOffsetX,
-      center.y + this.designOffsetY,
-      center.z + size.z * 0.38 + 0.002
+      center.y + this.designOffsetY + size.y * 0.1,
+      center.z + size.z * 0.45 + 0.005  // Slightly in front of the shirt surface
     );
     this.designPlane.scale.setScalar(this.designScale);
   }
