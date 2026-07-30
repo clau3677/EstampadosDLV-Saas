@@ -48,8 +48,8 @@ const GARMENT_COLORS = {
 // ============================================================================
 const GARMENTS = {
   polera:     { label: 'Polera',     model: '/mockups/shirt_baked.glb', icon: '👕' },
-  poleron:    { label: 'Polerón',    model: '/mockups/shirt_baked.glb', icon: '🧥' },
-  gorra:      { label: 'Gorra',      model: '/mockups/shirt_baked.glb', icon: '🧢' },
+  poleron:    { label: 'Polerón',    model: '/mockups/hoodie.glb', icon: '🧥' },
+  gorra:      { label: 'Gorra',      model: '/mockups/cap.glb', icon: '🧢' },
 };
 
 // ============================================================================
@@ -560,23 +560,25 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
-  // Handle garment change - don't reload if same model file
+  // Handle garment change - load new model when garment changes
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current || !GARMENTS[garment]) return;
     const modelUrl = GARMENTS[garment].model;
     if (modelUrl === lastModelRef.current) return; // Same model, no reload needed
     lastModelRef.current = modelUrl;
     setLoading(true);
+    setError(null);
     sceneRef.current.loadModel(modelUrl)
       .then(() => {
         setLoading(false);
         sceneRef.current.setColor(GARMENT_COLORS[color].hex);
       })
       .catch((err) => {
+        console.error('Model load error:', err);
         setError('No se pudo cargar el modelo 3D.');
         setLoading(false);
       });
-  }, [garment]);
+  }, [garment, color]);
 
   // Update color
   useEffect(() => {
