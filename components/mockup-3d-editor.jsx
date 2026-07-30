@@ -56,8 +56,8 @@ class ThreeScene {
     this.targetRotationY = 0.0;
     this.pitch = 0.0;
     this.targetPitch = 0.0;
-    this.distance = 2.6;
-    this.targetDistance = 2.6;
+    this.distance = 2.8;
+    this.targetDistance = 2.8;
     this.animationId = null;
     this.isPlaying = true;
     this.materialsReplaced = false;
@@ -178,7 +178,7 @@ class ThreeScene {
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
-    this.targetDistance = Math.max(1.5, Math.min(5, this.targetDistance));
+    this.targetDistance = Math.max(1.8, Math.min(5.5, this.targetDistance));
   }
 
   onResize() {
