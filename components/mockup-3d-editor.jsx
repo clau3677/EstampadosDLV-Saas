@@ -51,8 +51,7 @@ class ThreeScene {
     this.renderer = null;
     this.model = null;
     this.originalMaterials = new Map();
-    this.targetColor = new THREE.Color('#FFFFFF');
-    this.currentColor = new THREE.Color('#FFFFFF');
+    this.currentColorHex = '#FFFFFF';
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
@@ -66,20 +65,21 @@ class ThreeScene {
     this.isPlaying = true;
     this.designPlane = null;
     this.designTexture = null;
-    this.designScale = 0.3;
+    this.designScale = 1.0;
     this.designOffsetX = 0;
-    this.designOffsetY = 0.1;
+    this.designOffsetY = 0;
+    this.modelBounds = null;
 
     this.init();
   }
 
   init() {
-    // Scene
+    // Scene with subtle gradient background
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8f9fa);
+    this.scene.background = new THREE.Color(0xf1f5f9);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
+    this.camera = new THREE.PerspectiveCamera(32, aspect, 0.01, 100);
     this.camera.position.set(0, 0.1, 2.5);
 
     // Renderer
@@ -94,16 +94,17 @@ class ThreeScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.3;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lighting - strong and balanced
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Studio lighting setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
-    keyLight.position.set(3, 5, 4);
+    // Key light (main, warm)
+    const keyLight = new THREE.DirectionalLight(0xfff0e0, 2.0);
+    keyLight.position.set(2, 4, 5);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
@@ -112,31 +113,38 @@ class ThreeScene {
     keyLight.shadow.bias = -0.002;
     this.scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xd4e4ff, 0.8);
-    fillLight.position.set(-3, 2, 2);
+    // Fill light (cool, from the left)
+    const fillLight = new THREE.DirectionalLight(0xd0e0ff, 0.9);
+    fillLight.position.set(-3, 2, 3);
     this.scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    rimLight.position.set(0, 3, -4);
+    // Rim light (back, highlights edges)
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    rimLight.position.set(0, 3, -5);
     this.scene.add(rimLight);
 
-    // Ground shadow
-    const groundGeo = new THREE.PlaneGeometry(4, 4);
-    const groundMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+    // Subtle top light for fabric folds
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    topLight.position.set(0, 6, 0);
+    this.scene.add(topLight);
+
+    // Ground shadow plane
+    const groundGeo = new THREE.PlaneGeometry(5, 5);
+    const groundMat = new THREE.ShadowMaterial({ opacity: 0.12 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.6;
+    ground.position.y = -0.65;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // Mouse events
+    // Mouse/touch events
     this._onMouseDown = (e) => { this.mouseDown = true; this.mouseX = e.clientX; this.mouseY = e.clientY; };
     this._onMouseMove = (e) => {
       if (!this.mouseDown) return;
       const dx = e.clientX - this.mouseX;
       const dy = e.clientY - this.mouseY;
       this.targetRotationY += dx * 0.01;
-      this.targetPitch = Math.max(-0.6, Math.min(0.6, this.targetPitch - dy * 0.01));
+      this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch - dy * 0.01));
       this.mouseX = e.clientX;
       this.mouseY = e.clientY;
     };
@@ -174,17 +182,26 @@ class ThreeScene {
         (gltf) => {
           this.model = gltf.scene;
 
-          // Auto-fit
+          // Compute bounds before scaling
           const box = new THREE.Box3().setFromObject(this.model);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
           const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = 1.3 / maxDim;
+
+          // Scale to fit nicely
+          const scale = 1.2 / maxDim;
           this.model.scale.setScalar(scale);
           this.model.position.sub(center.multiplyScalar(scale));
           this.model.position.y += 0.05;
 
-          // Store original materials and cast shadows
+          // Compute bounds after scaling for design placement
+          const scaledBox = new THREE.Box3().setFromObject(this.model);
+          this.modelBounds = {
+            center: scaledBox.getCenter(new THREE.Vector3()),
+            size: scaledBox.getSize(new THREE.Vector3()),
+          };
+
+          // Store original materials and enable shadows
           this.model.traverse((child) => {
             if (child.isMesh) {
               this.originalMaterials.set(child, child.material.clone());
@@ -194,10 +211,6 @@ class ThreeScene {
           });
 
           this.scene.add(this.model);
-
-          // Apply initial color
-          this.applyGarmentColor();
-
           resolve(gltf);
         },
         undefined,
@@ -206,57 +219,58 @@ class ThreeScene {
     });
   }
 
-  applyGarmentColor() {
+  setColor(hexColor) {
+    this.currentColorHex = hexColor;
     if (!this.model) return;
+
+    const targetColor = new THREE.Color(hexColor);
+
     this.model.traverse((child) => {
       if (child.isMesh) {
-        // Clone the original material to preserve textures/normal maps
         const original = this.originalMaterials.get(child);
         if (original) {
-          const newMat = original.clone();
-          // For the t-shirt model, the baked material has a texture
-          // We override the color with a tint
-          newMat.color.copy(this.currentColor);
-          // Keep roughness reasonable for fabric
-          newMat.roughness = 0.7;
-          newMat.metalness = 0.0;
-          // Keep emissive at 0
-          newMat.emissive = new THREE.Color(0x000000);
-          child.material = newMat;
+          // Clone and modify only the color, keep everything else
+          const mat = original.clone();
+          
+          // If original has a map (baked texture), we need to blend the color with it
+          if (mat.map) {
+            // Keep the baked texture but tint it with the color
+            mat.color.set(0xffffff); // White so the texture shows through
+            mat.emissive = targetColor.clone();
+            mat.emissiveIntensity = 1.0;
+            // The emissive color replaces the appearance
+            // But we want the color to REPLACE the white, not add to it
+            // So we remove the map and use emissive only
+            mat.map = null;
+            mat.needsUpdate = true;
+          } else {
+            // No baked texture, just set the color directly
+            mat.color.copy(targetColor);
+          }
+          
+          mat.roughness = 0.75;
+          mat.metalness = 0.0;
+          mat.emissive = targetColor;
+          mat.emissiveIntensity = mat.map ? 0 : 1.0;
+          
+          child.material = mat;
+          child.material.needsUpdate = true;
         }
       }
     });
   }
 
-  setColor(hexColor) {
-    this.targetColor.set(hexColor);
-    // Apply immediately, not via lerp
-    this.currentColor.set(hexColor);
-    this.applyGarmentColor();
-  }
-
   setDesignTexture(imageUrl) {
     if (!imageUrl) {
-      if (this.designPlane) {
-        this.scene.remove(this.designPlane);
-        if (this.designTexture) this.designTexture.dispose();
-        this.designPlane.geometry.dispose();
-        this.designPlane.material.dispose();
-        this.designPlane = null;
-        this.designTexture = null;
-      }
+      this._removeDesign();
       return;
     }
 
     // Remove old design
-    if (this.designPlane) {
-      this.scene.remove(this.designPlane);
-      if (this.designTexture) this.designTexture.dispose();
-      this.designPlane.geometry.dispose();
-      this.designPlane.material.dispose();
-    }
+    this._removeDesign();
 
     const loader = new THREE.TextureLoader();
+    loader.crossOrigin = 'anonymous';
     loader.load(
       imageUrl,
       (texture) => {
@@ -264,20 +278,20 @@ class ThreeScene {
         texture.needsUpdate = true;
         this.designTexture = texture;
 
-        // Create a curved plane that sits on the chest area
-        // Using a subdivided plane with slight curvature
-        const width = 0.3;
-        const height = 0.3;
-        const geometry = new THREE.PlaneGeometry(width, height, 20, 20);
+        // Create a plane with slight curvature for the chest area
+        const width = 0.25;
+        const height = 0.25;
+        const segments = 16;
+        const geometry = new THREE.PlaneGeometry(width, height, segments, segments);
 
-        // Apply slight curvature to follow the chest
+        // Apply cylindrical curvature to follow the chest
         const positions = geometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
           const x = positions.getX(i);
-          const y = positions.getY(i);
-          // Curve the plane outward (positive z) based on x position
-          const curve = (x * x) * 0.8;
-          positions.setZ(i, curve);
+          const normalizedX = x / (width * 0.5);
+          // Parabolic curve that pushes outward at edges
+          const z = normalizedX * normalizedX * 0.02;
+          positions.setZ(i, z);
         }
         geometry.computeVertexNormals();
 
@@ -289,14 +303,13 @@ class ThreeScene {
           polygonOffset: true,
           polygonOffsetFactor: -4,
           polygonOffsetUnits: -4,
+          side: THREE.DoubleSide,
         });
 
         this.designPlane = new THREE.Mesh(geometry, material);
         this.designPlane.renderOrder = 10;
 
-        // Position on the chest
-        this.updateDesignPosition();
-
+        this._updateDesignPosition();
         this.scene.add(this.designPlane);
       },
       undefined,
@@ -306,55 +319,62 @@ class ThreeScene {
     );
   }
 
-  updateDesignPosition() {
-    if (!this.designPlane || !this.model) return;
-    const box = new THREE.Box3().setFromObject(this.model);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
+  _removeDesign() {
+    if (this.designPlane) {
+      this.scene.remove(this.designPlane);
+      if (this.designTexture) { this.designTexture.dispose(); this.designTexture = null; }
+      this.designPlane.geometry.dispose();
+      this.designPlane.material.dispose();
+      this.designPlane = null;
+    }
+  }
+
+  _updateDesignPosition() {
+    if (!this.designPlane || !this.modelBounds) return;
+    const { center, size } = this.modelBounds;
 
     this.designPlane.position.set(
       center.x + this.designOffsetX,
       center.y + this.designOffsetY,
-      center.z + size.z * 0.45 + 0.01
+      center.z + size.z * 0.42 + 0.005
     );
+    this.designPlane.scale.setScalar(this.designScale);
   }
 
   scaleDesign(factor) {
-    this.designScale = Math.max(0.1, Math.min(0.6, this.designScale * factor));
+    this.designScale = Math.max(0.3, Math.min(2.0, this.designScale * factor));
     if (this.designPlane) {
-      this.designPlane.scale.setScalar(this.designScale / 0.3);
+      this.designPlane.scale.setScalar(this.designScale);
     }
   }
 
   moveDesign(dx, dy) {
-    this.designOffsetX += dx * 0.02;
-    this.designOffsetY += dy * 0.02;
-    this.updateDesignPosition();
+    this.designOffsetX += dx * 0.015;
+    this.designOffsetY += dy * 0.015;
+    this._updateDesignPosition();
   }
 
   resetDesign() {
     this.designOffsetX = 0;
-    this.designOffsetY = 0.1;
-    this.designScale = 0.3;
-    if (this.designPlane) {
-      this.designPlane.scale.setScalar(1);
-    }
-    this.updateDesignPosition();
+    this.designOffsetY = 0;
+    this.designScale = 1.0;
+    this._updateDesignPosition();
   }
 
   animate() {
     if (!this.isPlaying) return;
     this.animationId = requestAnimationFrame(() => this.animate());
 
-    // Smooth rotation
-    this.rotationY += (this.targetRotationY - this.rotationY) * 0.1;
-    this.pitch += (this.targetPitch - this.pitch) * 0.1;
-    this.distance += (this.targetDistance - this.distance) * 0.1;
+    // Smooth interpolation
+    this.rotationY += (this.targetRotationY - this.rotationY) * 0.08;
+    this.pitch += (this.targetPitch - this.pitch) * 0.08;
+    this.distance += (this.targetDistance - this.distance) * 0.08;
 
+    // Orbit camera
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.1;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
-    this.camera.lookAt(0, 0, 0);
+    this.camera.lookAt(0, 0.05, 0);
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -381,6 +401,8 @@ class ThreeScene {
       this.container.removeEventListener('wheel', this._onWheel);
     }
     window.removeEventListener('resize', this._onResize);
+    // Dispose textures
+    if (this.designTexture) this.designTexture.dispose();
   }
 }
 
@@ -390,7 +412,6 @@ class ThreeScene {
 function LibraryTab({ onSelect }) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const PER_PAGE = 8;
@@ -403,7 +424,6 @@ function LibraryTab({ onSelect }) {
       .then(r => r.json())
       .then(data => {
         setItems(data.items || []);
-        setTotal(data.total || 0);
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -512,12 +532,14 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
-  // Update color
+  // Update color when it changes
   useEffect(() => {
-    if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
+    if (sceneRef.current) {
+      sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
+    }
   }, [color]);
 
-  // Update design texture
+  // Update design when selection changes
   useEffect(() => {
     if (sceneRef.current) {
       const design = designs.find(d => d.id === selectedDesignId);
@@ -640,7 +662,7 @@ export default function Mockup3DEditor() {
           <div ref={canvasContainerRef} className="w-full h-full" />
 
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-3" />
                 <p className="text-sm text-slate-500">Cargando modelo 3D...</p>
@@ -650,7 +672,7 @@ export default function Mockup3DEditor() {
           )}
 
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
               <div className="text-center px-6">
                 <p className="text-sm text-red-600 font-medium">{error}</p>
               </div>
@@ -658,7 +680,7 @@ export default function Mockup3DEditor() {
           )}
 
           {/* Bottom hints */}
-          <div className="absolute bottom-3 left-3 flex gap-3 text-xs text-slate-400">
+          <div className="absolute bottom-3 left-3 flex gap-3 text-xs text-slate-400 pointer-events-none">
             <span>Arrastra para rotar</span>
             <span>Scroll para zoom</span>
           </div>
@@ -693,7 +715,7 @@ export default function Mockup3DEditor() {
             {activeTab === 'prenda' && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
                     <Shirt className="h-4 w-4" /> Color de prenda
                   </h3>
                   <div className="grid grid-cols-4 gap-2">
@@ -711,23 +733,23 @@ export default function Mockup3DEditor() {
                           className="w-7 h-7 rounded-full border border-slate-200 shadow-sm"
                           style={{ backgroundColor: val.hex }}
                         />
-                        <span className="text-[10px] text-slate-600 leading-tight">{val.label}</span>
+                        <span className="text-[10px] text-slate-600 leading-tight text-center">{val.label}</span>
                       </button>
                     ))}
                   </div>
                   <button
                     onClick={() => setShowAllColors(!showAllColors)}
-                    className="mt-2 text-xs text-orange-600 hover:text-orange-700 font-medium"
+                    className="mt-3 text-xs text-orange-600 hover:text-orange-700 font-medium"
                   >
                     {showAllColors ? 'Ver menos colores' : `Ver todos los colores (${colorEntries.length})`}
                   </button>
                 </div>
-                <div className="pt-2 border-t">
+                <div className="pt-3 border-t space-y-1">
                   <p className="text-xs text-slate-500">
-                    <strong>Polera</strong> — Modelo 3D con iluminación de estudio profesional.
+                    <strong>Polera Oversize</strong> — Modelo 3D realista con iluminación de estudio.
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Colores sincronizados con el catálogo de la tienda
+                  <p className="text-xs text-slate-400">
+                    Arrastra para rotar 360°. Colores del catálogo.
                   </p>
                 </div>
               </div>
@@ -793,10 +815,10 @@ export default function Mockup3DEditor() {
                     <div>
                       <label className="text-xs text-slate-500 mb-1 block">Tamaño</label>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => sceneRef.current?.scaleDesign(0.9)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">−</button>
-                        <button onClick={() => sceneRef.current?.scaleDesign(1.1)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">+</button>
+                        <button onClick={() => sceneRef.current?.scaleDesign(0.85)}
+                          className="px-3 py-1 rounded border text-xs hover:border-orange-400">− Más pequeño</button>
+                        <button onClick={() => sceneRef.current?.scaleDesign(1.15)}
+                          className="px-3 py-1 rounded border text-xs hover:border-orange-400">+ Más grande</button>
                       </div>
                     </div>
 
@@ -805,20 +827,20 @@ export default function Mockup3DEditor() {
                       <div className="grid grid-cols-3 gap-1 max-w-[120px]">
                         <div />
                         <button onClick={() => sceneRef.current?.moveDesign(0, 1)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">↑</button>
+                          className="px-2 py-1.5 rounded border text-xs hover:border-orange-400">↑</button>
                         <div />
                         <button onClick={() => sceneRef.current?.moveDesign(-1, 0)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">←</button>
+                          className="px-2 py-1.5 rounded border text-xs hover:border-orange-400">←</button>
                         <button onClick={() => sceneRef.current?.moveDesign(0, -1)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">↓</button>
+                          className="px-2 py-1.5 rounded border text-xs hover:border-orange-400">↓</button>
                         <button onClick={() => sceneRef.current?.moveDesign(1, 0)}
-                          className="px-2 py-1 rounded border text-xs hover:border-orange-400">→</button>
+                          className="px-2 py-1.5 rounded border text-xs hover:border-orange-400">→</button>
                       </div>
                     </div>
 
                     <button onClick={() => sceneRef.current?.resetDesign()}
-                      className="text-xs text-orange-600 hover:text-orange-700">
-                      Resetear posición
+                      className="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                      Resetear posición y tamaño
                     </button>
                   </div>
                 )}
