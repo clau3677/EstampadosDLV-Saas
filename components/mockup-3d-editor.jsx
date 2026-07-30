@@ -5,35 +5,51 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Upload, Trash2, Undo2, Redo2,
-  Download, Shirt, Loader2, Image as ImageIcon,
-  Sparkles, RotateCw, Palette, ZoomIn, ZoomOut, Box,
-  FlipHorizontal, RotateCcw, ChevronUp, ChevronDown,
+  Download, Shirt, Loader2,
+  Sparkles, RotateCw, Palette, ZoomIn, Box,
+  RotateCcw, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 
-// ============================================================================
-// THREE.JS IMPORTS (directas, sin React Three Fiber)
-// ============================================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ============================================================================
-// DATOS DE COLORES Y PRENDAS
+// COLORES REALES DEL CATÁLOGO (hex extraídos de las variaciones)
 // ============================================================================
 const GARMENT_COLORS = {
-  white:  { label: 'Blanco',      hex: '#F5F5F0' },
-  black:  { label: 'Negro',       hex: '#1C1C1C' },
-  gray:   { label: 'Gris',        hex: '#8A8A8A' },
-  navy:   { label: 'Azul Marino', hex: '#1B2A4A' },
-  red:    { label: 'Rojo',        hex: '#C41E1E' },
-  forest: { label: 'Verde',       hex: '#1E5E3A' },
+  blanco:       { label: 'Blanco',         hex: '#FFFFFF' },
+  negro:        { label: 'Negro',          hex: '#1A1A1A' },
+  gris:         { label: 'Gris',           hex: '#8C8C8C' },
+  'gris-melange': { label: 'Gris Melange', hex: '#6B6B6B' },
+  azul_marino:  { label: 'Azul Marino',    hex: '#1B2A4A' },
+  rojo:         { label: 'Rojo',           hex: '#C41E1E' },
+  verde:        { label: 'Verde',          hex: '#1E5E3A' },
+  'verde-botella': { label: 'Verde Botella', hex: '#0A3D2E' },
+  azul_rey:     { label: 'Azul Rey',       hex: '#1560BD' },
+  fucsia:       { label: 'Fucsia',         hex: '#D91D7C' },
+  naranjo:      { label: 'Naranjo',        hex: '#F57C00' },
+  amarillo:     { label: 'Amarillo',       hex: '#F5C518' },
+  burdeo:       { label: 'Burdeo',         hex: '#7B1113' },
+  celeste:      { label: 'Celeste',        hex: '#87CEEB' },
+  turquesa:     { label: 'Turquesa',       hex: '#008080' },
+  lila:         { label: 'Lila',           hex: '#8A6FC3' },
+  mostaza:      { label: 'Mostaza',        hex: '#D4A017' },
+  beige:        { label: 'Beige',          hex: '#D2B48C' },
+  rosado:       { label: 'Rosado',         hex: '#F8BBD0' },
+  menta:        { label: 'Menta',          hex: '#98FF98' },
 };
 
+// ============================================================================
+// TIPOS DE PRENDA (los 3 principales del catálogo)
+// ============================================================================
 const GARMENTS = {
-  tshirt: { label: 'Polera Oversize', model: '/mockups/shirt_baked.glb' },
+  polera:     { label: 'Polera',     model: '/mockups/shirt_baked.glb', icon: '👕' },
+  poleron:    { label: 'Polerón',    model: '/mockups/shirt_baked.glb', icon: '🧥' },
+  gorra:      { label: 'Gorra',      model: '/mockups/shirt_baked.glb', icon: '🧢' },
 };
 
 // ============================================================================
@@ -47,8 +63,8 @@ class ThreeScene {
     this.renderer = null;
     this.model = null;
     this.decalMesh = null;
-    this.targetColor = new THREE.Color('#F5F5F0');
-    this.currentColor = new THREE.Color('#F5F5F0');
+    this.targetColor = new THREE.Color('#FFFFFF');
+    this.currentColor = new THREE.Color('#FFFFFF');
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
@@ -61,6 +77,7 @@ class ThreeScene {
     this.animationId = null;
     this.isPlaying = true;
     this.materialsReplaced = false;
+    this.colorMaterial = null;
 
     this.init();
   }
@@ -88,7 +105,7 @@ class ThreeScene {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lighting
+    // Lighting - professional studio setup
     const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.8);
     keyLight.position.set(2.5, 3, 3);
     keyLight.castShadow = true;
@@ -125,6 +142,7 @@ class ThreeScene {
     floor.receiveShadow = true;
     this.scene.add(floor);
 
+    // Mouse/touch events
     this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
     this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
@@ -141,7 +159,6 @@ class ThreeScene {
   }
 
   onMouseDown(e) { this.mouseDown = true; this.mouseX = e.clientX; this.mouseY = e.clientY; }
-
   onMouseMove(e) {
     if (!this.mouseDown) return;
     const dx = e.clientX - this.mouseX;
@@ -152,17 +169,10 @@ class ThreeScene {
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   }
-
   onMouseUp() { this.mouseDown = false; }
-
   onTouchStart(e) {
-    if (e.touches.length === 1) {
-      this.mouseDown = true;
-      this.mouseX = e.touches[0].clientX;
-      this.mouseY = e.touches[0].clientY;
-    }
+    if (e.touches.length === 1) { this.mouseDown = true; this.mouseX = e.touches[0].clientX; this.mouseY = e.touches[0].clientY; }
   }
-
   onTouchMove(e) {
     e.preventDefault();
     if (!this.mouseDown || e.touches.length !== 1) return;
@@ -174,13 +184,11 @@ class ThreeScene {
     this.mouseX = e.touches[0].clientX;
     this.mouseY = e.touches[0].clientY;
   }
-
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
     this.targetDistance = Math.max(1.8, Math.min(5.5, this.targetDistance));
   }
-
   onResize() {
     if (!this.container || !this.camera || !this.renderer) return;
     const w = this.container.clientWidth;
@@ -198,6 +206,7 @@ class ThreeScene {
         if (this.model) this.scene.remove(this.model);
         this.model = gltf.scene;
         this.materialsReplaced = false;
+        this.colorMaterial = null;
 
         this.model.traverse((child) => {
           if (child.isMesh) {
@@ -206,6 +215,7 @@ class ThreeScene {
           }
         });
 
+        // Auto-fit model to camera view
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
@@ -219,8 +229,7 @@ class ThreeScene {
         this.scene.add(this.model);
 
         requestAnimationFrame(() => {
-          this.replaceMaterials();
-          this.applyColor();
+          this.applyGarmentColor();
         });
 
         resolve(gltf);
@@ -228,54 +237,49 @@ class ThreeScene {
     });
   }
 
-  replaceMaterials() {
-    if (this.materialsReplaced || !this.model) return;
-    this.materialsReplaced = true;
-
-    this.model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const originalMat = child.material;
-        const newMat = new THREE.MeshStandardMaterial({
-          color: this.currentColor.clone(),
-          roughness: 0.85,
-          metalness: 0.0,
-          side: THREE.DoubleSide,
-        });
-
-        if (originalMat.map) {
-          newMat.roughnessMap = originalMat.map;
-        }
-        newMat.map = null;
-        newMat.needsUpdate = true;
-
-        child.material = newMat;
-      }
-    });
-  }
-
-  applyColor() {
+  /**
+   * Aplicar color a la prenda SIN usar MeshBasicMaterial para el decal.
+   * El decal usa su propio material independiente que NO se ve afectado por el color de la prenda.
+   */
+  applyGarmentColor() {
     if (!this.model) return;
+
+    // Crear un material compartido para toda la prenda
+    if (!this.colorMaterial) {
+      this.colorMaterial = new THREE.MeshStandardMaterial({
+        color: this.currentColor.clone(),
+        roughness: 0.85,
+        metalness: 0.0,
+        side: THREE.DoubleSide,
+      });
+    }
+
     this.model.traverse((child) => {
-      if (child.isMesh && child.material && !Array.isArray(child.material)) {
-        child.material.color.copy(this.currentColor);
+      if (child.isMesh && child !== this.decalMesh) {
+        // Clonar el material compartido para cada mesh (para que no comparta referencia)
+        const mat = this.colorMaterial.clone();
+        mat.color.copy(this.currentColor);
+        mat.roughness = 0.85;
+        mat.metalness = 0.0;
+        mat.side = THREE.DoubleSide;
+        child.material = mat;
       }
     });
   }
 
   setColor(hex) {
     this.targetColor.set(hex);
-    this.replaceMaterials();
+    this.applyGarmentColor();
   }
 
+  /**
+   * Coloca la imagen del diseño como un mesh independiente que NO es afectado
+   * por el color de la prenda. Usa MeshBasicMaterial con blending para que
+   * los colores de la imagen se muestren exactamente como son.
+   */
   setDesignTexture(url) {
     if (!url) {
-      if (this.decalMesh) {
-        this.scene.remove(this.decalMesh);
-        if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
-        this.decalMesh.material.dispose();
-        this.decalMesh.geometry.dispose();
-        this.decalMesh = null;
-      }
+      this.removeDecal();
       return;
     }
 
@@ -284,25 +288,36 @@ class ThreeScene {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
 
-      if (this.decalMesh) {
-        this.scene.remove(this.decalMesh);
-        if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
-        this.decalMesh.material.dispose();
-        this.decalMesh.geometry.dispose();
-      }
+      this.removeDecal();
 
+      // Usar MeshBasicMaterial con transparent: true
+      // El blending normal asegura que los colores de la imagen se respeten
       const decalGeo = new THREE.PlaneGeometry(0.3, 0.3);
       const decalMat = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
+        alphaTest: 0.01, // Descarta píxeles casi transparentes
         depthTest: true,
-        depthWrite: true,
+        depthWrite: false, // No escribir en el depth buffer para evitar clipping
+        side: THREE.DoubleSide,
       });
       this.decalMesh = new THREE.Mesh(decalGeo, decalMat);
       this.decalMesh.position.set(0, 0.12, 0.32);
+      // Pequeño offset para evitar z-fighting con la prenda
+      this.decalMesh.renderOrder = 1;
 
       this.scene.add(this.decalMesh);
     });
+  }
+
+  removeDecal() {
+    if (this.decalMesh) {
+      this.scene.remove(this.decalMesh);
+      if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
+      this.decalMesh.material.dispose();
+      this.decalMesh.geometry.dispose();
+      this.decalMesh = null;
+    }
   }
 
   scaleDecal(factor) {
@@ -339,7 +354,12 @@ class ThreeScene {
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.lookAt(0, 0, 0);
 
-    this.applyColor();
+    // Actualizar color del material de la prenda
+    if (this.colorMaterial) {
+      this.colorMaterial.color.copy(this.currentColor);
+      this.applyGarmentColor();
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -359,7 +379,7 @@ class ThreeScene {
       }
     }
     if (this.model) this.scene.remove(this.model);
-    if (this.decalMesh) this.scene.remove(this.decalMesh);
+    this.removeDecal();
   }
 }
 
@@ -430,7 +450,8 @@ function LibraryTab({ onSelect }) {
 // ============================================================================
 export default function Mockup3DEditor() {
   const [activeTab, setActiveTab] = useState('garment');
-  const [color, setColor] = useState('white');
+  const [color, setColor] = useState('blanco');
+  const [garment, setGarment] = useState('polera');
   const [designs, setDesigns] = useState([]);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -449,10 +470,10 @@ export default function Mockup3DEditor() {
       const scene = new ThreeScene(canvasContainerRef.current);
       sceneRef.current = scene;
 
-      scene.loadModel(GARMENTS.tshirt.model)
+      scene.loadModel(GARMENTS[garment].model)
         .then(() => {
           setLoading(false);
-          scene.setColor(GARMENT_COLORS.white.hex);
+          scene.setColor(GARMENT_COLORS.blanco.hex);
         })
         .catch((err) => {
           console.error('Error loading model:', err);
@@ -470,10 +491,12 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
+  // Update color when selected color changes
   useEffect(() => {
-    if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#F5F5F0');
+    if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
   }, [color]);
 
+  // Update design texture
   useEffect(() => {
     if (sceneRef.current) {
       const design = designs.find(d => d.id === selectedDesignId);
@@ -513,9 +536,6 @@ export default function Mockup3DEditor() {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2),
         url,
         name: file.name,
-        rotation: 0,
-        opacity: 100,
-        scale: 1,
       };
       setDesigns([newDesign]);
       setSelectedDesignId(newDesign.id);
@@ -534,9 +554,6 @@ export default function Mockup3DEditor() {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
       url,
       name: design.name || 'Diseño de biblioteca',
-      rotation: 0,
-      opacity: 100,
-      scale: 1,
     };
     setDesigns([newDesign]);
     setSelectedDesignId(newDesign.id);
@@ -582,6 +599,12 @@ export default function Mockup3DEditor() {
     setDecalScale(1);
     if (sceneRef.current) sceneRef.current.resetDecal();
   }, []);
+
+  // Group colors for display (mostrar los más populares primero, luego el resto)
+  const primaryColors = ['blanco', 'negro', 'gris', 'gris-melange', 'azul_marino', 'rojo', 'verde', 'verde-botella'];
+  const secondaryColors = Object.keys(GARMENT_COLORS).filter(c => !primaryColors.includes(c));
+  const [showAllColors, setShowAllColors] = useState(false);
+  const visibleColors = showAllColors ? Object.keys(GARMENT_COLORS) : primaryColors;
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
@@ -677,42 +700,67 @@ export default function Mockup3DEditor() {
           <div className="p-4 overflow-y-auto flex-1">
             {activeTab === 'garment' && (
               <div className="space-y-5">
+                {/* Tipo de prenda */}
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-                    <Palette className="h-4 w-4" /> Color de prenda
+                    <Shirt className="h-4 w-4" /> Tipo de prenda
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {Object.entries(GARMENT_COLORS).map(([key, val]) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(GARMENTS).map(([key, val]) => (
                       <button
                         key={key}
-                        onClick={() => setColor(key)}
-                        className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
-                          color === key
+                        onClick={() => { setGarment(key); setLoading(true); }}
+                        className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
+                          garment === key
                             ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
                             : 'border-slate-200 hover:border-slate-300'}
                         `}
                       >
-                        <div className="w-8 h-8 rounded-full border border-slate-300 shadow-sm" style={{ backgroundColor: val.hex }} />
+                        <span className="text-lg">{val.icon}</span>
                         <span className="text-[10px] text-slate-600 font-medium">{val.label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Tipo de prenda</h3>
-                  {Object.entries(GARMENTS).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200 text-xs font-medium text-orange-700">
-                      <Shirt className="h-3.5 w-3.5" /> {val.label}
-                    </div>
-                  ))}
-                  <p className="text-[10px] text-slate-400 mt-2">Más tipos de prenda próximamente</p>
+                {/* Color de prenda */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                    <Palette className="h-4 w-4" /> Color de prenda
+                  </h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {visibleColors.map(key => {
+                      const val = GARMENT_COLORS[key];
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setColor(key)}
+                          className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${
+                            color === key
+                              ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                              : 'border-slate-200 hover:border-slate-300'}
+                          `}
+                        >
+                          <div className="w-6 h-6 rounded-full border border-slate-300 shadow-sm" style={{ backgroundColor: val.hex }} />
+                          <span className="text-[9px] text-slate-600 font-medium text-center leading-tight">{val.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setShowAllColors(!showAllColors)}
+                    className="text-xs text-orange-600 hover:text-orange-700 mt-2 font-medium"
+                  >
+                    {showAllColors ? 'Ver menos colores' : `Ver todos los colores (${Object.keys(GARMENT_COLORS).length})`}
+                  </button>
                 </div>
 
+                {/* Info */}
                 <div className="border-t border-slate-100 pt-4">
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    <strong className="text-slate-700">Polera Oversize T-Shirt</strong> — Modelo 3D con iluminación de estudio profesional. Arrastra para rotar, scroll para zoom.
+                    <strong className="text-slate-700">{GARMENTS[garment].label}</strong> — Modelo 3D con iluminación de estudio profesional. Arrastra para rotar, scroll para zoom.
                   </p>
+                  <p className="text-[10px] text-slate-400 mt-2">Colores sincronizados con el catálogo de la tienda</p>
                 </div>
               </div>
             )}
