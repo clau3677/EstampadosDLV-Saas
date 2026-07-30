@@ -52,8 +52,8 @@ const nextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = { ...(config.resolve.alias || {}), canvas: false, encoding: false };
     if (isServer) {
-      // Excluir konva/react-konva del bundle server-side por completo
-      config.externals = [...(config.externals || []), 'konva', 'react-konva', 'canvas'];
+      // Excluir konva/react-konva y three.js del bundle server-side por completo
+      config.externals = [...(config.externals || []), 'konva', 'react-konva', 'canvas', 'three'];
     }
     return config;
   },

@@ -1,0 +1,375 @@
+<!DOCTYPE html> 
+<html lang="en" class="error has-no-user is-theme-abyss  " >
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+    <title></title>
+    <meta name="description" content="The ultimate Three.js course whether you are a beginner or a more advanced developer">
+
+        <meta itemprop="name" content="">
+    <meta itemprop="description" content="The ultimate Three.js course whether you are a beginner or a more advanced developer">
+    <meta itemprop="image" content="?cb=">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="">
+    <meta name="twitter:description" content="The ultimate Three.js course whether you are a beginner or a more advanced developer">
+    <meta name="twitter:image" content="?cb=">
+
+    <meta property="og:site_name" content="">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="">
+    <meta property="og:title" content="">
+    <meta property="og:description" content="The ultimate Three.js course whether you are a beginner or a more advanced developer">
+    <meta property="og:image" content="?cb=">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicons/favicon-16x16.png">
+    <link rel="icon" href="/assets/favicons/favicon-96x96.png">
+    <link rel="manifest" href="/assets/favicons/site.webmanifest">
+    <link rel="mask-icon" href="/assets/favicons/safari-pinned-tab.svg" color="#715ef2">
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico">
+    <meta name="msapplication-TileColor" content="#715ef2">
+    <meta name="msapplication-config" content="/assets/favicons/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+
+                <link rel="stylesheet" href="/bundles/public/index.css?cb=">
+    
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&family=Inter:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
+        <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-WZ3WPDV');</script>
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=AW-10834667600"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'AW-10834667600');
+    </script>
+
+        
+</head>
+<body>
+
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WZ3WPDV" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+            
+    
+        <header class="header js-header">
+
+        <div class="menu">
+
+        <div class="menu-background js-menu-background"></div>
+
+                <div class="links">
+            <a class="link js-link link-home " href="https://threejs-journey.com/" data-router-disabled>
+                <span class="highlight"></span>
+                <span class="label">Home</span>
+            </a>
+            <a class="link js-link link-lessons " href="https://threejs-journey.com/lessons" data-router-disabled>
+                <span class="highlight"></span>
+                <span class="label">Lessons</span>
+            </a>
+                        <span class="category">
+                Community
+            </span>
+            <a class="link js-link link-challenges " href="https://threejs-journey.com/challenges" data-router-disabled>
+                <span class="highlight"></span>
+                <span class="label">Challenges</span>
+            </a>
+            <a class="link js-link link-selection " href="https://threejs-journey.com/selection" data-router-disabled>
+                <span class="highlight"></span>
+                <span class="label">Selection</span>
+            </a>
+            <a class="link js-link link-highlights " href="https://threejs-journey.com/highlights" data-router-disabled>
+                <span class="highlight"></span>
+                <span class="label">Highlights</span>
+            </a>
+        </div>
+
+                <nav class="actions is-mobile">
+                        
+                                <a href="https://threejs-journey.com/login" data-router-disabled class="login-button">
+                    <span class="icon"><svg width="15" height="20" viewBox="0 0 15 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M7.5 7C8.88071 7 10 5.88071 10 4.5C10 3.11929 8.88071 2 7.5 2C6.11929 2 5 3.11929 5 4.5C5 5.88071 6.11929 7 7.5 7ZM7.5 9C9.98528 9 12 6.98528 12 4.5C12 2.01472 9.98528 0 7.5 0C5.01472 0 3 2.01472 3 4.5C3 6.98528 5.01472 9 7.5 9Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M8.83255 12H6.11917C4.29393 12 2.71427 13.3055 2.3213 15.1388L1.9685 16.7847C1.83473 17.4088 2.29663 18 2.91797 18H12.0818C12.7142 18 13.1783 17.3888 13.0251 16.7577L12.6057 15.0308C12.1732 13.2497 10.6175 12 8.83255 12ZM6.11917 10C3.38131 10 1.01182 11.9583 0.42237 14.7082L0.0695708 16.3541C-0.331744 18.2263 1.05396 20 2.91797 20H12.0818C13.9791 20 15.3714 18.1664 14.9116 16.2731L14.4923 14.5462C13.8436 11.8745 11.5099 10 8.83255 10H6.11917Z" fill="white"/>
+</svg>
+</span>
+                    <span class="label">Login</span>
+                </a>
+
+                                <a href="https://threejs-journey.com/join" data-router-disabled class="button is-purple is-abyss-join has-icon-right">
+                    <span class="hover"></span>
+                    <span class="label">Start<span class="non-important"> learning now</span></span>
+                    <span class="icon"><svg width="15" height="18" viewBox="0 0 15 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.479 8.11445C13.6178 8.74903 13.6219 9.5473 12.479 10.2647L3.6482 16.2205C2.53862 16.8126 1.78502 16.463 1.70591 15.1817L1.66844 2.71652C1.64346 1.53629 2.61564 1.20283 3.54203 1.7687L12.479 8.11445Z" stroke="#705DF2" stroke-width="2"/>
+</svg>
+</span>
+                </a>
+
+                    </nav>
+    </div>
+
+    <div class="container">
+
+        <nav class="navigation">
+        
+                        <div class="logo-container">
+                <a href="https://threejs-journey.com/" data-router-disabled class="main-logo is-abyss" name="Three.js Journey">
+                    <div class="logo"><svg width="38" height="43" viewBox="0 0 38 43" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M5.7346 0.971817L36.0112 18.4767C38.3367 19.8206 38.3368 23.1799 36.0115 24.5239L5.73423 42.0292C3.40538 43.3751 0.5 41.6914 0.5 39.0057V3.99513C0.5 1.31072 3.40451 -0.375901 5.7346 0.971817ZM4.23226 3.56854C3.90991 3.38205 3.5 3.61216 3.5 3.99513V39.0057C3.5 39.3874 3.90902 39.6188 4.23264 39.4321L34.5099 21.9268C34.8369 21.7378 34.8371 21.2631 34.5101 21.0742L4.23226 3.56854Z" fill="#705DF2"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M13.772 9.44228L3.81036 15.2013C3.61917 15.3116 3.5 15.5166 3.5 15.7409V27.259C3.5 27.483 3.61986 27.6894 3.81109 27.7999L13.772 33.5593C13.9636 33.6701 14.2 33.6701 14.3916 33.5593L24.352 27.801C24.5445 27.6897 24.6636 27.4839 24.6636 27.2599V15.7418C24.6636 15.5177 24.5437 15.3114 24.3525 15.2009L14.3916 9.44228C14.2002 9.33183 13.9634 9.33183 13.772 9.44228ZM12.2711 6.8447C13.3914 6.19744 14.7722 6.19744 15.8925 6.8447L25.8534 12.6033C26.9738 13.2508 27.6636 14.4483 27.6636 15.7418V27.2599C27.6636 28.5535 26.9748 29.7497 25.8539 30.398L15.8928 36.1567C14.7726 36.804 13.3914 36.8042 12.2711 36.1569L2.31024 30.3975C1.18988 29.7499 0.5 28.5524 0.5 27.259V15.7409C0.5 14.4478 1.18843 13.2509 2.31048 12.6032L12.2711 6.8447Z" fill="#705DF2"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M0.5 14.9575C0.5 13.6056 1.9625 12.7612 3.13325 13.4378L14.7031 20.1277C15.2562 20.4459 15.5814 21.0321 15.5814 21.6482V35.4708C15.5814 36.0069 15.2953 36.5022 14.831 36.7701C14.3666 37.038 13.7946 37.0377 13.3306 36.7694L1.38379 29.8619L1.37869 29.8589C0.825347 29.5407 0.5 28.9544 0.5 28.3382V14.9575ZM3.5 17.1153L12.5814 22.3663V32.8708L3.5 27.6201V17.1153Z" fill="#705DF2"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M24.7545 13.5966C26.0542 12.8459 27.6596 13.7907 27.6633 15.2724L27.6633 15.2762L27.6633 28.2328C27.6633 28.9247 27.2945 29.5654 26.6943 29.9121L26.692 29.9134L15.4903 36.3896C14.1948 37.1379 12.5811 36.2001 12.5811 34.7103V21.7545C12.5811 21.0623 12.9502 20.4213 13.5509 20.0747L13.5523 20.0739L24.7545 13.5966ZM24.6633 17.1148L15.5811 22.3663V32.8718L24.6633 27.621V17.1148Z" fill="#705DF2"/>
+</svg>
+</div>
+                    <div class="text"><svg width="160" height="22" viewBox="0 0 160 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path class="letter t" d="M7.52113 7.98393V5.22393H5.47413V1.93493H1.79413V5.22393H0.161133V7.98393H1.79413V13.1359C1.79413 15.7809 2.55313 17.2069 5.24413 17.2069C6.27913 17.2069 6.85413 17.0919 7.52113 16.9539V14.1939C5.95713 14.1939 5.47413 14.1939 5.47413 12.8599V7.98393H7.52113Z" fill="white"/>
+<path class="letter h" d="M16.2516 4.85593C14.3656 4.85593 13.2156 5.84493 12.5946 6.92593H12.5486V0.554932H8.86861V16.9999H12.5486V10.1919C12.5486 8.55893 13.5146 7.84593 14.6876 7.84593C16.0216 7.84593 16.5966 8.44393 16.5966 10.2149V16.9999H20.2766V9.04193C20.2766 6.35093 18.7356 4.85593 16.2516 4.85593Z" fill="white"/>
+<path class="letter r" d="M28.5868 5.01693C27.2988 5.01693 26.2868 5.84493 25.7118 7.15593H25.6658V5.22393H21.9858V16.9999H25.6658V11.5259C25.6658 9.01893 27.6668 7.98393 29.5528 8.32893H29.5988V5.10893C29.1848 5.01693 28.9088 5.01693 28.5868 5.01693Z" fill="white"/>
+<path class="letter e" d="M36.2469 14.6079C34.9359 14.6079 33.7169 13.7339 33.7169 12.0779H42.1809C42.1809 7.79993 40.1339 4.85593 36.1089 4.85593C32.3599 4.85593 30.0369 7.52393 30.0369 11.1119C30.0369 14.7919 32.4059 17.3679 36.3159 17.3679C39.5129 17.3679 41.3529 15.8039 41.9969 13.4349H38.3399C38.1099 14.0099 37.5119 14.6079 36.2469 14.6079ZM36.1089 7.38593C37.5119 7.38593 38.5009 8.21393 38.5009 9.84693H33.7169C33.7169 8.21393 34.7059 7.38593 36.1089 7.38593Z" fill="white"/>
+<path class="letter e" d="M49.117 14.6079C47.806 14.6079 46.587 13.7339 46.587 12.0779H55.051C55.051 7.79993 53.004 4.85593 48.979 4.85593C45.23 4.85593 42.907 7.52393 42.907 11.1119C42.907 14.7919 45.276 17.3679 49.186 17.3679C52.383 17.3679 54.223 15.8039 54.867 13.4349H51.21C50.98 14.0099 50.382 14.6079 49.117 14.6079ZM48.979 7.38593C50.382 7.38593 51.371 8.21393 51.371 9.84693H46.587C46.587 8.21393 47.576 7.38593 48.979 7.38593Z" fill="white"/>
+<path class="letter dot" d="M57.9878 17.2069C59.0688 17.2069 59.9428 16.4479 59.9428 15.2519C59.9428 14.0789 59.0688 13.2969 57.9878 13.2969C56.8838 13.2969 56.0328 14.0789 56.0328 15.2519C56.0328 16.4479 56.8838 17.2069 57.9878 17.2069Z" fill="white"/>
+<path class="letter j" d="M63.718 3.82093C64.753 3.82093 65.558 3.26893 65.558 2.18793C65.558 1.12993 64.753 0.554932 63.718 0.554932C62.683 0.554932 61.878 1.12993 61.878 2.18793C61.878 3.26893 62.683 3.82093 63.718 3.82093ZM61.878 5.22393V16.7239C61.878 18.0579 61.395 18.0579 59.831 18.0579V20.8179C60.498 20.9559 61.073 21.0709 62.108 21.0709C64.799 21.0709 65.558 19.6449 65.558 16.9999V5.22393H61.878Z" fill="white"/>
+<path class="letter s" d="M73.1069 9.57093C71.2899 9.17993 70.5539 9.15693 70.5539 8.32893C70.5539 7.75393 71.0829 7.38593 72.1179 7.38593C73.3139 7.38593 73.8199 7.89193 73.9349 8.83493H77.3849C77.2699 6.76493 75.7979 4.85593 72.0259 4.85593C68.7139 4.85593 66.8739 6.48893 66.8739 8.62793C66.8739 11.0889 69.0819 11.8249 71.0829 12.2619C72.9459 12.6759 74.0499 12.8139 74.0499 13.8259C74.0499 14.4929 73.4749 14.8379 72.4399 14.8379C70.9909 14.8379 70.2089 14.2629 70.0939 13.0899H66.6439C66.7589 15.4819 68.3689 17.3679 72.5779 17.3679C75.8439 17.3679 77.7299 16.0109 77.7299 13.5269C77.7299 10.8589 75.4299 10.0769 73.1069 9.57093Z" fill="white"/>
+<path class="letter j" d="M86.2079 2.99293C86.7369 2.99293 87.3579 2.60193 87.3579 1.88893C87.3579 1.17593 86.7369 0.784931 86.2079 0.784931C85.7019 0.784931 85.0579 1.17593 85.0579 1.88893C85.0579 2.60193 85.7019 2.99293 86.2079 2.99293ZM85.2879 5.26993V17.9889C85.2879 19.3229 84.9199 19.4379 83.3559 19.3229V20.7029C84.0229 20.8869 84.4829 20.9559 85.0579 20.9559C86.6219 20.9559 87.1279 19.7599 87.1279 17.8049V5.26993H85.2879Z" fill="white"/>
+<path class="letter o" d="M94.9749 17.3219C91.3869 17.3219 89.2249 14.7919 89.2249 11.1349C89.2249 7.47793 91.3869 4.94793 94.9749 4.94793C98.5399 4.94793 100.702 7.47793 100.702 11.1349C100.702 14.7919 98.5399 17.3219 94.9749 17.3219ZM94.9749 15.7119C97.5969 15.7119 98.8619 13.6419 98.8619 11.1349C98.8619 8.62793 97.5969 6.55793 94.9749 6.55793C92.3299 6.55793 91.0649 8.62793 91.0649 11.1349C91.0649 13.6419 92.3299 15.7119 94.9749 15.7119Z" fill="white"/>
+<path class="letter u" d="M110.334 5.26993V12.5839C110.334 14.4009 108.954 15.7119 106.884 15.7119C105.044 15.7119 104.331 14.5159 104.331 12.9979V5.26993H102.491V13.4579C102.491 16.1489 104.285 17.3219 106.424 17.3219C108.425 17.3219 109.667 16.4249 110.288 15.5969H110.334V16.9999H112.174V5.26993H110.334Z" fill="white"/>
+<path class="letter r" d="M119.84 4.94793C118.161 4.94793 117.218 6.05193 116.597 7.59293H116.551V5.26993H114.711V16.9999H116.551V10.7439C116.551 8.23693 118.322 6.44293 120.875 6.85693H120.921V5.01693C120.599 4.97093 120.277 4.94793 119.84 4.94793Z" fill="white"/>
+<path class="letter n" d="M128.345 4.94793C126.344 4.94793 125.102 5.84493 124.481 6.67293H124.435V5.26993H122.595V16.9999H124.435V9.68593C124.435 7.86893 125.815 6.55793 127.885 6.55793C129.725 6.55793 130.438 7.75393 130.438 9.27193V16.9999H132.278V8.81193C132.278 6.12093 130.484 4.94793 128.345 4.94793Z" fill="white"/>
+<path class="letter e" d="M139.737 15.7119C137.184 15.7119 135.919 13.7339 135.919 11.6179H145.188C145.188 7.45493 143.394 4.94793 139.714 4.94793C136.287 4.94793 134.079 7.22493 134.079 11.1349C134.079 14.8149 136.241 17.3219 139.806 17.3219C142.727 17.3219 144.406 15.5739 145.004 13.3889H143.164C142.957 14.1939 142.083 15.7119 139.737 15.7119ZM139.714 6.55793C141.922 6.55793 143.348 8.12193 143.348 10.0079H135.919C135.919 8.12193 137.506 6.55793 139.714 6.55793Z" fill="white"/>
+<path class="letter y" d="M156.721 5.26993H154.651L151.27 14.8379H151.224L147.636 5.26993H145.566L150.005 16.0339C150.465 17.1839 149.982 18.1729 149.499 18.7019C148.878 19.3689 148.165 19.4379 147.153 19.3459H146.877V20.7259C147.176 20.8179 147.705 20.9559 148.441 20.9559C150.603 20.9559 151.201 19.2309 151.707 17.9659L156.721 5.26993Z" fill="white"/>
+</svg>
+</div>
+                </a>
+            </div>
+
+                        <div class="links">
+
+                                <a class="link js-link link-lessons " href="https://threejs-journey.com/lessons" data-router-disabled>
+                    <span class="highlight"></span>
+                    <span class="label">Lessons</span>
+                </a>
+                
+                
+                                <a class="link js-link link-challenges " href="https://threejs-journey.com/challenges" data-router-disabled>
+                    <span class="highlight"></span>
+                    <span class="label">Challenges</span>
+                </a>
+                
+                                <a class="link js-link link-selection " href="https://threejs-journey.com/selection" data-router-disabled>
+                    <span class="highlight"></span>
+                    <span class="label">Selection</span>
+                </a>
+                
+                                <a class="link js-link link-highlights " href="https://threejs-journey.com/highlights" data-router-disabled>
+                    <span class="highlight"></span>
+                    <span class="label">Highlights</span>
+                </a>
+                
+            </div>
+        </nav>
+
+                <nav class="actions is-desktop">
+            
+                                <a href="https://threejs-journey.com/login" data-router-disabled class="login-button">
+                    <span class="icon"><svg width="15" height="20" viewBox="0 0 15 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M7.5 7C8.88071 7 10 5.88071 10 4.5C10 3.11929 8.88071 2 7.5 2C6.11929 2 5 3.11929 5 4.5C5 5.88071 6.11929 7 7.5 7ZM7.5 9C9.98528 9 12 6.98528 12 4.5C12 2.01472 9.98528 0 7.5 0C5.01472 0 3 2.01472 3 4.5C3 6.98528 5.01472 9 7.5 9Z" fill="white"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M8.83255 12H6.11917C4.29393 12 2.71427 13.3055 2.3213 15.1388L1.9685 16.7847C1.83473 17.4088 2.29663 18 2.91797 18H12.0818C12.7142 18 13.1783 17.3888 13.0251 16.7577L12.6057 15.0308C12.1732 13.2497 10.6175 12 8.83255 12ZM6.11917 10C3.38131 10 1.01182 11.9583 0.42237 14.7082L0.0695708 16.3541C-0.331744 18.2263 1.05396 20 2.91797 20H12.0818C13.9791 20 15.3714 18.1664 14.9116 16.2731L14.4923 14.5462C13.8436 11.8745 11.5099 10 8.83255 10H6.11917Z" fill="white"/>
+</svg>
+</span>
+                    <span class="label">Login</span>
+                </a>
+
+                                <a href="https://threejs-journey.com/join" data-router-disabled class="button is-purple is-abyss-join has-icon-right">
+                    <span class="hover"></span>
+                    <span class="label">Start<span class="non-important"> learning now</span></span>
+                    <span class="icon"><svg width="15" height="18" viewBox="0 0 15 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.479 8.11445C13.6178 8.74903 13.6219 9.5473 12.479 10.2647L3.6482 16.2205C2.53862 16.8126 1.78502 16.463 1.70591 15.1817L1.66844 2.71652C1.64346 1.53629 2.61564 1.20283 3.54203 1.7687L12.479 8.11445Z" stroke="#705DF2" stroke-width="2"/>
+</svg>
+</span>
+                </a>
+
+                    </nav>
+
+                <button class="menu-trigger js-menu-trigger">
+            <span class="bar bar-1"></span><span class="bar bar-2"></span><span class="bar bar-3"></span>
+        </button>
+
+    </div>
+
+</header>
+        <main data-router-wrapper>
+        <section class="js-page page error abyss-form-page is-full-height" data-router-view="error">
+
+            
+    <div class="radial-glow is-radial-glow-red"></div>
+    <div class="radial-glow is-radial-glow-blue"></div>
+    <div class="radial-glow is-radial-glow-purple"></div>
+
+    <div class="page-content">
+
+        <div class="container">
+
+            <div class="important-message is-error">
+                <div class="icon"><svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M30.9914 4.84009C39.9162 10.359 42.6773 22.068 37.1584 30.9929C31.6395 39.9177 19.9305 42.6788 11.0056 37.1599C2.08073 31.641 -0.680328 19.932 4.83859 11.0071C6.40643 8.47169 8.47382 6.43373 10.835 4.94172M21.0735 2L21.0735 15.5M21.0735 23L21.0735 24" stroke="#FF5B86" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div>
+                <div class="message-title">Error</div>
+
+                                    <p>Page not found</p>
+                
+
+                                    <div class="code">
+                                                    <span class="digit">
+                                4
+                            </span>
+                                                    <span class="digit">
+                                0
+                            </span>
+                                                    <span class="digit">
+                                4
+                            </span>
+                                            </div>
+                            
+            </div>
+
+        </div>
+
+    </div>
+    
+        
+
+                        
+        </section>
+    </main>
+
+    
+        <footer class="footer">
+        <div class="inner">
+            <div class="column is-logo">
+                <a href="https://threejs-journey.com/" data-router-disabled class="main-logo is-light">
+                    <div class="logo"><svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 58.5 66.6" style="enable-background:new 0 0 58.5 66.6;" xml:space="preserve">
+    <path class="face-1" d="M23.1,55.7l16.1-9.3c0,0,0,0,0,0c1.1-0.7,1.8-1.9,1.8-3.1l0.1-19.1L23.1,34.4V55.7z"/>
+    <path class="face-2" d="M21.3,10L2.9,20.5l18,10.2l18.4-10.5c0,0,0,0-0.1,0l-17.4-10C21.7,10.1,21.5,10.1,21.3,10z"/>
+    <path class="face-3" d="M1.8,46.7L18,56.6c0,0,0,0,0,0c0.3,0.2,0.5,0.3,0.8,0.3V34.5L0,23.8v19.7C0,44.9,0.7,46.1,1.8,46.7z"/>
+    <path class="triangle-1" d="M56.8,30.4l-11.4-6.6l-0.1,19.2l11.5-6.7c1-0.6,1.7-1.7,1.7-2.9C58.5,32.1,57.9,31,56.8,30.4z"/>
+    <path class="triangle-2" d="M0,50.7v12.6c0,1.2,0.6,2.3,1.7,2.9c0.5,0.3,1.1,0.5,1.7,0.5c0.6,0,1.2-0.2,1.7-0.5l10.4-6L0,50.7z"/>
+    <path class="triangle-3" d="M16.4,7L5.1,0.5c-1-0.6-2.3-0.6-3.4,0C0.6,1.1,0,2.2,0,3.4v13.2L16.4,7z"/>
+</svg>
+</div>
+                    <div class="text"><svg width="160" height="22" viewBox="0 0 160 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path class="letter t" d="M7.52113 7.98393V5.22393H5.47413V1.93493H1.79413V5.22393H0.161133V7.98393H1.79413V13.1359C1.79413 15.7809 2.55313 17.2069 5.24413 17.2069C6.27913 17.2069 6.85413 17.0919 7.52113 16.9539V14.1939C5.95713 14.1939 5.47413 14.1939 5.47413 12.8599V7.98393H7.52113Z" fill="white"/>
+<path class="letter h" d="M16.2516 4.85593C14.3656 4.85593 13.2156 5.84493 12.5946 6.92593H12.5486V0.554932H8.86861V16.9999H12.5486V10.1919C12.5486 8.55893 13.5146 7.84593 14.6876 7.84593C16.0216 7.84593 16.5966 8.44393 16.5966 10.2149V16.9999H20.2766V9.04193C20.2766 6.35093 18.7356 4.85593 16.2516 4.85593Z" fill="white"/>
+<path class="letter r" d="M28.5868 5.01693C27.2988 5.01693 26.2868 5.84493 25.7118 7.15593H25.6658V5.22393H21.9858V16.9999H25.6658V11.5259C25.6658 9.01893 27.6668 7.98393 29.5528 8.32893H29.5988V5.10893C29.1848 5.01693 28.9088 5.01693 28.5868 5.01693Z" fill="white"/>
+<path class="letter e" d="M36.2469 14.6079C34.9359 14.6079 33.7169 13.7339 33.7169 12.0779H42.1809C42.1809 7.79993 40.1339 4.85593 36.1089 4.85593C32.3599 4.85593 30.0369 7.52393 30.0369 11.1119C30.0369 14.7919 32.4059 17.3679 36.3159 17.3679C39.5129 17.3679 41.3529 15.8039 41.9969 13.4349H38.3399C38.1099 14.0099 37.5119 14.6079 36.2469 14.6079ZM36.1089 7.38593C37.5119 7.38593 38.5009 8.21393 38.5009 9.84693H33.7169C33.7169 8.21393 34.7059 7.38593 36.1089 7.38593Z" fill="white"/>
+<path class="letter e" d="M49.117 14.6079C47.806 14.6079 46.587 13.7339 46.587 12.0779H55.051C55.051 7.79993 53.004 4.85593 48.979 4.85593C45.23 4.85593 42.907 7.52393 42.907 11.1119C42.907 14.7919 45.276 17.3679 49.186 17.3679C52.383 17.3679 54.223 15.8039 54.867 13.4349H51.21C50.98 14.0099 50.382 14.6079 49.117 14.6079ZM48.979 7.38593C50.382 7.38593 51.371 8.21393 51.371 9.84693H46.587C46.587 8.21393 47.576 7.38593 48.979 7.38593Z" fill="white"/>
+<path class="letter dot" d="M57.9878 17.2069C59.0688 17.2069 59.9428 16.4479 59.9428 15.2519C59.9428 14.0789 59.0688 13.2969 57.9878 13.2969C56.8838 13.2969 56.0328 14.0789 56.0328 15.2519C56.0328 16.4479 56.8838 17.2069 57.9878 17.2069Z" fill="white"/>
+<path class="letter j" d="M63.718 3.82093C64.753 3.82093 65.558 3.26893 65.558 2.18793C65.558 1.12993 64.753 0.554932 63.718 0.554932C62.683 0.554932 61.878 1.12993 61.878 2.18793C61.878 3.26893 62.683 3.82093 63.718 3.82093ZM61.878 5.22393V16.7239C61.878 18.0579 61.395 18.0579 59.831 18.0579V20.8179C60.498 20.9559 61.073 21.0709 62.108 21.0709C64.799 21.0709 65.558 19.6449 65.558 16.9999V5.22393H61.878Z" fill="white"/>
+<path class="letter s" d="M73.1069 9.57093C71.2899 9.17993 70.5539 9.15693 70.5539 8.32893C70.5539 7.75393 71.0829 7.38593 72.1179 7.38593C73.3139 7.38593 73.8199 7.89193 73.9349 8.83493H77.3849C77.2699 6.76493 75.7979 4.85593 72.0259 4.85593C68.7139 4.85593 66.8739 6.48893 66.8739 8.62793C66.8739 11.0889 69.0819 11.8249 71.0829 12.2619C72.9459 12.6759 74.0499 12.8139 74.0499 13.8259C74.0499 14.4929 73.4749 14.8379 72.4399 14.8379C70.9909 14.8379 70.2089 14.2629 70.0939 13.0899H66.6439C66.7589 15.4819 68.3689 17.3679 72.5779 17.3679C75.8439 17.3679 77.7299 16.0109 77.7299 13.5269C77.7299 10.8589 75.4299 10.0769 73.1069 9.57093Z" fill="white"/>
+<path class="letter j" d="M86.2079 2.99293C86.7369 2.99293 87.3579 2.60193 87.3579 1.88893C87.3579 1.17593 86.7369 0.784931 86.2079 0.784931C85.7019 0.784931 85.0579 1.17593 85.0579 1.88893C85.0579 2.60193 85.7019 2.99293 86.2079 2.99293ZM85.2879 5.26993V17.9889C85.2879 19.3229 84.9199 19.4379 83.3559 19.3229V20.7029C84.0229 20.8869 84.4829 20.9559 85.0579 20.9559C86.6219 20.9559 87.1279 19.7599 87.1279 17.8049V5.26993H85.2879Z" fill="white"/>
+<path class="letter o" d="M94.9749 17.3219C91.3869 17.3219 89.2249 14.7919 89.2249 11.1349C89.2249 7.47793 91.3869 4.94793 94.9749 4.94793C98.5399 4.94793 100.702 7.47793 100.702 11.1349C100.702 14.7919 98.5399 17.3219 94.9749 17.3219ZM94.9749 15.7119C97.5969 15.7119 98.8619 13.6419 98.8619 11.1349C98.8619 8.62793 97.5969 6.55793 94.9749 6.55793C92.3299 6.55793 91.0649 8.62793 91.0649 11.1349C91.0649 13.6419 92.3299 15.7119 94.9749 15.7119Z" fill="white"/>
+<path class="letter u" d="M110.334 5.26993V12.5839C110.334 14.4009 108.954 15.7119 106.884 15.7119C105.044 15.7119 104.331 14.5159 104.331 12.9979V5.26993H102.491V13.4579C102.491 16.1489 104.285 17.3219 106.424 17.3219C108.425 17.3219 109.667 16.4249 110.288 15.5969H110.334V16.9999H112.174V5.26993H110.334Z" fill="white"/>
+<path class="letter r" d="M119.84 4.94793C118.161 4.94793 117.218 6.05193 116.597 7.59293H116.551V5.26993H114.711V16.9999H116.551V10.7439C116.551 8.23693 118.322 6.44293 120.875 6.85693H120.921V5.01693C120.599 4.97093 120.277 4.94793 119.84 4.94793Z" fill="white"/>
+<path class="letter n" d="M128.345 4.94793C126.344 4.94793 125.102 5.84493 124.481 6.67293H124.435V5.26993H122.595V16.9999H124.435V9.68593C124.435 7.86893 125.815 6.55793 127.885 6.55793C129.725 6.55793 130.438 7.75393 130.438 9.27193V16.9999H132.278V8.81193C132.278 6.12093 130.484 4.94793 128.345 4.94793Z" fill="white"/>
+<path class="letter e" d="M139.737 15.7119C137.184 15.7119 135.919 13.7339 135.919 11.6179H145.188C145.188 7.45493 143.394 4.94793 139.714 4.94793C136.287 4.94793 134.079 7.22493 134.079 11.1349C134.079 14.8149 136.241 17.3219 139.806 17.3219C142.727 17.3219 144.406 15.5739 145.004 13.3889H143.164C142.957 14.1939 142.083 15.7119 139.737 15.7119ZM139.714 6.55793C141.922 6.55793 143.348 8.12193 143.348 10.0079H135.919C135.919 8.12193 137.506 6.55793 139.714 6.55793Z" fill="white"/>
+<path class="letter y" d="M156.721 5.26993H154.651L151.27 14.8379H151.224L147.636 5.26993H145.566L150.005 16.0339C150.465 17.1839 149.982 18.1729 149.499 18.7019C148.878 19.3689 148.165 19.4379 147.153 19.3459H146.877V20.7259C147.176 20.8179 147.705 20.9559 148.441 20.9559C150.603 20.9559 151.201 19.2309 151.707 17.9659L156.721 5.26993Z" fill="white"/>
+</svg>
+</div>
+                    <span class="copyright">© 2025. All rights reserved.</span>
+                </a>
+            </div>
+            <div class="column is-navigation">
+                <div class="column-title">Navigation</div>
+                <ul>
+                    <li><a href="https://threejs-journey.com/" data-router-disabled>Home</a></li>
+
+                    
+                        <li><a href="https://threejs-journey.com/login" data-router-disabled>Login</a></li>
+                        <li><a href="https://threejs-journey.com/join" data-router-disabled>Join</a></li>
+
+                                        <li><a href="https://threejs-journey.com/gift" data-router-disabled><span class="icon gift"><svg xmlns="http://www.w3.org/2000/svg" width="61" height="63.96" viewBox="0 0 61 63.96">
+  <rect y="19.96" width="61" height="11" fill="#898989"/>
+  <path d="M19.77,16H28V9c0-5-9.24-13.34-15.62-6.17S15,16,19.77,16Z" fill="#898989"/>
+  <g>
+    <rect x="5.5" y="34.96" width="20.5" height="29" fill="#898989"/>
+    <rect x="35" y="34.96" width="20.5" height="29" fill="#898989"/>
+  </g>
+  <path d="M41.41,16H33.17V9c0-5,9.24-13.34,15.62-6.17S46.17,16,41.41,16Z" fill="#898989"/>
+</svg>
+</span> Gift the course</a></li>
+                </ul>
+            </div>
+            <div class="column is-navigation">
+                <div class="column-title">Contact</div>
+                <ul>
+                    <li><a href="mailto:contact@threejs-journey.com" target="_blank"><span class="icon email"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M11.667 2.3335H2.33366C1.69199 2.3335 1.17283 2.8585 1.17283 3.50016L1.16699 10.5002C1.16699 11.1418 1.69199 11.6668 2.33366 11.6668H11.667C12.3087 11.6668 12.8337 11.1418 12.8337 10.5002V3.50016C12.8337 2.8585 12.3087 2.3335 11.667 2.3335ZM11.667 4.66683L7.00033 7.5835L2.33366 4.66683V3.50016L7.00033 6.41683L11.667 3.50016V4.66683Z" fill="#8B8B8B"/>
+</svg>
+</span>contact@threejs-journey.com</a></li>
+                    <li><a href="https://twitter.com/bruno_simon" target="_blank"><span class="icon twitter"><svg width="24" height="20" viewBox="0 0 24 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M23.954 2.323C23.069 2.712 22.124 2.977 21.129 3.098C22.143 2.487 22.923 1.524 23.292 0.375C22.341 0.93 21.287 1.334 20.165 1.559C19.269 0.6 17.992 0 16.574 0C13.857 0 11.654 2.203 11.654 4.917C11.654 5.307 11.699 5.682 11.781 6.041C7.691 5.848 4.066 3.884 1.64 0.915C1.213 1.637 0.974 2.476 0.974 3.39C0.974 5.1 1.844 6.603 3.162 7.486C2.355 7.46 1.596 7.238 0.934 6.87V6.931C0.934 9.316 2.627 11.305 4.88 11.758C4.467 11.869 4.031 11.929 3.584 11.929C3.27 11.929 2.969 11.899 2.668 11.843C3.299 13.796 5.113 15.22 7.272 15.26C5.592 16.579 3.463 17.365 1.17 17.365C0.78 17.365 0.391 17.342 0 17.298C2.189 18.692 4.768 19.507 7.557 19.507C16.611 19.507 21.556 12.011 21.556 5.521C21.556 5.312 21.556 5.101 21.541 4.891C22.502 4.202 23.341 3.331 24.001 2.343L23.954 2.323Z" fill="#1DA1F2"/>
+</svg>
+</span>bruno_simon</a></li>
+                    <li><a href="https://threejs-journey.com/discord" data-router-disabled><span class="icon discord"><svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 175 200" style="enable-background:new 0 0 175 200;" xml:space="preserve">
+<path d="M69.4,83.9c-5.7,0-10.2,5-10.2,11.1s4.6,11.1,10.2,11.1c5.7,0,10.2-5,10.2-11.1C79.7,88.9,75.1,83.9,69.4,83.9z M105.9,83.9c-5.7,0-10.2,5-10.2,11.1s4.6,11.1,10.2,11.1c5.7,0,10.2-5,10.2-11.1S111.6,83.9,105.9,83.9z"/>
+<path d="M154.5,0h-134C9.2,0,0,9.2,0,20.6v135.2c0,11.4,9.2,20.6,20.5,20.6h113.4l-5.3-18.5l12.8,11.9l12.1,11.2l21.5,19V20.6C175,9.2,165.8,0,154.5,0z M115.9,130.6c0,0-3.6-4.3-6.6-8.1c13.1-3.7,18.1-11.9,18.1-11.9c-4.1,2.7-8,4.6-11.5,5.9c-5,2.1-9.8,3.5-14.5,4.3c-9.6,1.8-18.4,1.3-25.9-0.1c-5.7-1.1-10.6-2.7-14.7-4.3c-2.3-0.9-4.8-2-7.3-3.4c-0.3-0.2-0.6-0.3-0.9-0.5c-0.2-0.1-0.3-0.2-0.4-0.3c-1.8-1-2.8-1.7-2.8-1.7s4.8,8,17.5,11.8c-3,3.8-6.7,8.3-6.7,8.3c-22.1-0.7-30.5-15.2-30.5-15.2c0-32.2,14.4-58.3,14.4-58.3c14.4-10.8,28.1-10.5,28.1-10.5l1,1.2c-18,5.2-26.3,13.1-26.3,13.1s2.2-1.2,5.9-2.9c10.7-4.7,19.2-6,22.7-6.3c0.6-0.1,1.1-0.2,1.7-0.2c6.1-0.8,13-1,20.2-0.2c9.5,1.1,19.7,3.9,30.1,9.6c0,0-7.9-7.5-24.9-12.7l1.4-1.6c0,0,13.7-0.3,28.1,10.5c0,0,14.4,26.1,14.4,58.3C146.5,115.4,138,129.9,115.9,130.6z"/>
+</svg>
+</span>Discord</a></li>
+                    <li><a href="https://www.linkedin.com/company/three-js-journey"target="_blank"><span class="icon linkedin"><svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.2991 21.3043H17.597V15.5032C17.597 14.1199 17.5689 12.3397 15.6678 12.3397C13.7376 12.3397 13.4428 13.8449 13.4428 15.4011V21.3043H9.74069V9.37506H13.297V11.0011H13.3449C13.8418 10.0636 15.0501 9.07402 16.8553 9.07402C20.6064 9.07402 21.3001 11.5428 21.3001 14.7564V21.3043H21.2991ZM5.55941 7.74276C4.36774 7.74276 3.41044 6.77817 3.41044 5.5917C3.41044 4.40628 4.36878 3.44273 5.55941 3.44273C6.74692 3.44273 7.70943 4.40628 7.70943 5.5917C7.70943 6.77817 6.74588 7.74276 5.55941 7.74276ZM7.41568 21.3043H3.70315V9.37506H7.41568V21.3043ZM23.1512 0H1.8448C0.825006 0 0 0.806255 0 1.80105V23.1991C0 24.195 0.825006 25.0002 1.8448 25.0002H23.1481C24.1668 25.0002 25.0002 24.195 25.0002 23.1991V1.80105C25.0002 0.806255 24.1668 0 23.1481 0H23.1512Z" fill="white"/>
+</svg>
+</span>LinkedIn</a></li>
+                    <li><a href="https://www.youtube.com/@BrunoSimon"target="_blank"><span class="icon youtube"><svg width="23" height="16" viewBox="0 0 23 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_2059_5204)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M20.2805 0.538633C21.254 0.800451 22.0134 1.567 22.2767 2.54591C22.9652 5.33863 22.9204 10.6186 22.2911 13.455C22.0308 14.4339 21.2684 15.1975 20.2949 15.4623C17.5465 16.1459 5.23643 16.0615 2.64712 15.4623C1.6736 15.2005 0.914166 14.4339 0.650895 13.455C0.00139857 10.7932 0.0462414 5.16409 0.63643 2.56045C0.896807 1.58154 1.65913 0.817906 2.63266 0.553178C6.30687 -0.217731 18.9728 0.0309965 20.2805 0.538633ZM9.28676 4.59673L15.1886 8.00037L9.28676 11.404V4.59673Z" fill="white"/>
+</g>
+<defs>
+<clipPath id="clip0_2059_5204">
+<rect width="23" height="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</span>Youtube</a></li>
+                </ul>
+                <div class="column-title">Other</div>
+                <ul>
+                    <li><a href="https://mux.com/" target="_blank" rel="noopener noreferrer">Mux (video streaming)</a></li>
+                </ul>
+            </div>
+            <div class="column is-legal">
+                <div class="column-title">Legal</div>
+                <ul>
+                    <li><a href="https://threejs-journey.com/legal-notice" data-router-disabled>Legal notice</a></li>
+                    <li><a href="https://threejs-journey.com/general-conditions" data-router-disabled>General Conditions of Sale and Use</a></li>
+                    <li><span class="separator"></span></li>
+                    <li><a href="https://threejs-journey.com/legal-notice/fr" data-router-disabled>Mentions légales (fr)</a></li>
+                    <li><a href="https://threejs-journey.com/general-conditions/fr" data-router-disabled>Conditions Générales de Vente et d'Utilisation (fr)</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+        <div class="js-popins popins">
+        <span class="js-background background"></span>
+        <canvas class="js-popins-confetti-canvas confetti-canvas"></canvas>
+    </div>
+    
+    <script>
+        window.environment = ''
+        window.siteJoinUrl = 'https://threejs-journey.com/join'
+    </script>
+    
+                <script type="module" src="/bundles/public/index.js?cb="></script>
+    </body>
+</html>
