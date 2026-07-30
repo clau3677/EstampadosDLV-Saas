@@ -32,7 +32,7 @@ const GARMENT_COLORS = {
   azul_rey:     { label: 'Azul Rey',       hex: '#1560BD' },
   fucsia:       { label: 'Fucsia',         hex: '#D91D7C' },
   naranjo:      { label: 'Naranjo',        hex: '#F57C00' },
-  amarillo:     { label: 'Amarillo',       hex: '#F5C518' },
+  amarillo:     { label: 'Amarillo',        hex: '#F5C518' },
   burdeo:       { label: 'Burdeo',         hex: '#7B1113' },
   celeste:      { label: 'Celeste',        hex: '#87CEEB' },
   turquesa:     { label: 'Turquesa',       hex: '#008080' },
@@ -53,7 +53,7 @@ const GARMENTS = {
 };
 
 // ============================================================================
-// THREE.JS SCENE MANAGER — UV-MAPPING REAL
+// THREE.JS SCENE MANAGER
 // ============================================================================
 class ThreeScene {
   constructor(container) {
@@ -62,34 +62,36 @@ class ThreeScene {
     this.camera = null;
     this.renderer = null;
     this.model = null;
-    this.originalMaterials = new Map(); // guardar materiales originales para restaurar UVs
+    this.outlineMeshes = [];
+    this.originalMaterials = new Map();
     this.targetColor = new THREE.Color('#FFFFFF');
     this.currentColor = new THREE.Color('#FFFFFF');
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
-    this.rotationY = 0.3; // vista frontal ligeramente rotada
+    this.rotationY = 0.3;
     this.targetRotationY = 0.3;
     this.pitch = 0.0;
     this.targetPitch = 0.0;
-    this.distance = 3.0;
-    this.targetDistance = 3.0;
+    this.distance = 2.8;
+    this.targetDistance = 2.8;
     this.animationId = null;
     this.isPlaying = true;
-    this.colorMaterial = null;
     this.designTexture = null;
     this.designMesh = null;
+    this.modelGroup = null;
 
     this.init();
   }
 
   init() {
     this.scene = new THREE.Scene();
+    // Fondo blanco puro para mockups profesionales
     this.scene.background = new THREE.Color(0xffffff);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
     this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
-    this.camera.position.set(0, 0.2, 3.0);
+    this.camera.position.set(0, 0.15, 2.8);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -102,12 +104,12 @@ class ThreeScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Iluminación de estudio profesional
-    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.6);
+    // Iluminación de estudio
+    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.4);
     keyLight.position.set(3, 4, 4);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -117,30 +119,28 @@ class ThreeScene {
     keyLight.shadow.bias = -0.002;
     this.scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xd4e4ff, 0.6);
+    const fillLight = new THREE.DirectionalLight(0xd4e4ff, 0.5);
     fillLight.position.set(-3, 2, 3);
     this.scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
     rimLight.position.set(0, 3, -4);
     this.scene.add(rimLight);
 
-    const topLight = new THREE.DirectionalLight(0xffffff, 0.35);
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
     topLight.position.set(0, 6, 0);
     this.scene.add(topLight);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-    this.scene.add(ambientLight);
+    // Group para el modelo (para poder añadir outline y diseño)
+    this.modelGroup = new THREE.Group();
+    this.scene.add(this.modelGroup);
 
-    const hemiLight = new THREE.HemisphereLight(0xe8f0ff, 0x996644, 0.2);
-    this.scene.add(hemiLight);
-
-    // Piso para sombras
+    // Floor for shadows
     const floorGeo = new THREE.PlaneGeometry(10, 10);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.12 });
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.1 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.1;
+    floor.position.y = -1.2;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
@@ -189,7 +189,7 @@ class ThreeScene {
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
-    this.targetDistance = Math.max(2.0, Math.min(6.0, this.targetDistance));
+    this.targetDistance = Math.max(1.8, Math.min(6.0, this.targetDistance));
   }
   onResize() {
     if (!this.container || !this.camera || !this.renderer) return;
@@ -201,65 +201,78 @@ class ThreeScene {
     this.renderer.setSize(w, h);
   }
 
-  /**
-   * Carga el modelo 3D. Si tiene textura baked, la conserva.
-   * Si no tiene UVs, genera UVs básicos.
-   */
-  async loadModel(url) {
+  loadModel(url) {
     const loader = new GLTFLoader();
     return new Promise((resolve, reject) => {
       loader.load(url, (gltf) => {
-        if (this.model) this.scene.remove(this.model);
+        // Remove old model from group
+        while (this.modelGroup.children.length > 0) {
+          this.modelGroup.remove(this.modelGroup.children[0]);
+        }
+        this.outlineMeshes = [];
+
         this.model = gltf.scene;
         this.originalMaterials = new Map();
 
-        // Guardar materiales originales y configurar meshes
+        // Process all meshes
         this.model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            // Guardar material original
             this.originalMaterials.set(child.uuid, child.material.clone());
-
-            // Si tiene textura baked (tshirt_real.glb), mantenerla
-            if (child.material.map) {
-              child.material.map.colorSpace = THREE.SRGBColorSpace;
-              child.material.map.needsUpdate = true;
-            }
           }
         });
 
-        // Auto-fit model to camera view
+        // Auto-fit model
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 1.3;
+        const targetSize = 1.4;
         const scale = targetSize / maxDim;
         this.model.scale.setScalar(scale);
         this.model.position.sub(center.multiplyScalar(scale));
-        this.model.position.y += 0.05;
+        this.model.position.y += 0.08;
 
-        this.scene.add(this.model);
+        this.modelGroup.add(this.model);
+
+        // Add edge outline for visibility on white background
+        this.createOutline();
+
+        // Apply current color
+        this.applyGarmentColor();
 
         resolve(gltf);
       }, undefined, reject);
     });
   }
 
-  /**
-   * Aplica el color de la prenda usando MeshStandardMaterial con propiedades
-   * de tela realistas (roughness alta, metalness cero).
-   * NO reemplaza las UVs ni elimina texturas existentes.
-   */
+  createOutline() {
+    // Create edge lines for the model to make it visible on white background
+    this.model.traverse((child) => {
+      if (child.isMesh && child.geometry) {
+        const edges = new THREE.EdgesGeometry(child.geometry, 15);
+        const lineMat = new THREE.LineBasicMaterial({
+          color: 0xe0e0e0,
+          transparent: true,
+          opacity: 0.4,
+        });
+        const wireframe = new THREE.LineSegments(edges, lineMat);
+        wireframe.position.copy(child.position);
+        wireframe.rotation.copy(child.rotation);
+        wireframe.scale.copy(child.scale);
+        this.modelGroup.add(wireframe);
+        this.outlineMeshes.push(wireframe);
+      }
+    });
+  }
+
   applyGarmentColor() {
     if (!this.model) return;
 
     this.model.traverse((child) => {
       if (child.isMesh) {
         const color = this.currentColor.clone();
-        // Si el modelo tiene textura baked (normal maps), mantener el color base pero
-        // con roughness/metalness de tela
         child.material = new THREE.MeshStandardMaterial({
           color: color,
           roughness: 0.82,
@@ -268,23 +281,24 @@ class ThreeScene {
         });
       }
     });
+
+    // Update outline color based on garment color
+    const isWhite = this.currentColor.r > 0.95 && this.currentColor.g > 0.95 && this.currentColor.b > 0.95;
+    this.outlineMeshes.forEach(outline => {
+      outline.material.color.set(isWhite ? 0xcccccc : 0xe8e8e8);
+      outline.material.opacity = isWhite ? 0.5 : 0.3;
+    });
   }
 
   setColor(hex) {
     this.targetColor.set(hex);
     this.currentColor.set(hex);
     this.applyGarmentColor();
-    // Re-aplicar diseño si existe
     if (this.designTexture) {
       this.applyDesign();
     }
   }
 
-  /**
-   * PROYECCIÓN REAL: Crea la textura del diseño en un canvas, la mapea
-   * con UV coordinates sobre la prenda usando un plan de proyección.
-   * La textura se ajusta a la superficie del modelo 3D.
-   */
   setDesignTexture(url) {
     if (!url) {
       this.removeDesign();
@@ -305,16 +319,11 @@ class ThreeScene {
     });
   }
 
-  /**
-   * Aplica el diseño como una textura proyectada sobre la prenda.
-   * Crea un mesh con la textura del diseño que se posiciona en la superficie frontal
-   * de la prenda y sigue la curvatura del modelo.
-   */
   applyDesign() {
     this.removeDesign();
     if (!this.designTexture || !this.model) return;
 
-    // Encontrar el mesh principal de la prenda (el que tiene la cara frontal)
+    // Get the main mesh bounding box
     let frontMesh = null;
     this.model.traverse((child) => {
       if (child.isMesh && !frontMesh) {
@@ -324,29 +333,21 @@ class ThreeScene {
 
     if (!frontMesh) return;
 
-    // Obtener la bounding box del mesh para posicionamiento
     const meshBox = new THREE.Box3().setFromObject(frontMesh);
     const meshCenter = meshBox.getCenter(new THREE.Vector3());
     const meshSize = meshBox.getSize(new THREE.Vector3());
 
-    // Crear un plano curvo que sigue la superficie frontal de la prenda
-    // Usamos SphereGeometry con segmentos para simular la curvatura del pecho
-    const width = meshSize.x * 0.55; // 55% del ancho del pecho
-    const height = meshSize.y * 0.45; // 45% de la altura
-    const radius = meshSize.x * 0.5; // radio de curvatura
+    // Create a curved plane for the design
+    const width = meshSize.x * 0.55;
+    const height = meshSize.y * 0.45;
+    const radius = meshSize.x * 0.5;
 
-    // Crear geometría con curvatura
     const geo = new THREE.SphereGeometry(radius, 32, 32,
-      -Math.PI * 0.3, Math.PI * 0.6, // theta
-      Math.PI * 0.2, Math.PI * 0.35  // phi
+      -Math.PI * 0.3, Math.PI * 0.6,
+      Math.PI * 0.2, Math.PI * 0.35
     );
 
-    // Escalar a las dimensiones correctas
-    geo.scale(
-      width / radius,
-      height / radius,
-      1.0
-    );
+    geo.scale(width / radius, height / radius, 1.0);
 
     const mat = new THREE.MeshStandardMaterial({
       map: this.designTexture,
@@ -361,7 +362,6 @@ class ThreeScene {
 
     this.designMesh = new THREE.Mesh(geo, mat);
     
-    // Posicionar en el centro del pecho
     const frontZ = meshCenter.z + meshSize.z * 0.48;
     const centerX = meshCenter.x;
     const centerY = meshCenter.y + meshSize.y * 0.05;
@@ -370,12 +370,12 @@ class ThreeScene {
     this.designMesh.rotation.y = 0;
     this.designMesh.renderOrder = 1;
 
-    this.scene.add(this.designMesh);
+    this.modelGroup.add(this.designMesh);
   }
 
   removeDesign() {
     if (this.designMesh) {
-      this.scene.remove(this.designMesh);
+      this.modelGroup.remove(this.designMesh);
       if (this.designMesh.material) {
         if (this.designMesh.material.map) this.designMesh.material.map.dispose();
         this.designMesh.material.dispose();
@@ -421,18 +421,9 @@ class ThreeScene {
     this.currentColor.lerp(this.targetColor, 0.08);
 
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
-    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.15;
+    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.12;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.lookAt(0, 0, 0);
-
-    // Actualizar color del material
-    if (this.model && this.currentColor.distanceTo(this.targetColor) > 0.001) {
-      this.model.traverse((child) => {
-        if (child.isMesh && child.material && child.material.color) {
-          child.material.color.lerp(this.targetColor, 0.08);
-        }
-      });
-    }
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -448,56 +439,56 @@ class ThreeScene {
     if (this._resizeObserver) this._resizeObserver.disconnect();
     if (this.renderer) {
       this.renderer.dispose();
-      if (this.container && this.renderer.domElement.parentNode === this.container) {
-        this.container.removeChild(this.renderer.domElement);
-      }
+      this.container.removeChild(this.renderer.domElement);
     }
-    if (this.model) this.scene.remove(this.model);
-    this.removeDesign();
   }
 }
 
 // ============================================================================
-// TAB BIBLIOTECA
+// LIBRARY TAB
 // ============================================================================
 function LibraryTab({ onSelect }) {
   const [designs, setDesigns] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/design-library?page=${page}&size=20${search ? '&search=' + encodeURIComponent(search) : ''}`)
+    fetch(`/api/design-library?page=${page}&limit=20&q=${encodeURIComponent(search)}`)
       .then(r => r.json())
       .then(data => {
-        setDesigns(data.items || []);
+        const items = data.items || data.designs || [];
+        setDesigns(items);
         setLoading(false);
       })
-      .catch(() => { setLoading(false); });
+      .catch(() => {
+        setDesigns([]);
+        setLoading(false);
+      });
   }, [page, search]);
 
   return (
-    <div className="flex flex-col h-full">
-      <input
-        type="text"
-        placeholder="Buscar diseños..."
-        value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/30"
-      />
+    <div className="space-y-3">
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Buscar diseños..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200"
+        />
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 text-orange-500 animate-spin" />
+          <Loader2 className="h-6 w-6 text-orange-500 animate-spin" />
         </div>
-      ) : designs.length === 0 ? (
-        <p className="text-center text-sm text-slate-400 py-4">No se encontraron diseños</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1">
-          {designs.map(d => (
+        <div className="grid grid-cols-2 gap-2">
+          {designs.map((d) => (
             <button
-              key={d._id || d.id}
+              key={d._id || d.id || Math.random()}
               onClick={() => onSelect(d)}
               className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 transition-colors group"
             >
@@ -510,7 +501,7 @@ function LibraryTab({ onSelect }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 shrink-0">
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
         <Button variant="ghost" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
         <span className="text-xs text-slate-500">Página {page}</span>
         <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={designs.length < 20}>Siguiente</Button>
@@ -535,6 +526,7 @@ export default function Mockup3DEditor() {
   const [decalScale, setDecalScale] = useState(1);
   const canvasContainerRef = useRef(null);
   const sceneRef = useRef(null);
+  const lastModelRef = useRef(null);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -544,7 +536,10 @@ export default function Mockup3DEditor() {
       const scene = new ThreeScene(canvasContainerRef.current);
       sceneRef.current = scene;
 
-      scene.loadModel(GARMENTS[garment].model)
+      const modelUrl = GARMENTS[garment].model;
+      lastModelRef.current = modelUrl;
+
+      scene.loadModel(modelUrl)
         .then(() => {
           setLoading(false);
           scene.setColor(GARMENT_COLORS.blanco.hex);
@@ -554,7 +549,7 @@ export default function Mockup3DEditor() {
           setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
           setLoading(false);
         });
-    }, 100);
+    }, 50);
 
     return () => {
       clearTimeout(timer);
@@ -565,7 +560,25 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
-  // Update color when selected color changes
+  // Handle garment change - don't reload if same model file
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    const modelUrl = GARMENTS[garment].model;
+    if (modelUrl === lastModelRef.current) return; // Same model, no reload needed
+    lastModelRef.current = modelUrl;
+    setLoading(true);
+    sceneRef.current.loadModel(modelUrl)
+      .then(() => {
+        setLoading(false);
+        sceneRef.current.setColor(GARMENT_COLORS[color].hex);
+      })
+      .catch((err) => {
+        setError('No se pudo cargar el modelo 3D.');
+        setLoading(false);
+      });
+  }, [garment]);
+
+  // Update color
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
   }, [color]);
@@ -714,7 +727,7 @@ export default function Mockup3DEditor() {
             )}
 
             {!error && loading && (
-              <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-50 to-slate-100">
+              <div className="flex flex-col items-center justify-center h-full bg-white">
                 <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
                 <p className="text-sm font-medium text-slate-600 mt-4">Cargando modelo 3D...</p>
                 <p className="text-xs text-slate-400 mt-1">La primera vez puede tardar unos segundos</p>
