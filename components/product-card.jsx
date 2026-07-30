@@ -7,6 +7,10 @@ import { formatCLP } from '@/lib/format';
 
 const CATEGORY_LABELS = {
   dtf_meter:        'DTF por metro',
+  dtf_uv:           'DTF UV',
+  dtf_textil:       'DTF Textil',
+  dtftextil:        'DTF Textil',
+  dtfuv:            'DTF UV',
   blank_apparel:    'Ropa Lisa',
   printed_apparel:  'Ropa Estampada',
   caps_hats:        'Gorra',
@@ -20,6 +24,10 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_ICONS = {
   dtf_meter:        Sparkles,
+  dtf_uv:           Sparkles,
+  dtf_textil:       Sparkles,
+  dtftextil:        Sparkles,
+  dtfuv:            Sparkles,
   blank_apparel:    Shirt,
   printed_apparel:  Palette,
   caps_hats:        CircleUser,
@@ -32,6 +40,10 @@ const CATEGORY_ICONS = {
 
 const PLACEHOLDER_GRADIENTS = {
   dtf_meter:        'from-fuchsia-50 to-indigo-100',
+  dtf_uv:           'from-fuchsia-50 to-indigo-100',
+  dtf_textil:       'from-fuchsia-50 to-indigo-100',
+  dtftextil:        'from-fuchsia-50 to-indigo-100',
+  dtfuv:            'from-fuchsia-50 to-indigo-100',
   blank_apparel:    'from-slate-100 to-slate-200',
   printed_apparel:  'from-orange-50 to-rose-100',
   caps_hats:        'from-amber-50 to-orange-100',
@@ -42,10 +54,29 @@ const PLACEHOLDER_GRADIENTS = {
   other:            'from-blue-50 to-indigo-100',
 };
 
+/**
+ * Convierte un slug de categoría a un nombre legible.
+ * Ej: "gorra_parche_animal" → "Gorra Parche Animal"
+ *     "dtf_uv" → "DTF UV"
+ *     "blusa_mezclilla_algodon" → "Blusa Mezclilla Algodón"
+ */
+function formatCategorySlug(slug) {
+  if (!slug) return 'Sin categoría';
+  // Si ya tiene label mapeado, usarlo
+  if (CATEGORY_LABELS[slug]) return CATEGORY_LABELS[slug];
+  // Convertir snake_case a Title Case
+  return slug
+    .split(/[_-]+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export function ProductCard({ product }) {
   const hasImage = product.images?.length > 0;
   const mainImage = product.images?.[0];
+  const categoryLabel = formatCategorySlug(product.category);
   const Icon = CATEGORY_ICONS[product.category] || Package;
+  const gradient = PLACEHOLDER_GRADIENTS[product.category] || PLACEHOLDER_GRADIENTS.other;
   const priceRange = product.variants?.length > 1
     ? product.variants.reduce((min, v) => Math.min(min, v.price), Infinity)
     : product.basePrice;
@@ -61,12 +92,12 @@ export function ProductCard({ product }) {
               className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className={`absolute inset-0 bg-gradient-to-br ${PLACEHOLDER_GRADIENTS[product.category] || PLACEHOLDER_GRADIENTS.other} flex items-center justify-center`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
               <Icon className="h-16 w-16 text-slate-400/40" />
             </div>
           )}
           <Badge variant="secondary" className="absolute top-3 left-3 bg-white/95 text-slate-700 border border-slate-200 backdrop-blur">
-            {CATEGORY_LABELS[product.category] || product.category}
+            {categoryLabel}
           </Badge>
         </div>
 
