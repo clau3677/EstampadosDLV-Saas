@@ -23,7 +23,7 @@ import {
   Megaphone, RefreshCw, Sparkles, Send, CalendarClock, Trash2, Pencil,
   Facebook, Instagram, Link2, Unlink, CheckCircle2, XCircle, AlertTriangle,
   BarChart3, Rocket, ExternalLink, Copy, Clock, ImageIcon, Loader2,
-  Search, Target, TrendingUp, Zap,
+  Search, Target, TrendingUp, Zap, MapPin,
 } from 'lucide-react';
 
 const fmtCLP = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n ?? 0);
@@ -1033,8 +1033,9 @@ function GoogleAdsTab() {
   const [loadingOpt, setLoadingOpt] = useState(false);
   // Crear campaña
   const [newName, setNewName] = useState('');
-  const [newBudget, setNewBudget] = useState('50');
+  const [newBudget, setNewBudget] = useState('5');
   const [newMaxCpc, setNewMaxCpc] = useState('0.50');
+  const [newFocus, setNewFocus] = useState('');
   const [creating, setCreating] = useState(false);
 
   const refreshGoogleStatus = useCallback(async () => {
@@ -1093,17 +1094,31 @@ function GoogleAdsTab() {
     } catch (e) { toast.error('Error al desconectar'); }
   };
 
+  const FOCUS_OPTIONS = [
+    { key: 'dtf_textil', label: 'DTF Textil', icon: '🎨', desc: 'Impresión DTF en textiles' },
+    { key: 'dtf_uv', label: 'DTF UV', icon: '💡', desc: 'Impresión UV para superficies rígidas' },
+    { key: 'ropa_lisa', label: 'Ropa Lisa', icon: '👕', desc: 'Polerones y camisetas lisas' },
+    { key: 'gorras', label: 'Gorras', icon: '🧢', desc: 'Gorras trucker y personalizadas' },
+    { key: 'ropa_trabajo', label: 'Ropa de Trabajo', icon: '🦺', desc: 'Uniformes y ropa laboral' },
+  ];
+
   const createCampaign = async () => {
     if (!newName.trim()) return toast.error('Ponle nombre a la campaña');
+    if (!newFocus) return toast.error('Selecciona un foco de negocio');
     setCreating(true);
     try {
       const res = await fetch('/api/marketing/google/campaigns', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, budgetUsd: Number(newBudget), maxCpcUsd: Number(newMaxCpc) }),
+        body: JSON.stringify({
+          name: newName,
+          budgetUsd: Number(newBudget),
+          maxCpcUsd: Number(newMaxCpc),
+          focusKey: newFocus,
+        }),
       });
       if (res.ok) {
         toast.success('Campaña creada exitosamente');
-        setNewName(''); setNewBudget('50'); setNewMaxCpc('0.50');
+        setNewName(''); setNewBudget('5'); setNewMaxCpc('0.50'); setNewFocus('');
         refreshCampaigns();
       } else {
         const d = await res.json().catch(() => ({}));
@@ -1183,27 +1198,66 @@ function GoogleAdsTab() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Crear Campaña de Búsqueda</CardTitle>
-              <CardDescription>Crea una campaña de búsqueda con presupuesto y puja máxima configurables.</CardDescription>
+              <CardDescription>
+Campañas orientadas a la <strong>Región de Valparaíso</strong>, en <strong>español</strong>, con anuncios generados por IA.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Info de configuración */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2 text-sm">
+                <MapPin className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                <div className="text-blue-800">
+                  <p className="font-medium">Configuración automática</p>
+                  <p className="text-blue-600 text-xs">Ubicación: Región de Valparaíso · Idioma: Español · Red: Búsqueda Google</p>
+                </div>
+              </div>
+
+              {/* Selector de foco de negocio */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Foco de negocio *</label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {FOCUS_OPTIONS.map(f => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={() => { setNewFocus(f.key); setNewName(f.key.toUpperCase()); }}
+                      className={`p-3 rounded-lg border-2 text-center transition-all text-sm ${
+                        newFocus === f.key
+                          ? 'border-blue-500 bg-blue-50 shadow-sm'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                      }`}
+                    >
+                      <span className="text-xl block mb-1">{f.icon}</span>
+                      <span className="font-medium block">{f.label}</span>
+                      <span className="text-xs text-muted-foreground block mt-0.5">{f.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campos de configuración */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium">Nombre</label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: DTF UV - Impresión" />
+                  <label className="text-sm font-medium">Nombre de campaña</label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej: DTF UV - Valparaíso" />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Presupuesto diario (USD)</label>
                   <Input type="number" value={newBudget} onChange={(e) => setNewBudget(e.target.value)} min="1" />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium">Puja máxima CPC (USD)</label>
                   <Input type="number" value={newMaxCpc} onChange={(e) => setNewMaxCpc(e.target.value)} step="0.01" min="0.01" />
                 </div>
+                <div className="flex items-end">
+                  <Button onClick={createCampaign} disabled={!isConnected || creating || !newName.trim() || !newFocus} className="w-full">
+                    {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
+                    Crear Campaña con IA
+                  </Button>
+                </div>
               </div>
-              <Button onClick={createCampaign} disabled={!isConnected || creating || !newName.trim()}>
-                {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Rocket className="h-4 w-4 mr-2" />}
-                Crear Campaña
-              </Button>
             </CardContent>
           </Card>
 
