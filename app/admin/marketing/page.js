@@ -1122,7 +1122,7 @@ function GoogleAdsTab() {
         refreshCampaigns();
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.message || 'Error creando campaña. Verifica que la cuenta Google Ads esté conectada.');
+        toast.error(d.error || d.message || 'Error creando campaña. Verifica que la cuenta Google Ads esté conectada.');
       }
     } catch (e) { toast.error('Error creando campaña'); }
     finally { setCreating(false); }
