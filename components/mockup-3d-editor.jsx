@@ -223,10 +223,23 @@ class ThreeScene {
           };
 
           // Store original materials and identify garment meshes
+          // CRITICAL: Remove baked texture maps to prevent them from
+          // rendering on top of the design decal
           this.garmentMeshes = [];
           this.model.traverse((child) => {
             if (child.isMesh) {
-              this.originalMaterials.set(child, child.material.clone());
+              // Clone and clean: remove baked texture to prevent ghosting over design
+              const cleanedMat = child.material.clone();
+              cleanedMat.map = null;
+              cleanedMat.normalMap = null;
+              cleanedMat.aoMap = null;
+              cleanedMat.roughnessMap = null;
+              cleanedMat.metalnessMap = null;
+              cleanedMat.emissiveMap = null;
+              this.originalMaterials.set(child, cleanedMat);
+              
+              // Set clean material immediately to remove baked shadows
+              child.material = cleanedMat;
               child.castShadow = true;
               child.receiveShadow = true;
               this.garmentMeshes.push(child);
@@ -254,20 +267,10 @@ class ThreeScene {
 
       const mat = original.clone();
 
-      // If original has a baked texture map, we tint it instead of replacing
-      if (mat.map) {
-        // Keep the baked texture for folds/wrinkles details
-        // Apply color tinting by multiplying the color
-        mat.color.copy(targetColor);
-        // Boost emissive to make the color more vivid
-        mat.emissive = targetColor.clone();
-        mat.emissiveIntensity = 0.3;
-        mat.map = null; // Remove baked texture to get clean solid color
-      } else {
-        mat.color.copy(targetColor);
-        mat.emissive = targetColor.clone();
-        mat.emissiveIntensity = 0.3;
-      }
+      // Color the garment material
+      mat.color.copy(targetColor);
+      mat.emissive = targetColor.clone();
+      mat.emissiveIntensity = 0.3;
 
       // For white garment, increase emissive to make it visible
       if (hexColor === '#FFFFFF' || hexColor === '#F8F8F8') {
@@ -275,7 +278,7 @@ class ThreeScene {
         mat.emissiveIntensity = 0.15;
       }
 
-      mat.roughness = 0.65;
+      mat.roughness = 0.7;
       mat.metalness = 0.0;
       mat.needsUpdate = true;
       child.material = mat;
@@ -315,20 +318,21 @@ class ThreeScene {
         geometry.computeVertexNormals();
 
         // MeshBasicMaterial for the decal - NOT affected by lighting or garment color
+        // polygonOffset pushes it FORWARD (negative factor) to prevent z-fighting
         const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          alphaTest: 0.1,
+          alphaTest: 0.05,
           depthTest: true,
           depthWrite: false,
           polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -1,
+          polygonOffsetFactor: -5,
+          polygonOffsetUnits: -5,
           side: THREE.DoubleSide,
         });
 
         this.designPlane = new THREE.Mesh(geometry, material);
-        this.designPlane.renderOrder = 10;
+        this.designPlane.renderOrder = 100; // Render after all garment meshes
 
         this._updateDesignPosition();
         this.scene.add(this.designPlane);
@@ -356,10 +360,11 @@ class ThreeScene {
 
     // Place the design on the front of the shirt (chest area)
     // The shirt model center is roughly at the center of the torso
+    // Push the design CLEARLY in front of the garment surface to avoid z-fighting
     this.designPlane.position.set(
       center.x + this.designOffsetX,
       center.y + this.designOffsetY + size.y * 0.1,
-      center.z + size.z * 0.45 + 0.005  // Slightly in front of the shirt surface
+      center.z + size.z * 0.47 + 0.015  // Clear distance in front of the shirt surface
     );
     this.designPlane.scale.setScalar(this.designScale);
   }
