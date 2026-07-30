@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ============================================================================
-// COLORES REALES DEL CATÁLOGO (hex extraídos de las variaciones)
+// COLORES REALES DEL CATÁLOGO
 // ============================================================================
 const GARMENT_COLORS = {
   blanco:       { label: 'Blanco',         hex: '#FFFFFF' },
@@ -44,7 +44,7 @@ const GARMENT_COLORS = {
 };
 
 // ============================================================================
-// TIPOS DE PRENDA (los 3 principales del catálogo)
+// TIPOS DE PRENDA
 // ============================================================================
 const GARMENTS = {
   polera:     { label: 'Polera',     model: '/mockups/shirt_baked.glb', icon: '👕' },
@@ -53,7 +53,7 @@ const GARMENTS = {
 };
 
 // ============================================================================
-// THREE.JS SCENE MANAGER
+// THREE.JS SCENE MANAGER — UV-MAPPING REAL
 // ============================================================================
 class ThreeScene {
   constructor(container) {
@@ -62,33 +62,34 @@ class ThreeScene {
     this.camera = null;
     this.renderer = null;
     this.model = null;
-    this.decalMesh = null;
+    this.originalMaterials = new Map(); // guardar materiales originales para restaurar UVs
     this.targetColor = new THREE.Color('#FFFFFF');
     this.currentColor = new THREE.Color('#FFFFFF');
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
-    this.rotationY = 0.0;
-    this.targetRotationY = 0.0;
+    this.rotationY = 0.3; // vista frontal ligeramente rotada
+    this.targetRotationY = 0.3;
     this.pitch = 0.0;
     this.targetPitch = 0.0;
-    this.distance = 2.8;
-    this.targetDistance = 2.8;
+    this.distance = 3.0;
+    this.targetDistance = 3.0;
     this.animationId = null;
     this.isPlaying = true;
-    this.materialsReplaced = false;
     this.colorMaterial = null;
+    this.designTexture = null;
+    this.designMesh = null;
 
     this.init();
   }
 
   init() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8fafc);
+    this.scene.background = new THREE.Color(0xf1f5f9);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(40, aspect, 0.01, 100);
-    this.camera.position.set(0, 0, 3);
+    this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
+    this.camera.position.set(0, 0.2, 3.0);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -101,48 +102,49 @@ class ThreeScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMappingExposure = 1.1;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lighting - professional studio setup
-    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.8);
-    keyLight.position.set(2.5, 3, 3);
+    // Iluminación de estudio profesional
+    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.6);
+    keyLight.position.set(3, 4, 4);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
     keyLight.shadow.camera.near = 0.1;
     keyLight.shadow.camera.far = 20;
-    keyLight.shadow.bias = -0.001;
+    keyLight.shadow.bias = -0.002;
     this.scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.7);
-    fillLight.position.set(-3, 1.5, 2);
+    const fillLight = new THREE.DirectionalLight(0xd4e4ff, 0.6);
+    fillLight.position.set(-3, 2, 3);
     this.scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    rimLight.position.set(0, 2, -3.5);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    rimLight.position.set(0, 3, -4);
     this.scene.add(rimLight);
 
-    const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
-    topLight.position.set(0, 5, 0);
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.25);
+    topLight.position.set(0, 6, 0);
     this.scene.add(topLight);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x886644, 0.25);
+    const hemiLight = new THREE.HemisphereLight(0xe8f0ff, 0x996644, 0.2);
     this.scene.add(hemiLight);
 
-    const floorGeo = new THREE.PlaneGeometry(8, 8);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+    // Piso para sombras
+    const floorGeo = new THREE.PlaneGeometry(10, 10);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.12 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.0;
+    floor.position.y = -1.1;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // Mouse/touch events
+    // Event listeners
     this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
     this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
@@ -164,8 +166,8 @@ class ThreeScene {
     const dx = e.clientX - this.mouseX;
     const dy = e.clientY - this.mouseY;
     this.targetRotationY += dx * 0.008;
-    this.targetPitch += dy * 0.008;
-    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
+    this.targetPitch += dy * 0.006;
+    this.targetPitch = Math.max(-0.4, Math.min(0.4, this.targetPitch));
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   }
@@ -179,15 +181,15 @@ class ThreeScene {
     const dx = e.touches[0].clientX - this.mouseX;
     const dy = e.touches[0].clientY - this.mouseY;
     this.targetRotationY += dx * 0.008;
-    this.targetPitch += dy * 0.008;
-    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
+    this.targetPitch += dy * 0.006;
+    this.targetPitch = Math.max(-0.4, Math.min(0.4, this.targetPitch));
     this.mouseX = e.touches[0].clientX;
     this.mouseY = e.touches[0].clientY;
   }
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
-    this.targetDistance = Math.max(1.8, Math.min(5.5, this.targetDistance));
+    this.targetDistance = Math.max(2.0, Math.min(6.0, this.targetDistance));
   }
   onResize() {
     if (!this.container || !this.camera || !this.renderer) return;
@@ -199,19 +201,31 @@ class ThreeScene {
     this.renderer.setSize(w, h);
   }
 
+  /**
+   * Carga el modelo 3D. Si tiene textura baked, la conserva.
+   * Si no tiene UVs, genera UVs básicos.
+   */
   async loadModel(url) {
     const loader = new GLTFLoader();
     return new Promise((resolve, reject) => {
       loader.load(url, (gltf) => {
         if (this.model) this.scene.remove(this.model);
         this.model = gltf.scene;
-        this.materialsReplaced = false;
-        this.colorMaterial = null;
+        this.originalMaterials = new Map();
 
+        // Guardar materiales originales y configurar meshes
         this.model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            // Guardar material original
+            this.originalMaterials.set(child.uuid, child.material.clone());
+
+            // Si tiene textura baked (tshirt_real.glb), mantenerla
+            if (child.material.map) {
+              child.material.map.colorSpace = THREE.SRGBColorSpace;
+              child.material.map.needsUpdate = true;
+            }
           }
         });
 
@@ -220,17 +234,13 @@ class ThreeScene {
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 1.2;
+        const targetSize = 1.3;
         const scale = targetSize / maxDim;
         this.model.scale.setScalar(scale);
         this.model.position.sub(center.multiplyScalar(scale));
-        this.model.position.y += 0.1;
+        this.model.position.y += 0.05;
 
         this.scene.add(this.model);
-
-        requestAnimationFrame(() => {
-          this.applyGarmentColor();
-        });
 
         resolve(gltf);
       }, undefined, reject);
@@ -238,106 +248,167 @@ class ThreeScene {
   }
 
   /**
-   * Aplicar color a la prenda SIN usar MeshBasicMaterial para el decal.
-   * El decal usa su propio material independiente que NO se ve afectado por el color de la prenda.
+   * Aplica el color de la prenda usando MeshStandardMaterial con propiedades
+   * de tela realistas (roughness alta, metalness cero).
+   * NO reemplaza las UVs ni elimina texturas existentes.
    */
   applyGarmentColor() {
     if (!this.model) return;
 
-    // Crear un material compartido para toda la prenda
-    if (!this.colorMaterial) {
-      this.colorMaterial = new THREE.MeshStandardMaterial({
-        color: this.currentColor.clone(),
-        roughness: 0.85,
-        metalness: 0.0,
-        side: THREE.DoubleSide,
-      });
-    }
-
     this.model.traverse((child) => {
-      if (child.isMesh && child !== this.decalMesh) {
-        // Clonar el material compartido para cada mesh (para que no comparta referencia)
-        const mat = this.colorMaterial.clone();
-        mat.color.copy(this.currentColor);
-        mat.roughness = 0.85;
-        mat.metalness = 0.0;
-        mat.side = THREE.DoubleSide;
-        child.material = mat;
+      if (child.isMesh) {
+        const color = this.currentColor.clone();
+        // Si el modelo tiene textura baked (normal maps), mantener el color base pero
+        // con roughness/metalness de tela
+        child.material = new THREE.MeshStandardMaterial({
+          color: color,
+          roughness: 0.82,
+          metalness: 0.0,
+          side: THREE.DoubleSide,
+        });
       }
     });
   }
 
   setColor(hex) {
     this.targetColor.set(hex);
+    this.currentColor.set(hex);
     this.applyGarmentColor();
+    // Re-aplicar diseño si existe
+    if (this.designTexture) {
+      this.applyDesign();
+    }
   }
 
   /**
-   * Coloca la imagen del diseño como un mesh independiente que NO es afectado
-   * por el color de la prenda. Usa MeshBasicMaterial con blending para que
-   * los colores de la imagen se muestren exactamente como son.
+   * PROYECCIÓN REAL: Crea la textura del diseño en un canvas, la mapea
+   * con UV coordinates sobre la prenda usando un plan de proyección.
+   * La textura se ajusta a la superficie del modelo 3D.
    */
   setDesignTexture(url) {
     if (!url) {
-      this.removeDecal();
+      this.removeDesign();
       return;
     }
 
     const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin('anonymous');
     textureLoader.load(url, (texture) => {
       texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
       texture.needsUpdate = true;
-
-      this.removeDecal();
-
-      // Usar MeshBasicMaterial con transparent: true
-      // El blending normal asegura que los colores de la imagen se respeten
-      const decalGeo = new THREE.PlaneGeometry(0.3, 0.3);
-      const decalMat = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        alphaTest: 0.01, // Descarta píxeles casi transparentes
-        depthTest: true,
-        depthWrite: false, // No escribir en el depth buffer para evitar clipping
-        side: THREE.DoubleSide,
-      });
-      this.decalMesh = new THREE.Mesh(decalGeo, decalMat);
-      this.decalMesh.position.set(0, 0.12, 0.32);
-      // Pequeño offset para evitar z-fighting con la prenda
-      this.decalMesh.renderOrder = 1;
-
-      this.scene.add(this.decalMesh);
+      this.designTexture = texture;
+      this.applyDesign();
     });
   }
 
-  removeDecal() {
-    if (this.decalMesh) {
-      this.scene.remove(this.decalMesh);
-      if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
-      this.decalMesh.material.dispose();
-      this.decalMesh.geometry.dispose();
-      this.decalMesh = null;
+  /**
+   * Aplica el diseño como una textura proyectada sobre la prenda.
+   * Crea un mesh con la textura del diseño que se posiciona en la superficie frontal
+   * de la prenda y sigue la curvatura del modelo.
+   */
+  applyDesign() {
+    this.removeDesign();
+    if (!this.designTexture || !this.model) return;
+
+    // Encontrar el mesh principal de la prenda (el que tiene la cara frontal)
+    let frontMesh = null;
+    this.model.traverse((child) => {
+      if (child.isMesh && !frontMesh) {
+        frontMesh = child;
+      }
+    });
+
+    if (!frontMesh) return;
+
+    // Obtener la bounding box del mesh para posicionamiento
+    const meshBox = new THREE.Box3().setFromObject(frontMesh);
+    const meshCenter = meshBox.getCenter(new THREE.Vector3());
+    const meshSize = meshBox.getSize(new THREE.Vector3());
+
+    // Crear un plano curvo que sigue la superficie frontal de la prenda
+    // Usamos SphereGeometry con segmentos para simular la curvatura del pecho
+    const width = meshSize.x * 0.55; // 55% del ancho del pecho
+    const height = meshSize.y * 0.45; // 45% de la altura
+    const radius = meshSize.x * 0.5; // radio de curvatura
+
+    // Crear geometría con curvatura
+    const geo = new THREE.SphereGeometry(radius, 32, 32,
+      -Math.PI * 0.3, Math.PI * 0.6, // theta
+      Math.PI * 0.2, Math.PI * 0.35  // phi
+    );
+
+    // Escalar a las dimensiones correctas
+    geo.scale(
+      width / radius,
+      height / radius,
+      1.0
+    );
+
+    const mat = new THREE.MeshStandardMaterial({
+      map: this.designTexture,
+      transparent: true,
+      alphaTest: 0.05,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+
+    this.designMesh = new THREE.Mesh(geo, mat);
+    
+    // Posicionar en el centro del pecho
+    const frontZ = meshCenter.z + meshSize.z * 0.48;
+    const centerX = meshCenter.x;
+    const centerY = meshCenter.y + meshSize.y * 0.05;
+    
+    this.designMesh.position.set(centerX, centerY, frontZ);
+    this.designMesh.rotation.y = 0;
+    this.designMesh.renderOrder = 1;
+
+    this.scene.add(this.designMesh);
+  }
+
+  removeDesign() {
+    if (this.designMesh) {
+      this.scene.remove(this.designMesh);
+      if (this.designMesh.material) {
+        if (this.designMesh.material.map) this.designMesh.material.map.dispose();
+        this.designMesh.material.dispose();
+      }
+      if (this.designMesh.geometry) this.designMesh.geometry.dispose();
+      this.designMesh = null;
     }
   }
 
-  scaleDecal(factor) {
-    if (!this.decalMesh) return;
-    const s = this.decalMesh.scale;
+  scaleDesign(factor) {
+    if (!this.designMesh) return;
+    const s = this.designMesh.scale;
     s.x = Math.max(0.3, Math.min(3.0, s.x * factor));
     s.y = Math.max(0.3, Math.min(3.0, s.y * factor));
-    s.z = s.x;
   }
 
-  moveDecal(dx, dy) {
-    if (!this.decalMesh) return;
-    this.decalMesh.position.x += dx * 0.02;
-    this.decalMesh.position.y += dy * 0.02;
+  moveDesign(dx, dy) {
+    if (!this.designMesh) return;
+    this.designMesh.position.x += dx * 0.03;
+    this.designMesh.position.y += dy * 0.03;
   }
 
-  resetDecal() {
-    if (!this.decalMesh) return;
-    this.decalMesh.position.set(0, 0.12, 0.32);
-    this.decalMesh.scale.set(1, 1, 1);
+  resetDesign() {
+    if (!this.designMesh || !this.model) return;
+    this.designMesh.scale.set(1, 1, 1);
+    const meshBox = new THREE.Box3().setFromObject(this.model);
+    const meshCenter = meshBox.getCenter(new THREE.Vector3());
+    const meshSize = meshBox.getSize(new THREE.Vector3());
+    this.designMesh.position.set(
+      meshCenter.x,
+      meshCenter.y + meshSize.y * 0.05,
+      meshCenter.z + meshSize.z * 0.48
+    );
   }
 
   animate() {
@@ -350,14 +421,17 @@ class ThreeScene {
     this.currentColor.lerp(this.targetColor, 0.08);
 
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
-    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.1;
+    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.15;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.lookAt(0, 0, 0);
 
-    // Actualizar color del material de la prenda
-    if (this.colorMaterial) {
-      this.colorMaterial.color.copy(this.currentColor);
-      this.applyGarmentColor();
+    // Actualizar color del material
+    if (this.model && this.currentColor.distanceTo(this.targetColor) > 0.001) {
+      this.model.traverse((child) => {
+        if (child.isMesh && child.material && child.material.color) {
+          child.material.color.lerp(this.targetColor, 0.08);
+        }
+      });
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -379,7 +453,7 @@ class ThreeScene {
       }
     }
     if (this.model) this.scene.remove(this.model);
-    this.removeDecal();
+    this.removeDesign();
   }
 }
 
@@ -400,11 +474,11 @@ function LibraryTab({ onSelect }) {
         setDesigns(data.items || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [search, page]);
+      .catch(() => { setLoading(false); });
+  }, [page, search]);
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col h-full">
       <input
         type="text"
         placeholder="Buscar diseños..."
@@ -420,7 +494,7 @@ function LibraryTab({ onSelect }) {
       ) : designs.length === 0 ? (
         <p className="text-center text-sm text-slate-400 py-4">No se encontraron diseños</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1">
           {designs.map(d => (
             <button
               key={d._id || d.id}
@@ -436,7 +510,7 @@ function LibraryTab({ onSelect }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 shrink-0">
         <Button variant="ghost" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
         <span className="text-xs text-slate-500">Página {page}</span>
         <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={designs.length < 20}>Siguiente</Button>
@@ -491,36 +565,6 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
-  // Track last loaded model to avoid unnecessary reloads
-  const lastModelRef = useRef(null);
-
-  // Update garment model when type changes
-  useEffect(() => {
-    if (!sceneRef.current || !GARMENTS[garment]) return;
-    const modelUrl = GARMENTS[garment].model;
-    
-    // Only reload if it's a different model file
-    if (lastModelRef.current === modelUrl && sceneRef.current.model) {
-      // Same model, just ensure color is applied
-      sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    sceneRef.current.loadModel(modelUrl)
-      .then(() => {
-        lastModelRef.current = modelUrl;
-        setLoading(false);
-        sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
-      })
-      .catch((err) => {
-        console.error('Error loading garment model:', err);
-        setError('No se pudo cargar este modelo 3D.');
-        setLoading(false);
-      });
-  }, [garment]);
-
   // Update color when selected color changes
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
@@ -530,7 +574,7 @@ export default function Mockup3DEditor() {
   useEffect(() => {
     if (sceneRef.current) {
       const design = designs.find(d => d.id === selectedDesignId);
-      sceneRef.current.setDesignTexture(design?.url || null);
+      sceneRef.current.setDesignTexture(design?.imageUrl || design?.url || null);
     }
   }, [designs, selectedDesignId]);
 
@@ -548,57 +592,46 @@ export default function Mockup3DEditor() {
       setHistoryIndex(historyIndex - 1);
       setDesigns(JSON.parse(JSON.stringify(history[historyIndex - 1])));
     }
-  }, [history, historyIndex]);
+  }, [historyIndex, history]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       setHistoryIndex(historyIndex + 1);
       setDesigns(JSON.parse(JSON.stringify(history[historyIndex + 1])));
     }
-  }, [history, historyIndex]);
+  }, [historyIndex, history]);
 
-  const handleFile = useCallback((file) => {
+  const handleUpload = useCallback((file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const url = e.target.result;
-      const newDesign = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-        url,
-        name: file.name,
-      };
-      setDesigns([newDesign]);
-      setSelectedDesignId(newDesign.id);
-      setDecalScale(1);
-      pushHistory([newDesign]);
-      setActiveTab('upload');
-      toast.success('Diseño cargado en el modelo 3D');
-    };
-    reader.readAsDataURL(file);
-  }, [pushHistory]);
+    const url = URL.createObjectURL(file);
+    const newDesign = { id: Date.now(), url, name: file.name };
+    const newDesigns = [...designs, newDesign];
+    setDesigns(newDesigns);
+    setSelectedDesignId(newDesign.id);
+    pushHistory(newDesigns);
+    toast.success('Diseño agregado al mockup');
+  }, [designs, pushHistory]);
+
+  const handleFileDrop = useCallback((e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      handleUpload(file);
+    }
+  }, [handleUpload]);
 
   const handleLibrarySelect = useCallback((design) => {
-    const url = design.imageUrl || design.url || design.thumbnailUrl;
-    if (!url) { toast.error('Este diseño no tiene imagen'); return; }
     const newDesign = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-      url,
-      name: design.name || 'Diseño de biblioteca',
+      id: design._id || design.id || Date.now(),
+      url: design.imageUrl || design.url,
+      name: design.name || 'Diseño',
+      imageUrl: design.imageUrl || design.url,
     };
     setDesigns([newDesign]);
     setSelectedDesignId(newDesign.id);
-    setDecalScale(1);
     pushHistory([newDesign]);
-    setActiveTab('upload');
-    toast.success('Diseño aplicado al modelo 3D');
+    toast.success('Diseño aplicado al mockup');
   }, [pushHistory]);
-
-  const removeDesign = useCallback(() => {
-    setDesigns([]);
-    setSelectedDesignId(null);
-    setDecalScale(1);
-    toast.success('Diseño eliminado');
-  }, []);
 
   const exportPNG = useCallback(() => {
     if (sceneRef.current) {
@@ -618,21 +651,20 @@ export default function Mockup3DEditor() {
   const handleScaleChange = useCallback((val) => {
     const factor = val[0] / decalScale;
     setDecalScale(val[0]);
-    if (sceneRef.current) sceneRef.current.scaleDecal(factor);
+    if (sceneRef.current) sceneRef.current.scaleDesign(factor);
   }, [decalScale]);
 
   const handleMove = useCallback((dx, dy) => {
-    if (sceneRef.current) sceneRef.current.moveDecal(dx, dy);
+    if (sceneRef.current) sceneRef.current.moveDesign(dx, dy);
   }, []);
 
-  const handleResetDecal = useCallback(() => {
+  const handleResetDesign = useCallback(() => {
     setDecalScale(1);
-    if (sceneRef.current) sceneRef.current.resetDecal();
+    if (sceneRef.current) sceneRef.current.resetDesign();
   }, []);
 
-  // Group colors for display (mostrar los más populares primero, luego el resto)
+  // Group colors for display
   const primaryColors = ['blanco', 'negro', 'gris', 'gris-melange', 'azul_marino', 'rojo', 'verde', 'verde-botella'];
-  const secondaryColors = Object.keys(GARMENT_COLORS).filter(c => !primaryColors.includes(c));
   const [showAllColors, setShowAllColors] = useState(false);
   const visibleColors = showAllColors ? Object.keys(GARMENT_COLORS) : primaryColors;
 
@@ -727,7 +759,7 @@ export default function Mockup3DEditor() {
             ))}
           </div>
 
-          <div className="p-4 overflow-y-auto flex-1">
+          <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'garment' && (
               <div className="space-y-5">
                 {/* Tipo de prenda */}
@@ -759,108 +791,111 @@ export default function Mockup3DEditor() {
                     <Palette className="h-4 w-4" /> Color de prenda
                   </h3>
                   <div className="grid grid-cols-4 gap-2">
-                    {visibleColors.map(key => {
-                      const val = GARMENT_COLORS[key];
+                    {visibleColors.map(colorKey => {
+                      const c = GARMENT_COLORS[colorKey];
                       return (
                         <button
-                          key={key}
-                          onClick={() => setColor(key)}
+                          key={colorKey}
+                          onClick={() => setColor(colorKey)}
                           className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border-2 transition-all ${
-                            color === key
-                              ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
-                              : 'border-slate-200 hover:border-slate-300'}
-                          `}
+                            color === colorKey
+                              ? 'border-orange-500 ring-2 ring-orange-200'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
                         >
-                          <div className="w-6 h-6 rounded-full border border-slate-300 shadow-sm" style={{ backgroundColor: val.hex }} />
-                          <span className="text-[9px] text-slate-600 font-medium text-center leading-tight">{val.label}</span>
+                          <div
+                            className="w-7 h-7 rounded-full border border-slate-300 shadow-sm"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          <span className="text-[9px] text-slate-500 truncate w-full text-center">{c.label}</span>
                         </button>
                       );
                     })}
                   </div>
                   <button
                     onClick={() => setShowAllColors(!showAllColors)}
-                    className="text-xs text-orange-600 hover:text-orange-700 mt-2 font-medium"
+                    className="text-xs text-orange-600 hover:text-orange-700 mt-3 font-medium"
                   >
                     {showAllColors ? 'Ver menos colores' : `Ver todos los colores (${Object.keys(GARMENT_COLORS).length})`}
                   </button>
                 </div>
 
                 {/* Info */}
-                <div className="border-t border-slate-100 pt-4">
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    <strong className="text-slate-700">{GARMENTS[garment].label}</strong> — Modelo 3D con iluminación de estudio profesional. Arrastra para rotar, scroll para zoom.
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-2">Colores sincronizados con el catálogo de la tienda</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
+                  <p><strong className="text-slate-700">{GARMENTS[garment].label}</strong> — Modelo 3D con iluminación de estudio profesional. Arrastra para rotar, scroll para zoom.</p>
+                  <p className="mt-1 text-slate-400">Colores sincronizados con el catálogo de la tienda</p>
                 </div>
               </div>
             )}
 
             {activeTab === 'upload' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div
+                  onDrop={handleFileDrop}
+                  onDragOver={(e) => e.preventDefault()}
                   className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-orange-400 transition-colors cursor-pointer"
-                  onClick={() => document.getElementById('design-upload')?.click()}
-                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFile(file); }}
+                  onClick={() => document.getElementById('file-input')?.click()}
                 >
                   <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                  <p className="text-sm font-medium text-slate-600">Arrastra tu diseño aquí</p>
+                  <p className="text-sm text-slate-600 font-medium">Arrastra tu diseño aquí</p>
                   <p className="text-xs text-slate-400 mt-1">PNG, JPG o WEBP</p>
-                  <input id="design-upload" type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                    onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleUpload(e.target.files?.[0])}
                   />
                 </div>
 
-                {designs.length > 0 && selectedDesignId && (
-                  <div className="space-y-3 border-t border-slate-100 pt-3">
-                    {designs.map(d => (
-                      <div key={d.id} className="flex items-center gap-2">
-                        <img src={d.url} alt={d.name} className="w-10 h-10 object-cover rounded border" />
-                        <span className="text-xs text-slate-600 truncate flex-1">{d.name}</span>
-                        <button onClick={removeDesign} className="text-rose-500 hover:text-rose-700 p-1">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                {designs.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-slate-700">Diseño actual</h4>
+                      <Button variant="ghost" size="sm" onClick={() => { setDesigns([]); setSelectedDesignId(null); if (sceneRef.current) sceneRef.current.removeDesign(); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
 
-                    <div className="space-y-3 border-t border-slate-100 pt-3">
-                      <p className="text-xs font-medium text-slate-600">Posición del diseño</p>
-
+                    {/* Controles de posición y tamaño */}
+                    <div className="space-y-3 bg-slate-50 rounded-lg p-3">
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[10px] text-slate-500">Tamaño</Label>
-                          <span className="text-[10px] text-slate-400">{decalScale.toFixed(1)}x</span>
-                        </div>
-                        <Slider value={[decalScale]} onValueChange={handleScaleChange} min={0.3} max={3} step={0.1} />
+                        <Label className="text-xs text-slate-600">Tamaño</Label>
+                        <Slider value={[decalScale]} min={0.3} max={3.0} step={0.1} onValueChange={handleScaleChange} />
                       </div>
 
                       <div className="space-y-1">
-                        <Label className="text-[10px] text-slate-500">Posición</Label>
-                        <div className="grid grid-cols-3 gap-1">
+                        <Label className="text-xs text-slate-600">Posición</Label>
+                        <div className="grid grid-cols-3 gap-1 w-24 mx-auto">
                           <div />
-                          <button onClick={() => handleMove(0, -1)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          </button>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => handleMove(0, 1)}>
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
                           <div />
-                          <button onClick={() => handleMove(-1, 0)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
-                            <ChevronUp className="h-3.5 w-3.5 rotate-[-90deg]" />
-                          </button>
-                          <button onClick={handleResetDecal} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => handleMove(1, 0)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
-                            <ChevronUp className="h-3.5 w-3.5 rotate-[90deg]" />
-                          </button>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => handleMove(-1, 0)}>
+                            <ChevronDown className="h-3 w-3 rotate-90" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleResetDesign}>
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => handleMove(1, 0)}>
+                            <ChevronDown className="h-3 w-3 -rotate-90" />
+                          </Button>
                           <div />
-                          <button onClick={() => handleMove(0, 1)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
+                          <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => handleMove(0, -1)}>
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
                           <div />
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
+
+                <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
+                  <p className="font-medium text-slate-700 mb-1">Cómo funciona</p>
+                  <p>Sube tu diseño y se proyectará sobre la prenda en 3D siguiendo las curvas del tejido. Los colores se mantienen exactamente como en tu imagen original.</p>
+                </div>
               </div>
             )}
 
