@@ -9,28 +9,8 @@ import {
   RotateCw, Box,
 } from 'lucide-react';
 
-// Importaciones específicas de Three.js para reducir bundle size
-import { Scene } from 'three';
-import { Color } from 'three';
-import { PerspectiveCamera } from 'three';
-import { WebGLRenderer } from 'three';
-import { PCFSoftShadowMap, ACESFilmicToneMapping, SRGBColorSpace, DoubleSide, LinearFilter } from 'three';
-import { AmbientLight } from 'three';
-import { DirectionalLight } from 'three';
-import { PlaneGeometry } from 'three';
-import { ShadowMaterial, MeshBasicMaterial } from 'three';
-import { Mesh } from 'three';
-import { Box3, Vector3, Matrix4 } from 'three';
-import { TextureLoader } from 'three';
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-
-// Re-exportar como namespace para compatibilidad con la clase ThreeScene
-const THREE = {
-  Scene, Color, PerspectiveCamera, WebGLRenderer,
-  PCFSoftShadowMap, ACESFilmicToneMapping, SRGBColorSpace, DoubleSide, LinearFilter,
-  AmbientLight, DirectionalLight, PlaneGeometry,
-  ShadowMaterial, MeshBasicMaterial, Mesh, Box3, Vector3, Matrix4, TextureLoader,
-};
 
 // ============================================================================
 // COLORES REALES DEL CATÁLOGO
@@ -230,10 +210,13 @@ class ThreeScene {
 
   async loadModel(url) {
     return new Promise((resolve, reject) => {
+      console.log('[ThreeScene] Loading model from:', url);
       const loader = new GLTFLoader();
       loader.load(
         url,
         (gltf) => {
+          console.log('[ThreeScene] Model loaded successfully from:', url);
+          console.log('[ThreeScene] GLTF children:', gltf.scene.children.length);
           this.model = gltf.scene;
 
           // Compute bounds before scaling
