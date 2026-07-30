@@ -75,6 +75,7 @@ export function NewProductDialog({ onCreated, trigger }) {
 
   const submit = async () => {
     if (!form.name || !form.category) return toast.error('Nombre y categoría son obligatorios');
+    if (!form.images || form.images.length === 0) return toast.error('Debes subir al menos 1 foto del producto para que se vea bien al compartir');
     setSaving(true);
     try {
       const preparedVariants = variants
