@@ -54,17 +54,15 @@ class Mockup3DErrorBoundary extends React.Component {
   static getDerivedStateFromError(err) { return { hasError: true, err }; }
   render() {
     if (this.state.hasError) {
-      const isChunkErr = /ChunkLoadError|Loading chunk|Failed to fetch/i.test(String(this.state.err || ''));
+      console.error('Mockup3D Error:', this.state.err);
       return (
         <div className="flex flex-col items-center justify-center h-[600px] rounded-xl border border-rose-200 bg-rose-50/60 px-6 text-center">
           <AlertTriangle className="h-10 w-10 text-rose-500 mb-3" />
           <div className="text-sm font-semibold text-slate-800">
-            {isChunkErr ? 'No se pudo cargar el editor 3D' : 'El editor 3D tuvo un error'}
+            El editor 3D tuvo un error
           </div>
           <div className="text-xs text-slate-600 mt-1 max-w-md">
-            {isChunkErr
-              ? 'Problema de caché del navegador. Recarga con Ctrl+Shift+R.'
-              : 'Tu navegador podría no soportar WebGL. Intenta con Chrome o Firefox actualizado.'}
+            {String(this.state.err)}
           </div>
           <Button onClick={() => window.location.reload()} size="sm" className="mt-4">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Recargar la página
