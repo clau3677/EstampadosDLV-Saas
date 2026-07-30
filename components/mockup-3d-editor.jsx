@@ -48,8 +48,8 @@ const GARMENT_COLORS = {
 // ============================================================================
 const GARMENTS = {
   polera:     { label: 'Polera',     model: '/mockups/shirt_baked.glb', icon: '👕' },
-  poleron:    { label: 'Polerón',    model: '/mockups/hoodie.glb', icon: '🧥' },
-  gorra:      { label: 'Gorra',      model: '/mockups/cap.glb', icon: '🧢' },
+  poleron:    { label: 'Polerón',    model: '/mockups/shirt_baked.glb', icon: '🧥' },
+  gorra:      { label: 'Gorra',      model: '/mockups/shirt_baked.glb', icon: '🧢' },
 };
 
 // ============================================================================
@@ -491,13 +491,26 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
+  // Track last loaded model to avoid unnecessary reloads
+  const lastModelRef = useRef(null);
+
   // Update garment model when type changes
   useEffect(() => {
     if (!sceneRef.current || !GARMENTS[garment]) return;
+    const modelUrl = GARMENTS[garment].model;
+    
+    // Only reload if it's a different model file
+    if (lastModelRef.current === modelUrl && sceneRef.current.model) {
+      // Same model, just ensure color is applied
+      sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
-    sceneRef.current.loadModel(GARMENTS[garment].model)
+    sceneRef.current.loadModel(modelUrl)
       .then(() => {
+        lastModelRef.current = modelUrl;
         setLoading(false);
         sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
       })
