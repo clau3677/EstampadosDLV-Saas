@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, Suspense, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -14,11 +14,14 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 
 // ============================================================================
-// REACT THREE FIBER
+// REACT THREE FIBER v8 (compatible con React 18)
 // ============================================================================
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, useTexture, Decal, OrbitControls } from '@react-three/drei';
+import { useGLTF, useTexture, Decal, OrbitControls, Preload } from '@react-three/drei';
 import { easing } from 'maath';
+
+// Preload the model at module level
+useGLTF.preload('/mockups/shirt_baked.glb');
 
 // ============================================================================
 // DATOS DE COLORES
@@ -37,16 +40,18 @@ const GARMENT_COLORS = {
 // ============================================================================
 function TShirtModel({ colorName, designUrl }) {
   const { nodes, materials } = useGLTF('/mockups/shirt_baked.glb');
+  const [designTexture, setDesignTexture] = useState(null);
 
-  // Preload y cargar textura del diseño
-  let designTexture = null;
-  try {
-    if (designUrl) {
-      designTexture = useTexture(designUrl);
+  // Cargar textura del diseño
+  useEffect(() => {
+    if (!designUrl) {
+      setDesignTexture(null);
+      return;
     }
-  } catch (e) {
-    // ignore texture load errors
-  }
+    useTexture(designUrl).then((tex) => {
+      setDesignTexture(tex);
+    }).catch(() => setDesignTexture(null));
+  }, [designUrl]);
 
   const targetColor = GARMENT_COLORS[colorName]?.hex || '#F5F5F0';
 
@@ -65,19 +70,18 @@ function TShirtModel({ colorName, designUrl }) {
         material={materials.lambert1}
         material-roughness={1}
         material-metalness={0}
-      >
-        {designTexture && (
-          <Decal
-            position={[0, 0.04, 0.15]}
-            rotation={[0, 0, 0]}
-            scale={0.15}
-            map={designTexture}
-            anisotropy={16}
-            depthTest={false}
-            depthWrite={true}
-          />
-        )}
-      </mesh>
+      />
+      {designTexture && (
+        <Decal
+          position={[0, 0.04, 0.15]}
+          rotation={[0, 0, 0]}
+          scale={0.15}
+          map={designTexture}
+          anisotropy={16}
+          depthTest={false}
+          depthWrite={true}
+        />
+      )}
     </group>
   );
 }
@@ -90,13 +94,14 @@ function Scene3D({ color, designUrl }) {
     <Canvas
       shadows
       camera={{ position: [0, 0, 3], fov: 30 }}
-      gl={{ preserveDrawingBuffer: true, antialias: true }}
+      gl={{ preserveDrawingBuffer: true, antialias: true, powerPreference: 'high-performance' }}
       style={{ width: '100%', height: '100%' }}
     >
       {/* Iluminación */}
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 5, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-5, 3, -5]} intensity={0.4} color="#c8d8ff" />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 5, 5]} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight position={[-5, 3, -5]} intensity={0.3} color="#c8d8ff" />
+      <pointLight position={[0, 5, 0]} intensity={0.5} />
 
       {/* Modelo de prenda */}
       <Suspense fallback={null}>
@@ -106,7 +111,7 @@ function Scene3D({ color, designUrl }) {
       {/* Piso de sombra */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]} receiveShadow>
         <planeGeometry args={[10, 10]} />
-        <shadowMaterial opacity={0.3} />
+        <shadowMaterial opacity={0.25} />
       </mesh>
 
       {/* Controles de órbita */}
@@ -118,21 +123,24 @@ function Scene3D({ color, designUrl }) {
         enableDamping
         dampingFactor={0.05}
       />
+
+      {/* Preload all assets */}
+      <Preload all />
     </Canvas>
   );
 }
 
 // ============================================================================
-// PRELOADER INVISIBLE — Carga el modelo GLB antes de mostrar el editor
+// LOADING FALLBACK
 // ============================================================================
-function ModelPreloader({ onReady }) {
-  useGLTF.preload('/mockups/shirt_baked.glb');
-  useEffect(() => {
-    // Give it a tick to ensure preload started
-    const t = setTimeout(() => onReady?.(), 500);
-    return () => clearTimeout(t);
-  }, [onReady]);
-  return null;
+function LoadingScene() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-50 to-slate-100">
+      <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
+      <p className="text-sm font-medium text-slate-600 mt-4">Cargando modelo 3D...</p>
+      <p className="text-xs text-slate-400 mt-1">La primera vez puede tardar unos segundos</p>
+    </div>
+  );
 }
 
 // ============================================================================
@@ -385,7 +393,6 @@ export default function Mockup3DEditor() {
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [isReady, setIsReady] = useState(false);
 
   const canvasContainerRef = useRef(null);
 
@@ -547,15 +554,9 @@ export default function Mockup3DEditor() {
           {/* Canvas 3D */}
           <div className="flex-1 relative" ref={canvasContainerRef}>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 140px)', minHeight: '500px' }}>
-              {!isReady ? (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
-                  <p className="text-sm text-slate-500 mt-3">Cargando modelo 3D...</p>
-                  <p className="text-xs text-slate-400">Primera vez puede tardar unos segundos</p>
-                </div>
-              ) : (
+              <Suspense fallback={<LoadingScene />}>
                 <Scene3D color={color} designUrl={selectedDesign?.url} />
-              )}
+              </Suspense>
 
               {/* Info overlay */}
               <div className="absolute bottom-3 left-3 flex items-center gap-2">
@@ -586,15 +587,6 @@ export default function Mockup3DEditor() {
           />
         </div>
       </div>
-
-      {/* Preloader invisible — precarga el modelo GLB */}
-      {!isReady && (
-        <Canvas style={{ display: 'none' }} gl={{ preserveDrawingBuffer: true }}>
-          <Suspense fallback={null}>
-            <ModelPreloader onReady={() => setIsReady(true)} />
-          </Suspense>
-        </Canvas>
-      )}
     </div>
   );
 }
