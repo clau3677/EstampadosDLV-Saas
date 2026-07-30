@@ -209,82 +209,93 @@ class ThreeScene {
   }
 
   async loadModel(url) {
-    return new Promise((resolve, reject) => {
-      console.log('[ThreeScene] Loading model from:', url);
+    console.log('[ThreeScene] Loading model from:', url);
+    try {
+      // Fetch the model ourselves to have better error handling
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log('[ThreeScene] Model downloaded:', arrayBuffer.byteLength, 'bytes');
+      
+      // Parse with GLTFLoader
       const loader = new GLTFLoader();
-      loader.load(
-        url,
-        (gltf) => {
-          console.log('[ThreeScene] Model loaded successfully from:', url);
-          console.log('[ThreeScene] GLTF children:', gltf.scene.children.length);
-          this.model = gltf.scene;
+      const gltf = await new Promise((resolve, reject) => {
+        try {
+          loader.parse(arrayBuffer, '', (gltf) => resolve(gltf), reject);
+        } catch (e) {
+          reject(e);
+        }
+      });
+      
+      console.log('[ThreeScene] Model parsed successfully, children:', gltf.scene.children.length);
+      this.model = gltf.scene;
 
-          // Compute bounds before scaling
-          const box = new THREE.Box3().setFromObject(this.model);
-          const center = box.getCenter(new THREE.Vector3());
-          const size = box.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
+      // Compute bounds before scaling
+      const box = new THREE.Box3().setFromObject(this.model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
 
-          // Scale to fit nicely in viewport
-          this.modelScale = 1.3 / maxDim;
-          this.model.scale.setScalar(this.modelScale);
-          this.model.position.sub(center.multiplyScalar(this.modelScale));
-          this.model.position.y += 0.05;
+      // Scale to fit nicely in viewport
+      this.modelScale = 1.3 / maxDim;
+      this.model.scale.setScalar(this.modelScale);
+      this.model.position.sub(center.multiplyScalar(this.modelScale));
+      this.model.position.y += 0.05;
 
-          // Compute bounds after scaling for design placement
-          const scaledBox = new THREE.Box3().setFromObject(this.model);
-          this.modelBounds = {
-            center: scaledBox.getCenter(new THREE.Vector3()),
-            size: scaledBox.getSize(new THREE.Vector3()),
-          };
+      // Compute bounds after scaling for design placement
+      const scaledBox = new THREE.Box3().setFromObject(this.model);
+      this.modelBounds = {
+        center: scaledBox.getCenter(new THREE.Vector3()),
+        size: scaledBox.getSize(new THREE.Vector3()),
+      };
 
-          // Process meshes: tint the baked texture color but keep lighting info
-          this.garmentMeshes = [];
-          this.frontVertices = [];
-          this.model.traverse((child) => {
-            if (child.isMesh) {
-              // Clone the original material
-              const mat = child.material.clone();
-              
-              // Store original for color changes
-              this.originalMaterials.set(child, mat);
-              
-              // Apply the cloned material
-              child.material = mat;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              this.garmentMeshes.push(child);
+      // Process meshes: tint the baked texture color but keep lighting info
+      this.garmentMeshes = [];
+      this.frontVertices = [];
+      this.model.traverse((child) => {
+        if (child.isMesh) {
+          // Clone the original material
+          const mat = child.material.clone();
+          
+          // Store original for color changes
+          this.originalMaterials.set(child, mat);
+          
+          // Apply the cloned material
+          child.material = mat;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          this.garmentMeshes.push(child);
 
-              // Collect front-facing vertices (z > 0 in model space)
-              const geo = child.geometry;
-              const posAttr = geo.attributes.position;
-              const worldMatrix = new THREE.Matrix4();
-              child.getWorldMatrix(worldMatrix);
-              
-              for (let i = 0; i < posAttr.count; i++) {
-                const x = posAttr.getX(i);
-                const y = posAttr.getY(i);
-                const z = posAttr.getZ(i);
-                const worldPos = new THREE.Vector3(x, y, z).applyMatrix4(worldMatrix);
-                
-                // Only keep vertices on the front (positive z after model transformation)
-                if (worldPos.z > this.modelBounds.center.z - 0.05) {
-                  this.frontVertices.push({ x, y, z, worldX: worldPos.x, worldY: worldPos.y, worldZ: worldPos.z });
-                }
-              }
+          // Collect front-facing vertices (z > 0 in model space)
+          const geo = child.geometry;
+          const posAttr = geo.attributes.position;
+          const worldMatrix = new THREE.Matrix4();
+          child.getWorldMatrix(worldMatrix);
+          
+          for (let i = 0; i < posAttr.count; i++) {
+            const x = posAttr.getX(i);
+            const y = posAttr.getY(i);
+            const z = posAttr.getZ(i);
+            const worldPos = new THREE.Vector3(x, y, z).applyMatrix4(worldMatrix);
+            
+            // Only keep vertices on the front (positive z after model transformation)
+            if (worldPos.z > this.modelBounds.center.z - 0.05) {
+              this.frontVertices.push({ x, y, z, worldX: worldPos.x, worldY: worldPos.y, worldZ: worldPos.z });
             }
-          });
+          }
+        }
+      });
 
-          // Set initial color
-          this._applyGarmentColor(new THREE.Color(this.currentColorHex));
+      // Set initial color
+      this._applyGarmentColor(new THREE.Color(this.currentColorHex));
 
-          this.scene.add(this.model);
-          resolve(gltf);
-        },
-        undefined,
-        reject
-      );
-    });
+      this.scene.add(this.model);
+      return gltf;
+    } catch (err) {
+      console.error('[ThreeScene] Error loading model:', err);
+      throw err;
+    }
   }
 
   _applyGarmentColor(targetColor) {
@@ -627,13 +638,13 @@ export default function Mockup3DEditor() {
                   .catch((err2) => {
                     clearTimeout(timeoutId);
                     console.error('Error loading fallback model:', err2);
-                    setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
+                    setError('No se pudo cargar el modelo 3D: ' + (err2.message || String(err2)));
                     setLoading(false);
                   });
               } else {
                 clearTimeout(timeoutId);
                 console.error('Error loading model:', err);
-                setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
+                setError('No se pudo cargar el modelo 3D: ' + (err.message || String(err)));
                 setLoading(false);
               }
             });
