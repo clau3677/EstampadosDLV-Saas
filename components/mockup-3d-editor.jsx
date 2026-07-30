@@ -85,7 +85,7 @@ class ThreeScene {
 
   init() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf1f5f9);
+    this.scene.background = new THREE.Color(0xffffff);
 
     const aspect = this.container.clientWidth / this.container.clientHeight;
     this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
@@ -125,11 +125,11 @@ class ThreeScene {
     rimLight.position.set(0, 3, -4);
     this.scene.add(rimLight);
 
-    const topLight = new THREE.DirectionalLight(0xffffff, 0.25);
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.35);
     topLight.position.set(0, 6, 0);
     this.scene.add(topLight);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     this.scene.add(ambientLight);
 
     const hemiLight = new THREE.HemisphereLight(0xe8f0ff, 0x996644, 0.2);
