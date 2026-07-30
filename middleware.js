@@ -10,7 +10,7 @@ const AUTH_COOKIE = process.env.AUTH_COOKIE || 'dlv_token';
 const PUBLIC_PATHS = [
   '/',
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
-  '/login', '/registro', '/api', '/uploads', '/mockup',
+  '/login', '/registro', '/api', '/uploads', '/mockup', '/mockups',
   '/_next', '/favicon', '/robots', '/sitemap', '/manifest',
 ];
 
@@ -74,6 +74,6 @@ export async function middleware(req) {
 export const config = {
   matcher: [
     // Exclude static assets from middleware to keep it fast.
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads|downloads).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads|downloads|mockups).*)',
   ],
 };
