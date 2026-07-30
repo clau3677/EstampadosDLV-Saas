@@ -445,6 +445,9 @@ class ThreeScene {
     this.distance += (this.targetDistance - this.distance) * 0.1;
     this.currentColor.lerp(this.targetColor, 0.08);
 
+    // Apply color change every frame
+    this.applyGarmentColor();
+
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.12;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
