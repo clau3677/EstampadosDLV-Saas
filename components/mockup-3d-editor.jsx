@@ -48,8 +48,8 @@ const GARMENT_COLORS = {
 // ============================================================================
 const GARMENTS = {
   polera:     { label: 'Polera',     model: '/mockups/shirt_baked.glb', icon: '👕' },
-  poleron:    { label: 'Polerón',    model: '/mockups/shirt_baked.glb', icon: '🧥' },
-  gorra:      { label: 'Gorra',      model: '/mockups/shirt_baked.glb', icon: '🧢' },
+  poleron:    { label: 'Polerón',    model: '/mockups/hoodie.glb', icon: '🧥' },
+  gorra:      { label: 'Gorra',      model: '/mockups/cap.glb', icon: '🧢' },
 };
 
 // ============================================================================
@@ -491,6 +491,23 @@ export default function Mockup3DEditor() {
     };
   }, []);
 
+  // Update garment model when type changes
+  useEffect(() => {
+    if (!sceneRef.current || !GARMENTS[garment]) return;
+    setLoading(true);
+    setError(null);
+    sceneRef.current.loadModel(GARMENTS[garment].model)
+      .then(() => {
+        setLoading(false);
+        sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
+      })
+      .catch((err) => {
+        console.error('Error loading garment model:', err);
+        setError('No se pudo cargar este modelo 3D.');
+        setLoading(false);
+      });
+  }, [garment]);
+
   // Update color when selected color changes
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#FFFFFF');
@@ -709,7 +726,7 @@ export default function Mockup3DEditor() {
                     {Object.entries(GARMENTS).map(([key, val]) => (
                       <button
                         key={key}
-                        onClick={() => { setGarment(key); setLoading(true); }}
+                        onClick={() => { setGarment(key); }}
                         className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
                           garment === key
                             ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
