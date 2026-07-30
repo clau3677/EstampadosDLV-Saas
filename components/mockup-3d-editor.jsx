@@ -7,6 +7,7 @@ import {
   ArrowLeft, Upload, Trash2, Undo2, Redo2,
   Download, Shirt, Loader2, Image as ImageIcon,
   Sparkles, RotateCw, Palette, ZoomIn, ZoomOut, Box,
+  FlipHorizontal, RotateCcw, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +24,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // DATOS DE COLORES Y PRENDAS
 // ============================================================================
 const GARMENT_COLORS = {
-  white:  { label: 'Blanco',     hex: '#F5F5F0' },
-  black:  { label: 'Negro',      hex: '#1C1C1C' },
-  gray:   { label: 'Gris',       hex: '#8A8A8A' },
-  navy:   { label: 'Azul Marino',hex: '#1B2A4A' },
-  red:    { label: 'Rojo',       hex: '#C41E1E' },
-  forest: { label: 'Verde',      hex: '#1E5E3A' },
+  white:  { label: 'Blanco',      hex: '#F5F5F0' },
+  black:  { label: 'Negro',       hex: '#1C1C1C' },
+  gray:   { label: 'Gris',        hex: '#8A8A8A' },
+  navy:   { label: 'Azul Marino', hex: '#1B2A4A' },
+  red:    { label: 'Rojo',        hex: '#C41E1E' },
+  forest: { label: 'Verde',       hex: '#1E5E3A' },
 };
 
 const GARMENTS = {
@@ -51,12 +52,12 @@ class ThreeScene {
     this.mouseDown = false;
     this.mouseX = 0;
     this.mouseY = 0;
-    this.rotationY = 0.3;
-    this.targetRotationY = 0.3;
-    this.pitch = 0.1;
-    this.targetPitch = 0.1;
-    this.distance = 2.5;
-    this.targetDistance = 2.5;
+    this.rotationY = 0.0;
+    this.targetRotationY = 0.0;
+    this.pitch = 0.0;
+    this.targetPitch = 0.0;
+    this.distance = 2.2;
+    this.targetDistance = 2.2;
     this.animationId = null;
     this.isPlaying = true;
     this.materialsReplaced = false;
@@ -65,16 +66,13 @@ class ThreeScene {
   }
 
   init() {
-    // Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xf8fafc);
 
-    // Camera
     const aspect = this.container.clientWidth / this.container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(35, aspect, 0.01, 100);
+    this.camera = new THREE.PerspectiveCamera(40, aspect, 0.01, 100);
     this.camera.position.set(0, 0, 3);
 
-    // Renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
@@ -86,14 +84,13 @@ class ThreeScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.toneMappingExposure = 1.3;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
-    // Lighting - professional studio setup
-    // Key light (warm, from upper right)
-    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.5);
-    keyLight.position.set(3, 4, 3);
+    // Lighting
+    const keyLight = new THREE.DirectionalLight(0xfff5e6, 1.8);
+    keyLight.position.set(2.5, 3, 3);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
     keyLight.shadow.mapSize.height = 2048;
@@ -102,34 +99,32 @@ class ThreeScene {
     keyLight.shadow.bias = -0.001;
     this.scene.add(keyLight);
 
-    // Fill light (cool, from left)
-    const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.6);
-    fillLight.position.set(-3, 2, 2);
+    const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.7);
+    fillLight.position.set(-3, 1.5, 2);
     this.scene.add(fillLight);
 
-    // Rim light (back light for edge definition)
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    rimLight.position.set(0, 3, -4);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    rimLight.position.set(0, 2, -3.5);
     this.scene.add(rimLight);
 
-    // Ambient light (soft fill)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const topLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    topLight.position.set(0, 5, 0);
+    this.scene.add(topLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
     this.scene.add(ambientLight);
 
-    // Hemisphere light (sky/ground)
-    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x886644, 0.3);
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x886644, 0.25);
     this.scene.add(hemiLight);
 
-    // Floor for shadow
     const floorGeo = new THREE.PlaneGeometry(8, 8);
-    const floorMat = new THREE.ShadowMaterial({ opacity: 0.2 });
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.15 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.2;
+    floor.position.y = -1.0;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // Mouse events for orbit
     this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
     this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
@@ -139,18 +134,13 @@ class ThreeScene {
     this.renderer.domElement.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
     this.renderer.domElement.addEventListener('touchend', () => this.onMouseUp());
 
-    // Resize
-    window.addEventListener('resize', () => this.onResize());
+    this._resizeObserver = new ResizeObserver(() => this.onResize());
+    this._resizeObserver.observe(this.container);
 
-    // Start animation
     this.animate();
   }
 
-  onMouseDown(e) {
-    this.mouseDown = true;
-    this.mouseX = e.clientX;
-    this.mouseY = e.clientY;
-  }
+  onMouseDown(e) { this.mouseDown = true; this.mouseX = e.clientX; this.mouseY = e.clientY; }
 
   onMouseMove(e) {
     if (!this.mouseDown) return;
@@ -158,14 +148,12 @@ class ThreeScene {
     const dy = e.clientY - this.mouseY;
     this.targetRotationY += dx * 0.008;
     this.targetPitch += dy * 0.008;
-    this.targetPitch = Math.max(-0.6, Math.min(0.6, this.targetPitch));
+    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
   }
 
-  onMouseUp() {
-    this.mouseDown = false;
-  }
+  onMouseUp() { this.mouseDown = false; }
 
   onTouchStart(e) {
     if (e.touches.length === 1) {
@@ -182,7 +170,7 @@ class ThreeScene {
     const dy = e.touches[0].clientY - this.mouseY;
     this.targetRotationY += dx * 0.008;
     this.targetPitch += dy * 0.008;
-    this.targetPitch = Math.max(-0.6, Math.min(0.6, this.targetPitch));
+    this.targetPitch = Math.max(-0.5, Math.min(0.5, this.targetPitch));
     this.mouseX = e.touches[0].clientX;
     this.mouseY = e.touches[0].clientY;
   }
@@ -190,13 +178,14 @@ class ThreeScene {
   onWheel(e) {
     e.preventDefault();
     this.targetDistance += e.deltaY * 0.002;
-    this.targetDistance = Math.max(1.5, Math.min(6, this.targetDistance));
+    this.targetDistance = Math.max(1.5, Math.min(5, this.targetDistance));
   }
 
   onResize() {
     if (!this.container || !this.camera || !this.renderer) return;
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
+    if (w === 0 || h === 0) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
@@ -206,11 +195,7 @@ class ThreeScene {
     const loader = new GLTFLoader();
     return new Promise((resolve, reject) => {
       loader.load(url, (gltf) => {
-        // Remove the existing model if any
-        if (this.model) {
-          this.scene.remove(this.model);
-        }
-        
+        if (this.model) this.scene.remove(this.model);
         this.model = gltf.scene;
         this.materialsReplaced = false;
 
@@ -221,20 +206,18 @@ class ThreeScene {
           }
         });
 
-        // Center and scale the model
         const box = new THREE.Box3().setFromObject(this.model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 1.2 / maxDim;
+        const targetSize = 1.2;
+        const scale = targetSize / maxDim;
         this.model.scale.setScalar(scale);
         this.model.position.sub(center.multiplyScalar(scale));
-        // Lift model slightly so it sits on the floor
-        this.model.position.y += 0.3 * scale;
+        this.model.position.y += 0.05;
 
         this.scene.add(this.model);
 
-        // Apply color after model is added (need to wait a frame)
         requestAnimationFrame(() => {
           this.replaceMaterials();
           this.applyColor();
@@ -251,7 +234,7 @@ class ThreeScene {
 
     this.model.traverse((child) => {
       if (child.isMesh && child.material) {
-        // Create a new MeshStandardMaterial that supports color
+        const originalMat = child.material;
         const newMat = new THREE.MeshStandardMaterial({
           color: this.currentColor.clone(),
           roughness: 0.85,
@@ -259,12 +242,11 @@ class ThreeScene {
           side: THREE.DoubleSide,
         });
 
-        // If original material has a map, we can use it as a roughness texture
-        // but don't use it as the color map (because it's baked)
-        if (child.material.map) {
-          // We'll keep the map as a roughness map for fabric texture detail
-          newMat.roughnessMap = child.material.map;
+        if (originalMat.map) {
+          newMat.roughnessMap = originalMat.map;
         }
+        newMat.map = null;
+        newMat.needsUpdate = true;
 
         child.material = newMat;
       }
@@ -302,7 +284,6 @@ class ThreeScene {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
 
-      // Remove old decal
       if (this.decalMesh) {
         this.scene.remove(this.decalMesh);
         if (this.decalMesh.material.map) this.decalMesh.material.map.dispose();
@@ -310,8 +291,7 @@ class ThreeScene {
         this.decalMesh.geometry.dispose();
       }
 
-      // Create decal mesh positioned on the chest area of the t-shirt
-      const decalGeo = new THREE.PlaneGeometry(0.35, 0.35);
+      const decalGeo = new THREE.PlaneGeometry(0.3, 0.3);
       const decalMat = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
@@ -319,33 +299,47 @@ class ThreeScene {
         depthWrite: true,
       });
       this.decalMesh = new THREE.Mesh(decalGeo, decalMat);
-      
-      // Position on the chest area (front of the model)
-      this.decalMesh.position.set(0, 0.15, 0.35);
-      
+      this.decalMesh.position.set(0, 0.12, 0.32);
+
       this.scene.add(this.decalMesh);
     });
+  }
+
+  scaleDecal(factor) {
+    if (!this.decalMesh) return;
+    const s = this.decalMesh.scale;
+    s.x = Math.max(0.3, Math.min(3.0, s.x * factor));
+    s.y = Math.max(0.3, Math.min(3.0, s.y * factor));
+    s.z = s.x;
+  }
+
+  moveDecal(dx, dy) {
+    if (!this.decalMesh) return;
+    this.decalMesh.position.x += dx * 0.02;
+    this.decalMesh.position.y += dy * 0.02;
+  }
+
+  resetDecal() {
+    if (!this.decalMesh) return;
+    this.decalMesh.position.set(0, 0.12, 0.32);
+    this.decalMesh.scale.set(1, 1, 1);
   }
 
   animate() {
     if (!this.isPlaying) return;
     this.animationId = requestAnimationFrame(() => this.animate());
 
-    // Smooth interpolation
     this.rotationY += (this.targetRotationY - this.rotationY) * 0.1;
     this.pitch += (this.targetPitch - this.pitch) * 0.1;
     this.distance += (this.targetDistance - this.distance) * 0.1;
     this.currentColor.lerp(this.targetColor, 0.08);
 
-    // Update camera position (orbit)
     this.camera.position.x = Math.sin(this.rotationY) * Math.cos(this.pitch) * this.distance;
-    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.2;
+    this.camera.position.y = Math.sin(this.pitch) * this.distance + 0.1;
     this.camera.position.z = Math.cos(this.rotationY) * Math.cos(this.pitch) * this.distance;
     this.camera.lookAt(0, 0, 0);
 
-    // Update model color
     this.applyColor();
-
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -357,18 +351,15 @@ class ThreeScene {
   dispose() {
     this.isPlaying = false;
     if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this._resizeObserver) this._resizeObserver.disconnect();
     if (this.renderer) {
       this.renderer.dispose();
       if (this.container && this.renderer.domElement.parentNode === this.container) {
         this.container.removeChild(this.renderer.domElement);
       }
     }
-    if (this.model) {
-      this.scene.remove(this.model);
-    }
-    if (this.decalMesh) {
-      this.scene.remove(this.decalMesh);
-    }
+    if (this.model) this.scene.remove(this.model);
+    if (this.decalMesh) this.scene.remove(this.decalMesh);
   }
 }
 
@@ -382,6 +373,7 @@ function LibraryTab({ onSelect }) {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
+    setLoading(true);
     fetch(`/api/design-library?search=${encodeURIComponent(search)}&page=${page}&limit=20`)
       .then(r => r.json())
       .then(data => {
@@ -415,15 +407,9 @@ function LibraryTab({ onSelect }) {
               onClick={() => onSelect(d)}
               className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 transition-colors group"
             >
-              <img
-                src={d.url || d.thumbnailUrl}
-                alt={d.name || 'Diseño'}
-                className="w-full h-full object-cover"
-              />
+              <img src={d.url || d.thumbnailUrl} alt={d.name || 'Diseño'} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 px-2 py-1 rounded">
-                  Usar
-                </span>
+                <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 px-2 py-1 rounded">Usar</span>
               </div>
             </button>
           ))}
@@ -431,13 +417,9 @@ function LibraryTab({ onSelect }) {
       )}
 
       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <Button variant="ghost" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-          Anterior
-        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
         <span className="text-xs text-slate-500">Página {page}</span>
-        <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={designs.length < 20}>
-          Siguiente
-        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setPage(p => p + 1)} disabled={designs.length < 20}>Siguiente</Button>
       </div>
     </div>
   );
@@ -449,13 +431,13 @@ function LibraryTab({ onSelect }) {
 export default function Mockup3DEditor() {
   const [activeTab, setActiveTab] = useState('garment');
   const [color, setColor] = useState('white');
-  const [garment, setGarment] = useState('tshirt');
   const [designs, setDesigns] = useState([]);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [decalScale, setDecalScale] = useState(1);
   const canvasContainerRef = useRef(null);
   const sceneRef = useRef(null);
 
@@ -463,36 +445,35 @@ export default function Mockup3DEditor() {
   useEffect(() => {
     if (!canvasContainerRef.current) return;
 
-    const scene = new ThreeScene(canvasContainerRef.current);
-    sceneRef.current = scene;
+    const timer = setTimeout(() => {
+      const scene = new ThreeScene(canvasContainerRef.current);
+      sceneRef.current = scene;
 
-    // Load model
-    const modelUrl = GARMENTS[garment].model;
-    scene.loadModel(modelUrl)
-      .then(() => {
-        setLoading(false);
-        scene.setColor(GARMENT_COLORS.white.hex);
-      })
-      .catch((err) => {
-        console.error('Error loading model:', err);
-        setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
-        setLoading(false);
-      });
+      scene.loadModel(GARMENTS.tshirt.model)
+        .then(() => {
+          setLoading(false);
+          scene.setColor(GARMENT_COLORS.white.hex);
+        })
+        .catch((err) => {
+          console.error('Error loading model:', err);
+          setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
+          setLoading(false);
+        });
+    }, 100);
 
     return () => {
-      scene.dispose();
-      sceneRef.current = null;
+      clearTimeout(timer);
+      if (sceneRef.current) {
+        sceneRef.current.dispose();
+        sceneRef.current = null;
+      }
     };
   }, []);
 
-  // Update color
   useEffect(() => {
-    if (sceneRef.current) {
-      sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#F5F5F0');
-    }
+    if (sceneRef.current) sceneRef.current.setColor(GARMENT_COLORS[color]?.hex || '#F5F5F0');
   }, [color]);
 
-  // Update design texture
   useEffect(() => {
     if (sceneRef.current) {
       const design = designs.find(d => d.id === selectedDesignId);
@@ -500,17 +481,6 @@ export default function Mockup3DEditor() {
     }
   }, [designs, selectedDesignId]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
-      if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
-
-  // Push history
   const pushHistory = useCallback((newDesigns) => {
     setHistory(prev => {
       const newHistory = [...prev.slice(0, historyIndex + 1), JSON.parse(JSON.stringify(newDesigns))];
@@ -534,7 +504,6 @@ export default function Mockup3DEditor() {
     }
   }, [history, historyIndex]);
 
-  // Handle file upload
   const handleFile = useCallback((file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -546,10 +515,11 @@ export default function Mockup3DEditor() {
         name: file.name,
         rotation: 0,
         opacity: 100,
-        scale: 0.15,
+        scale: 1,
       };
       setDesigns([newDesign]);
       setSelectedDesignId(newDesign.id);
+      setDecalScale(1);
       pushHistory([newDesign]);
       setActiveTab('upload');
       toast.success('Diseño cargado en el modelo 3D');
@@ -557,36 +527,32 @@ export default function Mockup3DEditor() {
     reader.readAsDataURL(file);
   }, [pushHistory]);
 
-  // Handle library select
   const handleLibrarySelect = useCallback((design) => {
     const url = design.url || design.thumbnailUrl;
-    if (!url) {
-      toast.error('Este diseño no tiene imagen');
-      return;
-    }
+    if (!url) { toast.error('Este diseño no tiene imagen'); return; }
     const newDesign = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
       url,
       name: design.name || 'Diseño de biblioteca',
       rotation: 0,
       opacity: 100,
-      scale: 0.15,
+      scale: 1,
     };
     setDesigns([newDesign]);
     setSelectedDesignId(newDesign.id);
+    setDecalScale(1);
     pushHistory([newDesign]);
     setActiveTab('upload');
     toast.success('Diseño aplicado al modelo 3D');
   }, [pushHistory]);
 
-  // Remove design
-  const removeDesign = useCallback((id) => {
+  const removeDesign = useCallback(() => {
     setDesigns([]);
     setSelectedDesignId(null);
+    setDecalScale(1);
     toast.success('Diseño eliminado');
   }, []);
 
-  // Export as PNG
   const exportPNG = useCallback(() => {
     if (sceneRef.current) {
       try {
@@ -602,11 +568,26 @@ export default function Mockup3DEditor() {
     }
   }, []);
 
+  const handleScaleChange = useCallback((val) => {
+    const factor = val[0] / decalScale;
+    setDecalScale(val[0]);
+    if (sceneRef.current) sceneRef.current.scaleDecal(factor);
+  }, [decalScale]);
+
+  const handleMove = useCallback((dx, dy) => {
+    if (sceneRef.current) sceneRef.current.moveDecal(dx, dy);
+  }, []);
+
+  const handleResetDecal = useCallback(() => {
+    setDecalScale(1);
+    if (sceneRef.current) sceneRef.current.resetDecal();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 shrink-0">
+        <div className="max-w-[1800px] mx-auto px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/admin" className="text-slate-500 hover:text-slate-700 transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -634,186 +615,180 @@ export default function Mockup3DEditor() {
       </div>
 
       {/* Main content */}
-      <div className="max-w-[1600px] mx-auto p-4">
-        <div className="flex gap-4">
-          {/* Canvas 3D */}
-          <div className="flex-1 relative">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 140px)', minHeight: '500px' }}>
-              {error && (
-                <div className="flex flex-col items-center justify-center h-full bg-rose-50/60 px-6 text-center">
-                  <span className="text-2xl mb-3">⚠️</span>
-                  <div className="text-sm font-semibold text-slate-800">Error al cargar el editor</div>
-                  <div className="text-xs text-slate-600 mt-1 max-w-md">{error}</div>
-                  <Button onClick={() => window.location.reload()} size="sm" className="mt-4">
-                    Recargar la página
-                  </Button>
-                </div>
-              )}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Canvas 3D */}
+        <div className="flex-1 relative p-3">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full relative">
+            {error && (
+              <div className="flex flex-col items-center justify-center h-full bg-rose-50/60 px-6 text-center">
+                <span className="text-2xl mb-3">⚠️</span>
+                <div className="text-sm font-semibold text-slate-800">Error al cargar el editor</div>
+                <div className="text-xs text-slate-600 mt-1 max-w-md">{error}</div>
+                <Button onClick={() => window.location.reload()} size="sm" className="mt-4">Recargar</Button>
+              </div>
+            )}
 
-              {!error && loading && (
-                <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-50 to-slate-100">
-                  <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
-                  <p className="text-sm font-medium text-slate-600 mt-4">Cargando modelo 3D...</p>
-                  <p className="text-xs text-slate-400 mt-1">La primera vez puede tardar unos segundos</p>
-                </div>
-              )}
+            {!error && loading && (
+              <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-50 to-slate-100">
+                <Loader2 className="h-10 w-10 text-orange-500 animate-spin" />
+                <p className="text-sm font-medium text-slate-600 mt-4">Cargando modelo 3D...</p>
+                <p className="text-xs text-slate-400 mt-1">La primera vez puede tardar unos segundos</p>
+              </div>
+            )}
 
-              <div ref={canvasContainerRef} className="w-full h-full" />
+            <div ref={canvasContainerRef} className="w-full h-full" />
 
-              {/* Info overlay */}
-              {!error && !loading && (
-                <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none">
-                  <Badge variant="outline" className="bg-white/80 backdrop-blur-sm pointer-events-auto">
-                    <RotateCw className="h-3 w-3 mr-1" /> Arrastra para rotar
-                  </Badge>
-                  <Badge variant="outline" className="bg-white/80 backdrop-blur-sm pointer-events-auto">
-                    <ZoomIn className="h-3 w-3 mr-1" /> Scroll para zoom
-                  </Badge>
-                </div>
-              )}
-            </div>
+            {!error && !loading && (
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none">
+                <Badge variant="outline" className="bg-white/80 backdrop-blur-sm pointer-events-auto">
+                  <RotateCw className="h-3 w-3 mr-1" /> Arrastra para rotar
+                </Badge>
+                <Badge variant="outline" className="bg-white/80 backdrop-blur-sm pointer-events-auto">
+                  <ZoomIn className="h-3 w-3 mr-1" /> Scroll para zoom
+                </Badge>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-80 xl:w-96 shrink-0 border-l border-slate-200 bg-white flex flex-col">
+          <div className="flex border-b border-slate-200 shrink-0">
+            {[
+              { id: 'garment', label: 'Prenda', icon: Shirt },
+              { id: 'upload', label: 'Diseño', icon: Upload },
+              { id: 'library', label: 'Biblioteca', icon: Sparkles },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50/50'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
+                `}
+              >
+                <tab.icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Sidebar */}
-          <div className="w-full lg:w-80 xl:w-96 shrink-0">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
-              {/* Tabs */}
-              <div className="flex border-b border-slate-200">
-                {[
-                  { id: 'garment', label: 'Prenda', icon: Shirt },
-                  { id: 'upload', label: 'Diseño', icon: Upload },
-                  { id: 'library', label: 'Biblioteca', icon: Sparkles },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors
-                      ${activeTab === tab.id
-                        ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50/50'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
-                    `}
-                  >
-                    <tab.icon className="h-3.5 w-3.5" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+          <div className="p-4 overflow-y-auto flex-1">
+            {activeTab === 'garment' && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                    <Palette className="h-4 w-4" /> Color de prenda
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {Object.entries(GARMENT_COLORS).map(([key, val]) => (
+                      <button
+                        key={key}
+                        onClick={() => setColor(key)}
+                        className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
+                          color === key
+                            ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-200'
+                            : 'border-slate-200 hover:border-slate-300'}
+                        `}
+                      >
+                        <div className="w-8 h-8 rounded-full border border-slate-300 shadow-sm" style={{ backgroundColor: val.hex }} />
+                        <span className="text-[10px] text-slate-600 font-medium">{val.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {activeTab === 'garment' && (
-                  <div className="space-y-4">
-                    {/* Color selector */}
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-700 mb-2">
-                        <Palette className="h-3.5 w-3.5 inline mr-1" />
-                        Color de prenda
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(GARMENT_COLORS).map(([key, val]) => (
-                          <button
-                            key={key}
-                            onClick={() => setColor(key)}
-                            className={`w-10 h-10 rounded-full border-2 transition-all ${
-                              color === key
-                                ? 'border-orange-500 ring-2 ring-orange-300 scale-110'
-                                : 'border-slate-300 hover:border-slate-400'}
-                            `}
-                            style={{ backgroundColor: val.hex }}
-                            title={val.label}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Color: {GARMENT_COLORS[color]?.label}
-                      </p>
+                <div className="border-t border-slate-100 pt-4">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Tipo de prenda</h3>
+                  {Object.entries(GARMENTS).map(([key, val]) => (
+                    <div key={key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-200 text-xs font-medium text-orange-700">
+                      <Shirt className="h-3.5 w-3.5" /> {val.label}
                     </div>
+                  ))}
+                  <p className="text-[10px] text-slate-400 mt-2">Más tipos de prenda próximamente</p>
+                </div>
 
-                    {/* Garment type selector */}
-                    <div className="border-t border-slate-100 pt-3">
-                      <h3 className="text-sm font-semibold text-slate-700 mb-2">
-                        Tipo de prenda
-                      </h3>
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    <strong className="text-slate-700">Polera Oversize T-Shirt</strong> — Modelo 3D con iluminación de estudio profesional. Arrastra para rotar, scroll para zoom.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'upload' && (
+              <div className="space-y-4">
+                <div
+                  className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-orange-400 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('design-upload')?.click()}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFile(file); }}
+                >
+                  <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
+                  <p className="text-sm font-medium text-slate-600">Arrastra tu diseño aquí</p>
+                  <p className="text-xs text-slate-400 mt-1">PNG, JPG o WEBP</p>
+                  <input id="design-upload" type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                    onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
+                  />
+                </div>
+
+                {designs.length > 0 && selectedDesignId && (
+                  <div className="space-y-3 border-t border-slate-100 pt-3">
+                    {designs.map(d => (
+                      <div key={d.id} className="flex items-center gap-2">
+                        <img src={d.url} alt={d.name} className="w-10 h-10 object-cover rounded border" />
+                        <span className="text-xs text-slate-600 truncate flex-1">{d.name}</span>
+                        <button onClick={removeDesign} className="text-rose-500 hover:text-rose-700 p-1">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+
+                    <div className="space-y-3 border-t border-slate-100 pt-3">
+                      <p className="text-xs font-medium text-slate-600">Posición del diseño</p>
+
                       <div className="space-y-1">
-                        {Object.entries(GARMENTS).map(([key, val]) => (
-                          <button
-                            key={key}
-                            onClick={() => setGarment(key)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                              garment === key
-                                ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                                : 'text-slate-600 hover:bg-slate-50 border border-transparent'}
-                            `}
-                          >
-                            {val.label}
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px] text-slate-500">Tamaño</Label>
+                          <span className="text-[10px] text-slate-400">{decalScale.toFixed(1)}x</span>
+                        </div>
+                        <Slider value={[decalScale]} onValueChange={handleScaleChange} min={0.3} max={3} step={0.1} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-500">Posición</Label>
+                        <div className="grid grid-cols-3 gap-1">
+                          <div />
+                          <button onClick={() => handleMove(0, -1)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
+                            <ChevronUp className="h-3.5 w-3.5" />
                           </button>
-                        ))}
+                          <div />
+                          <button onClick={() => handleMove(-1, 0)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
+                            <ChevronUp className="h-3.5 w-3.5 rotate-[-90deg]" />
+                          </button>
+                          <button onClick={handleResetDecal} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleMove(1, 0)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
+                            <ChevronUp className="h-3.5 w-3.5 rotate-[90deg]" />
+                          </button>
+                          <div />
+                          <button onClick={() => handleMove(0, 1)} className="p-1.5 rounded border border-slate-200 hover:bg-slate-50 flex justify-center">
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                          <div />
+                        </div>
                       </div>
                     </div>
-
-                    <div className="border-t border-slate-100 pt-3">
-                      <p className="text-xs text-slate-500">
-                        <strong>Polera Oversize T-Shirt</strong> — Modelo 3D con iluminación de estudio profesional.
-                        Arrastra para rotar, scroll para zoom.
-                      </p>
-                    </div>
                   </div>
-                )}
-
-                {activeTab === 'upload' && (
-                  <div className="space-y-4">
-                    <div
-                      className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-orange-400 transition-colors cursor-pointer"
-                      onClick={() => document.getElementById('design-upload')?.click()}
-                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const file = e.dataTransfer.files?.[0];
-                        if (file) handleFile(file);
-                      }}
-                    >
-                      <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                      <p className="text-sm font-medium text-slate-600">Arrastra tu diseño aquí</p>
-                      <p className="text-xs text-slate-400 mt-1">PNG, JPG o WEBP</p>
-                      <input
-                        id="design-upload"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFile(file);
-                        }}
-                      />
-                    </div>
-
-                    {designs.length > 0 && selectedDesignId && (
-                      <div className="space-y-3 border-t border-slate-100 pt-3">
-                        {designs.map(d => (
-                          <div key={d.id}>
-                            <div className="flex items-center gap-2">
-                              <ImageIcon className="h-4 w-4 text-slate-500" />
-                              <span className="text-xs text-slate-600 truncate flex-1">{d.name}</span>
-                              <button
-                                onClick={() => removeDesign(d.id)}
-                                className="text-rose-500 hover:text-rose-700 p-1"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'library' && (
-                  <LibraryTab onSelect={handleLibrarySelect} />
                 )}
               </div>
-            </div>
+            )}
+
+            {activeTab === 'library' && (
+              <LibraryTab onSelect={handleLibrarySelect} />
+            )}
           </div>
         </div>
       </div>
