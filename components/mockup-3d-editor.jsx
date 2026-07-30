@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three-stdlib';
+import { GLTFLoader, DRACOLoader } from 'three-stdlib';
 
 // ============================================================================
 // COLORES REALES DEL CATÁLOGO
@@ -218,8 +218,12 @@ class ThreeScene {
       const arrayBuffer = await response.arrayBuffer();
       console.log('[ThreeScene] Model downloaded:', arrayBuffer.byteLength, 'bytes');
       
-      // Parse with GLTFLoader
+      // Parse with GLTFLoader + DRACOLoader for compressed meshes
       const loader = new GLTFLoader();
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+      loader.setDRACOLoader(dracoLoader);
+      
       const gltf = await new Promise((resolve, reject) => {
         try {
           loader.parse(arrayBuffer, '', (gltf) => resolve(gltf), reject);
