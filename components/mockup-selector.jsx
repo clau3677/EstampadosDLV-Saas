@@ -18,18 +18,9 @@ class Mockup3DErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] bg-white px-6 text-center">
-          <div className="text-sm font-semibold text-slate-800">
-            El editor 3D tuvo un error
-          </div>
-          <div className="text-xs text-slate-600 mt-1 max-w-md">
-            Hubo un problema al cargar el editor 3D. Puedes usar el modo Catálogo mientras tanto.
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm hover:bg-orange-600"
-          >
-            Reintentar
-          </button>
+          <div className="text-sm font-semibold text-slate-800">El editor 3D tuvo un error</div>
+          <div className="text-xs text-slate-600 mt-1 max-w-md">Hubo un problema al cargar el editor 3D. Puedes usar el modo Catálogo mientras tanto.</div>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm hover:bg-orange-600">Reintentar</button>
         </div>
       );
     }
@@ -38,12 +29,12 @@ class Mockup3DErrorBoundary extends React.Component {
 }
 
 export default function MockupSelector() {
-  const [mode, setMode] = useState('catalog'); // '3d' | 'catalog'
+  const [mode, setMode] = useState('catalog');
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-screen">
       {/* Header con toggle */}
-      <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Link href="/tienda" className="text-slate-500 hover:text-slate-700">
             <ArrowLeft className="h-4 w-4" />
@@ -83,10 +74,11 @@ export default function MockupSelector() {
         </div>
       </div>
 
-      {/* Contenido */}
+      {/* Contenido - renderiza solo el modo activo */}
       <div className="flex-1 overflow-hidden">
-        {mode === 'catalog' && <MockupCatalogEditor />}
-        {mode === '3d' && (
+        {mode === 'catalog' ? (
+          <MockupCatalogEditor />
+        ) : (
           <Mockup3DErrorBoundary>
             <Mockup3DEditor />
           </Mockup3DErrorBoundary>

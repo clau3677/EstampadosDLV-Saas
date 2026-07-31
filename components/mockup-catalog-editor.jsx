@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -89,12 +89,29 @@ function CatalogCanvas() {
   const pa = template?.printArea || { x: 0.25, y: 0.25, w: 0.50, h: 0.50 };
   const canvasSize = 600;
 
-  // Cargar imagen de fondo
+  // Cargar imagen de fondo (con cache-busting para forzar recarga)
   useEffect(() => {
+    if (!template?.bgImage) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => setBgImage(img);
-    img.src = template?.bgImage || '';
+    img.onload = () => {
+      setBgImage(img);
+      // Forzar un redraw inmediato después de que la imagen cargue
+      setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          const cs = canvasSize * zoom;
+          canvas.width = cs;
+          canvas.height = cs;
+          ctx.clearRect(0, 0, cs, cs);
+          ctx.drawImage(img, 0, 0, cs, cs);
+        }
+      }, 50);
+    };
+    // Cache-busting: agregar timestamp para evitar caché del navegador
+    img.src = `${template.bgImage}?t=${Date.now()}`;
+    return () => { img.onload = null; img.src = ''; };
   }, [template?.bgImage]);
 
   // Pre-cargar imágenes de diseño
@@ -340,7 +357,7 @@ function CatalogCanvas() {
       designCache.current.set(id, { id, imgEl: img });
       const newDesign = {
         id,
-        imageUrl: imageData.url,
+        imageUrl: imageData.imageUrl,
         name: imageData.name || 'Diseño',
         srcWidthPx: imageData.srcWidthPx || img.width,
         srcHeightPx: imageData.srcHeightPx || img.height,
@@ -364,7 +381,7 @@ function CatalogCanvas() {
       setDesigns(prev => [...prev, newDesign]);
       setSelectedDesignId(id);
     };
-    img.src = imageData.url;
+    img.src = imageData.imageUrl;
   };
 
   const undo = () => {
