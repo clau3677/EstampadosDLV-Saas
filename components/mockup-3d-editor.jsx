@@ -46,18 +46,19 @@ const GARMENT_MODELS = {
     label: 'Polera',
     url: '/mockups/shirt_baked.glb',
     fallbackUrl: '/mockups/shirt_baked_simple.glb',
+    description: 'Polera Oversize — Modelo 3D realista con iluminación de estudio.',
   },
   poleron: {
     label: 'Polerón',
-    url: '/mockups/shirt_baked.glb',
-    fallbackUrl: '/mockups/shirt_baked_simple.glb',
-    description: 'Modelo de polera (modelo de polerón próximamente)',
+    url: '/mockups/poleron.glb',
+    fallbackUrl: '/mockups/poleron.glb',
+    description: 'Polerón / Chaqueta — Modelo 3D de chaqueta casual.',
   },
   gorra: {
     label: 'Gorra',
-    url: '/mockups/shirt_baked.glb',
-    fallbackUrl: '/mockups/shirt_baked_simple.glb',
-    description: 'Modelo de polera (modelo de gorra próximamente)',
+    url: '/mockups/gorra.glb',
+    fallbackUrl: '/mockups/gorra.glb',
+    description: 'Gorra de béisbol — Modelo 3D de gorra.',
   },
 };
 
@@ -585,12 +586,11 @@ export default function Mockup3DEditor() {
   const sceneRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Initialize Three.js scene - wait for container to have size
+  // Initialize Three.js scene ONCE - wait for container to have size
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
 
-    // Use ResizeObserver to wait for the container to have a real size
     let initialized = false;
     const observer = new ResizeObserver((entries) => {
       if (initialized) return;
@@ -600,7 +600,6 @@ export default function Mockup3DEditor() {
       initialized = true;
       observer.disconnect();
 
-      // Small delay to ensure React has finished layout
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const scene = new ThreeScene(container);
@@ -612,42 +611,26 @@ export default function Mockup3DEditor() {
           }
           sceneRef.current = scene;
 
-          // Load model with timeout
           const timeoutId = setTimeout(() => {
             if (!scene.model) {
-              setError('El modelo 3D tardó demasiado en cargar. Intenta recargar.');
+              setError('El modelo 3D tardó demasiado en cargar.');
               setLoading(false);
             }
           }, 15000);
 
-          // Cargar el modelo de la prenda seleccionada
-          const modelConfig = GARMENT_MODELS[garmentType] || GARMENT_MODELS.polera;
-          scene.loadModel(modelConfig.url)
+          // Load initial model (polera)
+          const initialModel = GARMENT_MODELS.polera;
+          scene.loadModel(initialModel.url)
             .then(() => {
               clearTimeout(timeoutId);
               setLoading(false);
               scene.setColor(GARMENT_COLORS.blanco.hex);
             })
             .catch((err) => {
-              console.error('Error loading main model, trying fallback:', err.message);
-              // Intentar con el modelo simplificado
-              if (modelConfig.fallbackUrl) {
-                scene.loadModel(modelConfig.fallbackUrl)
-                  .then(() => {
-                    clearTimeout(timeoutId);
-                    setLoading(false);
-                    scene.setColor(GARMENT_COLORS.blanco.hex);
-                  })
-                  .catch((err2) => {
-                    clearTimeout(timeoutId);
-                    setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
-                    setLoading(false);
-                  });
-              } else {
-                clearTimeout(timeoutId);
-                setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
-                setLoading(false);
-              }
+              console.error('Error loading initial model:', err.message);
+              clearTimeout(timeoutId);
+              setError('No se pudo cargar el modelo 3D.');
+              setLoading(false);
             });
         });
       });
@@ -662,6 +645,49 @@ export default function Mockup3DEditor() {
         sceneRef.current = null;
       }
     };
+  }, []); // Only initialize ONCE
+
+  // Change model when garmentType changes
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    setLoading(true);
+    const modelConfig = GARMENT_MODELS[garmentType] || GARMENT_MODELS.polera;
+
+    const timeoutId = setTimeout(() => {
+      if (!scene.model) {
+        setError('El modelo 3D tardó demasiado en cargar.');
+        setLoading(false);
+      }
+    }, 15000);
+
+    scene.loadModel(modelConfig.url)
+      .then(() => {
+        clearTimeout(timeoutId);
+        setLoading(false);
+        scene.setColor(GARMENT_COLORS[color]?.hex || GARMENT_COLORS.blanco.hex);
+      })
+      .catch((err) => {
+        console.error('Error loading model, trying fallback:', err.message);
+        if (modelConfig.fallbackUrl) {
+          scene.loadModel(modelConfig.fallbackUrl)
+            .then(() => {
+              clearTimeout(timeoutId);
+              setLoading(false);
+              scene.setColor(GARMENT_COLORS[color]?.hex || GARMENT_COLORS.blanco.hex);
+            })
+            .catch(() => {
+              clearTimeout(timeoutId);
+              setError('No se pudo cargar el modelo 3D.');
+              setLoading(false);
+            });
+        } else {
+          clearTimeout(timeoutId);
+          setError('No se pudo cargar el modelo 3D.');
+          setLoading(false);
+        }
+      });
   }, [garmentType]);
 
   // Update color when it changes
@@ -919,8 +945,8 @@ export default function Mockup3DEditor() {
                 {/* Selector de color */}
                 <div>
                   {GARMENT_MODELS[garmentType]?.description && (
-                    <div className="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
-                      <p className="text-xs text-amber-700">{GARMENT_MODELS[garmentType].description}</p>
+                    <div className="mb-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <p className="text-xs text-slate-600">{GARMENT_MODELS[garmentType].description}</p>
                     </div>
                   )}
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
@@ -954,7 +980,7 @@ export default function Mockup3DEditor() {
                 </div>
                 <div className="pt-3 border-t space-y-1">
                   <p className="text-xs text-slate-500">
-                    <strong>{GARMENT_MODELS[garmentType]?.label || 'Prenda'}</strong> — Modelo 3D realista con iluminación de estudio.
+                    <strong>{GARMENT_MODELS[garmentType]?.label || 'Prenda'}</strong> — {GARMENT_MODELS[garmentType]?.description || 'Modelo 3D realista con iluminación de estudio.'}
                   </p>
                   <p className="text-xs text-slate-400">
                     Arrastra para rotar 360°. Colores del catálogo.
