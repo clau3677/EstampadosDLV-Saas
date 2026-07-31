@@ -47,6 +47,16 @@ const GARMENT_MODELS = {
     url: '/mockups/shirt_baked.glb',
     fallbackUrl: '/mockups/shirt_baked_simple.glb',
   },
+  poleron: {
+    label: 'Polerón',
+    url: '/mockups/hoodie.glb',
+    fallbackUrl: null,
+  },
+  gorra: {
+    label: 'Gorra',
+    url: '/mockups/cap.glb',
+    fallbackUrl: null,
+  },
 };
 
 // ============================================================================
@@ -569,6 +579,7 @@ function LibraryTab({ onSelect }) {
 // ============================================================================
 export default function Mockup3DEditor() {
   const [activeTab, setActiveTab] = useState('prenda');
+  const [garmentType, setGarmentType] = useState('polera');
   const [color, setColor] = useState('blanco');
   const [showAllColors, setShowAllColors] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -616,8 +627,8 @@ export default function Mockup3DEditor() {
             }
           }, 15000);
 
-          // Intentar cargar modelo principal, con fallback al simplificado
-          const modelConfig = GARMENT_MODELS.polera;
+          // Cargar el modelo de la prenda seleccionada
+          const modelConfig = GARMENT_MODELS[garmentType] || GARMENT_MODELS.polera;
           scene.loadModel(modelConfig.url)
             .then(() => {
               clearTimeout(timeoutId);
@@ -658,7 +669,7 @@ export default function Mockup3DEditor() {
         sceneRef.current = null;
       }
     };
-  }, []);
+  }, [garmentType]);
 
   // Update color when it changes
   useEffect(() => {
@@ -752,6 +763,16 @@ export default function Mockup3DEditor() {
     const nextDesigns = history[historyIndex + 1];
     setDesigns(nextDesigns);
     setSelectedDesignId(nextDesigns.length > 0 ? nextDesigns[nextDesigns.length - 1].id : null);
+  };
+
+  const handleGarmentChange = (type) => {
+    if (type === garmentType) return;
+    // Clear design when changing garment type
+    setDesigns([]);
+    setSelectedDesignId(null);
+    setHistory([[]]);
+    setHistoryIndex(0);
+    setGarmentType(type);
   };
 
   const colorEntries = Object.entries(GARMENT_COLORS);
@@ -854,9 +875,58 @@ export default function Mockup3DEditor() {
           <div className="flex-1 overflow-y-auto p-4">
             {activeTab === 'prenda' && (
               <div className="space-y-4">
+                {/* Selector de tipo de prenda */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <Shirt className="h-4 w-4" /> Tipo de prenda
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="text-xs text-slate-500 font-medium">Poleras</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => handleGarmentChange('polera')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          garmentType === 'polera'
+                            ? 'bg-orange-500 text-white shadow-md'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Polera
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-2">Polerones</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => handleGarmentChange('poleron')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          garmentType === 'poleron'
+                            ? 'bg-orange-500 text-white shadow-md'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Polerón
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-2">Gorras</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => handleGarmentChange('gorra')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          garmentType === 'gorra'
+                            ? 'bg-orange-500 text-white shadow-md'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Gorra
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Selector de color */}
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-                    <Shirt className="h-4 w-4" /> Color de prenda
+                    Color de prenda
                   </h3>
                   <div className="grid grid-cols-4 gap-2">
                     {visibleColors.map(([key, val]) => (
@@ -886,7 +956,7 @@ export default function Mockup3DEditor() {
                 </div>
                 <div className="pt-3 border-t space-y-1">
                   <p className="text-xs text-slate-500">
-                    <strong>Polera Oversize</strong> — Modelo 3D realista con iluminación de estudio.
+                    <strong>{GARMENT_MODELS[garmentType]?.label || 'Prenda'}</strong> — Modelo 3D realista con iluminación de estudio.
                   </p>
                   <p className="text-xs text-slate-400">
                     Arrastra para rotar 360°. Colores del catálogo.
