@@ -49,13 +49,15 @@ const GARMENT_MODELS = {
   },
   poleron: {
     label: 'Polerón',
-    url: '/mockups/hoodie.glb',
-    fallbackUrl: null,
+    url: '/mockups/shirt_baked.glb',
+    fallbackUrl: '/mockups/shirt_baked_simple.glb',
+    description: 'Modelo de polera (modelo de polerón próximamente)',
   },
   gorra: {
     label: 'Gorra',
-    url: '/mockups/cap.glb',
-    fallbackUrl: null,
+    url: '/mockups/shirt_baked.glb',
+    fallbackUrl: '/mockups/shirt_baked_simple.glb',
+    description: 'Modelo de polera (modelo de gorra próximamente)',
   },
 };
 
@@ -932,6 +934,11 @@ export default function Mockup3DEditor() {
 
                 {/* Selector de color */}
                 <div>
+                  {GARMENT_MODELS[garmentType]?.description && (
+                    <div className="mb-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                      <p className="text-xs text-amber-700">{GARMENT_MODELS[garmentType].description}</p>
+                    </div>
+                  )}
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
                     Color de prenda
                   </h3>
