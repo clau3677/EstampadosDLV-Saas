@@ -378,48 +378,55 @@ class ThreeScene {
       side: THREE.DoubleSide,
     });
 
-    // Main body (torso) - slightly wider and longer than t-shirt
-    const bodyGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.85, 32, 1);
+    // Main body (torso) - taller, more fitted
+    const bodyGeo = new THREE.CylinderGeometry(0.28, 0.24, 0.95, 32, 8);
     const body = new THREE.Mesh(bodyGeo, mat);
-    body.position.y = -0.05;
+    body.position.y = -0.08;
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
-    // Hood (dome on top)
-    const hoodGeo = new THREE.SphereGeometry(0.22, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    // Collar / neck opening
+    const collarGeo = new THREE.TorusGeometry(0.13, 0.03, 8, 32);
+    const collar = new THREE.Mesh(collarGeo, mat);
+    collar.position.y = 0.42;
+    collar.rotation.x = Math.PI / 2;
+    group.add(collar);
+
+    // Hood (back of head, folded)
+    const hoodGeo = new THREE.SphereGeometry(0.18, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
     const hood = new THREE.Mesh(hoodGeo, mat);
-    hood.position.y = 0.48;
+    hood.position.set(0, 0.44, -0.06);
     hood.castShadow = true;
     hood.receiveShadow = true;
     group.add(hood);
 
-    // Left sleeve
-    const sleeveGeo = new THREE.CylinderGeometry(0.10, 0.13, 0.45, 16);
+    // Left sleeve - longer, hanging down
+    const sleeveGeo = new THREE.CylinderGeometry(0.09, 0.07, 0.55, 16);
     const leftSleeve = new THREE.Mesh(sleeveGeo, mat);
-    leftSleeve.position.set(-0.38, 0.15, 0);
-    leftSleeve.rotation.z = Math.PI / 2 + 0.2;
+    leftSleeve.position.set(-0.33, 0.05, 0);
+    leftSleeve.rotation.z = Math.PI / 2 + 0.15;
     leftSleeve.castShadow = true;
     group.add(leftSleeve);
 
-    // Right sleeve
+    // Right sleeve - longer, hanging down
     const rightSleeve = new THREE.Mesh(sleeveGeo, mat);
-    rightSleeve.position.set(0.38, 0.15, 0);
-    rightSleeve.rotation.z = -(Math.PI / 2 + 0.2);
+    rightSleeve.position.set(0.33, 0.05, 0);
+    rightSleeve.rotation.z = -(Math.PI / 2 + 0.15);
     rightSleeve.castShadow = true;
     group.add(rightSleeve);
 
-    // Bottom hem (slight bulge)
-    const hemGeo = new THREE.TorusGeometry(0.28, 0.04, 8, 32);
+    // Ribbed hem at bottom
+    const hemGeo = new THREE.TorusGeometry(0.24, 0.025, 8, 32);
     const hem = new THREE.Mesh(hemGeo, mat);
-    hem.position.y = -0.47;
+    hem.position.y = -0.55;
     hem.rotation.x = Math.PI / 2;
     group.add(hem);
 
-    // Front pocket (kangaroo pouch)
-    const pocketGeo = new THREE.BoxGeometry(0.28, 0.18, 0.05);
+    // Front pocket (kangaroo pouch) - smaller, more realistic
+    const pocketGeo = new THREE.BoxGeometry(0.24, 0.14, 0.04);
     const pocket = new THREE.Mesh(pocketGeo, mat);
-    pocket.position.set(0, -0.25, 0.30);
+    pocket.position.set(0, -0.30, 0.26);
     pocket.castShadow = true;
     group.add(pocket);
 
@@ -458,45 +465,42 @@ class ThreeScene {
       side: THREE.DoubleSide,
     });
 
-    // Cap crown (half sphere)
-    const crownGeo = new THREE.SphereGeometry(0.22, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    // Cap crown - more dome-shaped, less flat
+    const crownGeo = new THREE.SphereGeometry(0.20, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.5);
     const crown = new THREE.Mesh(crownGeo, mat);
-    crown.position.y = 0.05;
+    crown.position.y = 0.02;
     crown.castShadow = true;
     crown.receiveShadow = true;
     group.add(crown);
 
-    // Brim (visor)
-    const brimGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.02, 32, 1, false, 0, Math.PI);
+    // Brim (visor) - curved forward
+    const brimShape = new THREE.Shape();
+    brimShape.moveTo(-0.22, 0);
+    brimShape.quadraticCurveTo(-0.22, 0.08, -0.10, 0.10);
+    brimShape.lineTo(0.10, 0.10);
+    brimShape.quadraticCurveTo(0.22, 0.08, 0.22, 0);
+    brimShape.lineTo(-0.22, 0);
+    const brimGeo = new THREE.ExtrudeGeometry(brimShape, { depth: 0.015, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005, bevelSegments: 3 });
     const brim = new THREE.Mesh(brimGeo, mat);
-    brim.position.set(0, 0.05, 0.02);
-    brim.rotation.x = -0.15;
-    brim.rotation.y = -Math.PI / 2;
+    brim.position.set(0, 0.02, 0.18);
+    brim.rotation.x = -0.35;
     brim.castShadow = true;
     brim.receiveShadow = true;
     group.add(brim);
 
-    // Cap band (rim at bottom)
-    const bandGeo = new THREE.TorusGeometry(0.21, 0.025, 8, 32);
+    // Cap band (sweatband at bottom)
+    const bandGeo = new THREE.TorusGeometry(0.19, 0.02, 8, 32);
     const band = new THREE.Mesh(bandGeo, mat);
-    band.position.y = -0.02;
+    band.position.y = 0.01;
     band.rotation.x = Math.PI / 2;
     group.add(band);
 
     // Button on top
-    const buttonGeo = new THREE.SphereGeometry(0.025, 16, 16);
+    const buttonGeo = new THREE.SphereGeometry(0.02, 16, 16);
     const button = new THREE.Mesh(buttonGeo, mat);
-    button.position.y = 0.26;
+    button.position.y = 0.21;
     button.castShadow = true;
     group.add(button);
-
-    // Seam lines (decorative)
-    const seamGeo = new THREE.TorusGeometry(0.22, 0.005, 4, 32);
-    const seamMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9 });
-    const seam = new THREE.Mesh(seamGeo, seamMat);
-    seam.position.y = 0.05;
-    seam.rotation.x = Math.PI / 2;
-    group.add(seam);
 
     // Store meshes for color changes
     this.garmentMeshes = [crown, brim, band, button];
