@@ -274,8 +274,8 @@ class ThreeScene {
           // Collect front-facing vertices (z > 0 in model space)
           const geo = child.geometry;
           const posAttr = geo.attributes.position;
-          const worldMatrix = new THREE.Matrix4();
-          child.getWorldMatrix(worldMatrix);
+          child.updateMatrixWorld(true);
+          const worldMatrix = child.matrixWorld;
           
           for (let i = 0; i < posAttr.count; i++) {
             const x = posAttr.getX(i);
