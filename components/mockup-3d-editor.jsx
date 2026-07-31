@@ -221,7 +221,55 @@ class ThreeScene {
     this._render();
   }
 
-  async loadModel(url) {
+  async loadModel(url, type) {
+    // Remove previous model
+    if (this.model) {
+      this.scene.remove(this.model);
+      this.model = null;
+      this.garmentMeshes = [];
+      this.frontVertices = [];
+    }
+
+    // Handle procedural models (no URL needed)
+    if (type === 'poleron') {
+      this.model = this.createProceduralHoodie();
+      const box = new THREE.Box3().setFromObject(this.model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      this.modelScale = 1.3 / maxDim;
+      this.model.scale.setScalar(this.modelScale);
+      this.model.position.sub(center.multiplyScalar(this.modelScale));
+      this.model.position.y += 0.05;
+      this.originalMaterials = new Map();
+      this.garmentMeshes.forEach(m => this.originalMaterials.set(m, m.material));
+      const scaledBox = new THREE.Box3().setFromObject(this.model);
+      this.modelBounds = { center: scaledBox.getCenter(new THREE.Vector3()), size: scaledBox.getSize(new THREE.Vector3()) };
+      this._applyGarmentColor(new THREE.Color(this.currentColorHex));
+      this.scene.add(this.model);
+      return;
+    }
+
+    if (type === 'gorra') {
+      this.model = this.createProceduralCap();
+      const box = new THREE.Box3().setFromObject(this.model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      this.modelScale = 2.0 / maxDim;
+      this.model.scale.setScalar(this.modelScale);
+      this.model.position.sub(center.multiplyScalar(this.modelScale));
+      this.model.position.y -= 0.1;
+      this.originalMaterials = new Map();
+      this.garmentMeshes.forEach(m => this.originalMaterials.set(m, m.material));
+      const scaledBox = new THREE.Box3().setFromObject(this.model);
+      this.modelBounds = { center: scaledBox.getCenter(new THREE.Vector3()), size: scaledBox.getSize(new THREE.Vector3()) };
+      this._applyGarmentColor(new THREE.Color(this.currentColorHex));
+      this.scene.add(this.model);
+      return;
+    }
+
+    // Load GLB model for polera
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -313,6 +361,148 @@ class ThreeScene {
     } catch (err) {
       throw err;
     }
+  }
+
+  /**
+   * Create a procedural hoodie model using Three.js geometries.
+   * This replaces the broken VRChat avatar GLB.
+   */
+  createProceduralHoodie() {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.85,
+      metalness: 0.0,
+      emissive: 0x000000,
+      emissiveIntensity: 0.0,
+      side: THREE.DoubleSide,
+    });
+
+    // Main body (torso) - slightly wider and longer than t-shirt
+    const bodyGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.85, 32, 1);
+    const body = new THREE.Mesh(bodyGeo, mat);
+    body.position.y = -0.05;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+
+    // Hood (dome on top)
+    const hoodGeo = new THREE.SphereGeometry(0.22, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    const hood = new THREE.Mesh(hoodGeo, mat);
+    hood.position.y = 0.48;
+    hood.castShadow = true;
+    hood.receiveShadow = true;
+    group.add(hood);
+
+    // Left sleeve
+    const sleeveGeo = new THREE.CylinderGeometry(0.10, 0.13, 0.45, 16);
+    const leftSleeve = new THREE.Mesh(sleeveGeo, mat);
+    leftSleeve.position.set(-0.38, 0.15, 0);
+    leftSleeve.rotation.z = Math.PI / 2 + 0.2;
+    leftSleeve.castShadow = true;
+    group.add(leftSleeve);
+
+    // Right sleeve
+    const rightSleeve = new THREE.Mesh(sleeveGeo, mat);
+    rightSleeve.position.set(0.38, 0.15, 0);
+    rightSleeve.rotation.z = -(Math.PI / 2 + 0.2);
+    rightSleeve.castShadow = true;
+    group.add(rightSleeve);
+
+    // Bottom hem (slight bulge)
+    const hemGeo = new THREE.TorusGeometry(0.28, 0.04, 8, 32);
+    const hem = new THREE.Mesh(hemGeo, mat);
+    hem.position.y = -0.47;
+    hem.rotation.x = Math.PI / 2;
+    group.add(hem);
+
+    // Front pocket (kangaroo pouch)
+    const pocketGeo = new THREE.BoxGeometry(0.28, 0.18, 0.05);
+    const pocket = new THREE.Mesh(pocketGeo, mat);
+    pocket.position.set(0, -0.25, 0.30);
+    pocket.castShadow = true;
+    group.add(pocket);
+
+    // Drawstrings
+    const stringGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.12, 8);
+    const stringMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.9 });
+    const string1 = new THREE.Mesh(stringGeo, stringMat);
+    string1.position.set(-0.05, 0.38, 0.28);
+    string1.rotation.x = 0.1;
+    group.add(string1);
+    const string2 = new THREE.Mesh(stringGeo, stringMat);
+    string2.position.set(0.05, 0.38, 0.28);
+    string2.rotation.x = 0.1;
+    group.add(string2);
+
+    // Store meshes for color changes
+    group.userData.isGarment = true;
+    group.userData.meshes = [body, hood, leftSleeve, rightSleeve, pocket];
+    this.garmentMeshes = [body, hood, leftSleeve, rightSleeve, pocket];
+    this.frontVertices = [];
+
+    return group;
+  }
+
+  /**
+   * Create a procedural baseball cap model.
+   */
+  createProceduralCap() {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.85,
+      metalness: 0.0,
+      emissive: 0x000000,
+      emissiveIntensity: 0.0,
+      side: THREE.DoubleSide,
+    });
+
+    // Cap crown (half sphere)
+    const crownGeo = new THREE.SphereGeometry(0.22, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const crown = new THREE.Mesh(crownGeo, mat);
+    crown.position.y = 0.05;
+    crown.castShadow = true;
+    crown.receiveShadow = true;
+    group.add(crown);
+
+    // Brim (visor)
+    const brimGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.02, 32, 1, false, 0, Math.PI);
+    const brim = new THREE.Mesh(brimGeo, mat);
+    brim.position.set(0, 0.05, 0.02);
+    brim.rotation.x = -0.15;
+    brim.rotation.y = -Math.PI / 2;
+    brim.castShadow = true;
+    brim.receiveShadow = true;
+    group.add(brim);
+
+    // Cap band (rim at bottom)
+    const bandGeo = new THREE.TorusGeometry(0.21, 0.025, 8, 32);
+    const band = new THREE.Mesh(bandGeo, mat);
+    band.position.y = -0.02;
+    band.rotation.x = Math.PI / 2;
+    group.add(band);
+
+    // Button on top
+    const buttonGeo = new THREE.SphereGeometry(0.025, 16, 16);
+    const button = new THREE.Mesh(buttonGeo, mat);
+    button.position.y = 0.26;
+    button.castShadow = true;
+    group.add(button);
+
+    // Seam lines (decorative)
+    const seamGeo = new THREE.TorusGeometry(0.22, 0.005, 4, 32);
+    const seamMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9 });
+    const seam = new THREE.Mesh(seamGeo, seamMat);
+    seam.position.y = 0.05;
+    seam.rotation.x = Math.PI / 2;
+    group.add(seam);
+
+    // Store meshes for color changes
+    this.garmentMeshes = [crown, brim, band, button];
+    this.frontVertices = [];
+
+    return group;
   }
 
   _applyGarmentColor(targetColor) {
@@ -619,8 +809,7 @@ export default function Mockup3DEditor() {
           }, 15000);
 
           // Load initial model (polera)
-          const initialModel = GARMENT_MODELS.polera;
-          scene.loadModel(initialModel.url)
+          scene.loadModel(GARMENT_MODELS.polera.url, 'polera')
             .then(() => {
               clearTimeout(timeoutId);
               setLoading(false);
@@ -662,31 +851,18 @@ export default function Mockup3DEditor() {
       }
     }, 15000);
 
-    scene.loadModel(modelConfig.url)
+    // Pass garmentType so loadModel knows whether to use procedural or GLB
+    Promise.resolve(scene.loadModel(modelConfig.url, garmentType))
       .then(() => {
         clearTimeout(timeoutId);
         setLoading(false);
         scene.setColor(GARMENT_COLORS[color]?.hex || GARMENT_COLORS.blanco.hex);
       })
       .catch((err) => {
-        console.error('Error loading model, trying fallback:', err.message);
-        if (modelConfig.fallbackUrl) {
-          scene.loadModel(modelConfig.fallbackUrl)
-            .then(() => {
-              clearTimeout(timeoutId);
-              setLoading(false);
-              scene.setColor(GARMENT_COLORS[color]?.hex || GARMENT_COLORS.blanco.hex);
-            })
-            .catch(() => {
-              clearTimeout(timeoutId);
-              setError('No se pudo cargar el modelo 3D.');
-              setLoading(false);
-            });
-        } else {
-          clearTimeout(timeoutId);
-          setError('No se pudo cargar el modelo 3D.');
-          setLoading(false);
-        }
+        console.error('Error loading model:', err.message);
+        clearTimeout(timeoutId);
+        setError('No se pudo cargar el modelo 3D.');
+        setLoading(false);
       });
   }, [garmentType]);
 
