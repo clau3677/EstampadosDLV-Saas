@@ -89,27 +89,15 @@ function CatalogCanvas() {
   const pa = template?.printArea || { x: 0.25, y: 0.25, w: 0.50, h: 0.50 };
   const canvasSize = 600;
 
-  // Cargar imagen de fondo (con cache-busting para forzar recarga)
+  // Cargar imagen de fondo
   useEffect(() => {
-    if (!template?.bgImage) return;
+    if (!template?.bgImage) { setBgImage(null); return; }
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       setBgImage(img);
-      // Forzar un redraw inmediato después de que la imagen cargue
-      setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          const cs = canvasSize * zoom;
-          canvas.width = cs;
-          canvas.height = cs;
-          ctx.clearRect(0, 0, cs, cs);
-          ctx.drawImage(img, 0, 0, cs, cs);
-        }
-      }, 50);
     };
-    // Cache-busting: agregar timestamp para evitar caché del navegador
+    // Cache-busting para forzar recarga cuando cambia la plantilla
     img.src = `${template.bgImage}?t=${Date.now()}`;
     return () => { img.onload = null; img.src = ''; };
   }, [template?.bgImage]);
