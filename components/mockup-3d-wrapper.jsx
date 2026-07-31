@@ -13,14 +13,13 @@ class Mockup3DErrorBoundary extends React.Component {
   static getDerivedStateFromError(err) { return { hasError: true, err }; }
   render() {
     if (this.state.hasError) {
-      console.error('Mockup3D Error:', this.state.err);
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white px-6 text-center">
           <div className="text-sm font-semibold text-slate-800">
             El editor 3D tuvo un error
           </div>
           <div className="text-xs text-slate-600 mt-1 max-w-md">
-            {String(this.state.err)}
+            Hubo un problema al cargar el editor. Por favor, recarga la página.
           </div>
           <button
             onClick={() => window.location.reload()}

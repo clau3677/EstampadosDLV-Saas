@@ -209,14 +209,11 @@ class ThreeScene {
   }
 
   async loadModel(url) {
-    console.log('[ThreeScene] Loading model from:', url);
     try {
-      // Fetch the model ourselves to have better error handling
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       
       const arrayBuffer = await response.arrayBuffer();
-      console.log('[ThreeScene] Model downloaded:', arrayBuffer.byteLength, 'bytes');
       
       // Parse with GLTFLoader + DRACOLoader for compressed meshes
       const loader = new GLTFLoader();
@@ -232,7 +229,6 @@ class ThreeScene {
         }
       });
       
-      console.log('[ThreeScene] Model parsed successfully, children:', gltf.scene.children.length);
       this.model = gltf.scene;
 
       // Compute bounds before scaling
@@ -297,7 +293,6 @@ class ThreeScene {
       this.scene.add(this.model);
       return gltf;
     } catch (err) {
-      console.error('[ThreeScene] Error loading model:', err);
       throw err;
     }
   }
@@ -630,7 +625,7 @@ export default function Mockup3DEditor() {
               scene.setColor(GARMENT_COLORS.blanco.hex);
             })
             .catch((err) => {
-              console.error('Error loading main model, trying fallback:', err);
+              console.error('Error loading main model, trying fallback:', err.message);
               // Intentar con el modelo simplificado
               if (modelConfig.fallbackUrl) {
                 scene.loadModel(modelConfig.fallbackUrl)
@@ -641,14 +636,12 @@ export default function Mockup3DEditor() {
                   })
                   .catch((err2) => {
                     clearTimeout(timeoutId);
-                    console.error('Error loading fallback model:', err2);
-                    setError('No se pudo cargar el modelo 3D: ' + (err2.message || String(err2)));
+                    setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
                     setLoading(false);
                   });
               } else {
                 clearTimeout(timeoutId);
-                console.error('Error loading model:', err);
-                setError('No se pudo cargar el modelo 3D: ' + (err.message || String(err)));
+                setError('No se pudo cargar el modelo 3D. Intenta recargar la página.');
                 setLoading(false);
               }
             });
