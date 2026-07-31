@@ -319,32 +319,16 @@ class ThreeScene {
       const original = this.originalMaterials.get(child);
       if (!original) return;
 
-      const mat = original.clone();
+      // Create a new MeshStandardMaterial with cotton-like properties
+      const mat = new THREE.MeshStandardMaterial({
+        color: targetColor.clone(),
+        roughness: 0.85,        // Tela es mate, no brillante
+        metalness: 0.0,         // Algodón no tiene metalness
+        emissive: new THREE.Color(0x000000), // Sin emisivo para no verse como plástico
+        emissiveIntensity: 0.0,
+        side: THREE.DoubleSide,
+      });
 
-      // Tint the material color
-      mat.color.copy(targetColor);
-
-      // Add slight emissive for visibility
-      mat.emissive = targetColor.clone();
-      mat.emissiveIntensity = 0.15;
-
-      // For white garment, use neutral emissive
-      if (this.currentColorHex === '#FFFFFF' || this.currentColorHex === '#F8F8F8') {
-        mat.emissive = new THREE.Color(0x333333);
-        mat.emissiveIntensity = 0.08;
-      }
-
-      // Keep reasonable material properties
-      if (mat.roughness === undefined || mat.roughness === 1) {
-        mat.roughness = 0.7;
-      }
-      if (mat.metalness === undefined) {
-        mat.metalness = 0.0;
-      }
-
-      // Ensure both sides render (some models have inverted normals)
-      mat.side = THREE.DoubleSide;
-      mat.needsUpdate = true;
       child.material = mat;
     });
   }
