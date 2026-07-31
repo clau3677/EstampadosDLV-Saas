@@ -268,6 +268,11 @@ class ThreeScene {
           // Clone the original material
           const mat = child.material.clone();
           
+          // Ensure material renders from both sides (fixes inverted normals on some models)
+          if (mat.side !== undefined) {
+            mat.side = THREE.DoubleSide;
+          }
+          
           // Store original for color changes
           this.originalMaterials.set(child, mat);
           
@@ -335,6 +340,8 @@ class ThreeScene {
         mat.metalness = 0.0;
       }
 
+      // Ensure both sides render (some models have inverted normals)
+      mat.side = THREE.DoubleSide;
       mat.needsUpdate = true;
       child.material = mat;
     });
