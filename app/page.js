@@ -5,6 +5,7 @@
 import { Suspense } from 'react';
 import { getPublicProducts } from '@/lib/server/store-data';
 import { BUSINESS } from '@/lib/constants/business';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -280,11 +281,14 @@ export default async function HomePage() {
                     <Link key={product._id || product.id} href={`/producto/${product.slug}`} className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all">
                       <div className="aspect-square bg-gray-100 overflow-hidden">
                         {imageUrl ? (
-                          <img
+                          <Image
                             src={imageUrl}
                             alt={product.name}
+                            width={400}
+                            height={400}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             loading="lazy"
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 33vw"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">

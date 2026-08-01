@@ -37,6 +37,8 @@ const nextConfig = {
     'utf-8-validate',
     'pino',
     'pino-pretty',
+    // googleapis es muy pesado (~8MB) y solo se usa en server-side API routes
+    'googleapis',
   ],
   webpack(config, { dev, isServer }) {
     if (dev) {
@@ -54,6 +56,14 @@ const nextConfig = {
     if (isServer) {
       // Excluir konva/react-konva y three.js del bundle server-side por completo
       config.externals = [...(config.externals || []), 'konva', 'react-konva', 'canvas', 'three'];
+    }
+    // Client-side: prevent googleapis from bundling into client chunks
+    // This module is only used server-side (API routes) and weighs ~8MB
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'googleapis': false,
+      };
     }
     return config;
   },
@@ -80,6 +90,22 @@ const nextConfig = {
           { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, DELETE, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          // Cache headers para assets estáticos
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      // Fuentes y CSS de Next.js — cache largo
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      // Imágenes subidas — cache mediano (se actualizan)
+      {
+        source: "/uploads/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate" },
         ],
       },
     ];
