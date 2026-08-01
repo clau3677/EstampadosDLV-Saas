@@ -28,6 +28,14 @@ export const metadata = {
     siteName: BUSINESS.name,
     locale: 'es_CL',
     type: 'website',
+    images: [
+      {
+        url: `${BASE}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'Estampados DLV - Tienda de impresión DTF profesional en Chile',
+      },
+    ],
   },
 };
 

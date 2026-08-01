@@ -11,7 +11,7 @@ const PUBLIC_PATHS = [
   '/',
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
   '/login', '/registro', '/api', '/uploads', '/mockup', '/mockups',
-  '/_next', '/favicon', '/robots', '/sitemap', '/manifest',
+  '/_next', '/favicon', '/robots', '/sitemap', '/manifest', '/og-image',
 ];
 
 // Rutas de cliente — requieren token pero cualquier rol (customer/admin/operator).
@@ -74,6 +74,6 @@ export async function middleware(req) {
 export const config = {
   matcher: [
     // Exclude static assets from middleware to keep it fast.
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads|downloads|mockups).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|uploads|downloads|mockups|og-image\.png).*)',
   ],
 };
