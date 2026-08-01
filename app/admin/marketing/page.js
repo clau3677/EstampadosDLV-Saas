@@ -153,6 +153,7 @@ function PostsTab({ isConnected, aiConfigured }) {
   const [posts, setPosts] = useState([]);
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [forceRefresh, setForceRefresh] = useState(0);
   const [supplierFilter, setSupplierFilter] = useState('all');
   // Generador
   const [productId, setProductId] = useState('');
@@ -172,7 +173,7 @@ function PostsTab({ isConnected, aiConfigured }) {
     } catch (e) { console.warn(e); }
   }, [filter]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh, forceRefresh]);
 
   useEffect(() => {
     fetch('/api/products')
@@ -204,6 +205,11 @@ function PostsTab({ isConnected, aiConfigured }) {
       if (!res.ok) throw new Error(data.error || 'error generando post');
       toast.success(scheduledAt ? 'Post generado y programado ✅' : 'Post generado como borrador ✅');
       setOccasion(''); setScheduledAt('');
+      // Refetch directo para asegurar que la lista se actualice
+      try {
+        const listRes = await fetch('/api/marketing/posts?status=all');
+        if (listRes.ok) setPosts(await listRes.json());
+      } catch (e) { console.warn('Refresh posts failed:', e); }
       refresh();
     } catch (e) {
       toast.error(e.message);
@@ -239,7 +245,7 @@ function PostsTab({ isConnected, aiConfigured }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error eliminando');
       toast.success('Post eliminado');
-      refresh();
+      setForceRefresh(n => n + 1);
     } catch (e) {
       toast.error(e.message);
     } finally {
