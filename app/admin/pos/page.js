@@ -1068,7 +1068,13 @@ export default function PosPage() {
                     <div className="aspect-square rounded-lg bg-slate-100 overflow-hidden mb-2">
                       {(v.image || p.images?.[0]) ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={v.image || p.images[0]} alt={`${p.name} ${v.name}`} className="w-full h-full object-cover" />
+                        <img
+                          src={(v.image || p.images[0]).startsWith('http') ? (v.image || p.images[0]) : `/api/thumbnails?src=${encodeURIComponent(v.image || p.images[0])}&w=120&format=webp&q=80`}
+                          alt={`${p.name} ${v.name}`}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-300"><Package className="h-8 w-8" /></div>
                       )}

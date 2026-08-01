@@ -536,7 +536,13 @@ export default function InventarioPage() {
                           <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/60">
                             <td className="px-3 py-2">
                               {s.productImages?.length > 0 ? (
-                                <img src={s.productImages[0]} alt="" className="h-9 w-9 rounded object-cover border border-slate-200" />
+                                <img
+                                  src={s.productImages[0].startsWith('http') ? s.productImages[0] : `/api/thumbnails?src=${encodeURIComponent(s.productImages[0])}&w=64&format=webp&q=80`}
+                                  alt=""
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-9 w-9 rounded object-cover border border-slate-200"
+                                />
                               ) : (
                                 <div className="h-9 w-9 rounded bg-slate-100 border border-slate-200 flex items-center justify-center">
                                   <ImageIcon className="h-4 w-4 text-slate-400" />

@@ -319,7 +319,7 @@ export default function CheckoutPage() {
                 {items.map(it => (
                   <div key={`${it.productId}:${it.variantId}`} className="flex gap-3 text-sm">
                     <div className="h-12 w-12 rounded bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
-                      {it.image ? <img src={it.image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center"><Package className="h-4 w-4 text-slate-400" /></div>}
+                      {it.image ? <img src={it.image.startsWith('http') ? it.image : `/api/thumbnails?src=${encodeURIComponent(it.image)}&w=80&format=webp&q=80`} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <div className="h-full w-full flex items-center justify-center"><Package className="h-4 w-4 text-slate-400" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-slate-900 truncate">{it.name}</div>

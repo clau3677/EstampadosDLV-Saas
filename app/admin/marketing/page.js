@@ -412,8 +412,10 @@ function PostsTab({ isConnected, aiConfigured }) {
                   {/* Imagen */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={post.imageUrl}
+                    src={post.imageUrl.startsWith('http') ? post.imageUrl : `/api/thumbnails?src=${encodeURIComponent(post.imageUrl)}&w=192&format=webp&q=80`}
                     alt={post.altText || post.productName}
+                    loading="lazy"
+                    decoding="async"
                     className="h-24 w-24 rounded-lg object-cover shrink-0 border"
                   />
                   <div className="flex-1 min-w-0">

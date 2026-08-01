@@ -53,7 +53,13 @@ export function CartDrawer() {
                 <div key={`${it.productId}:${it.variantId}`} className="flex gap-3 p-3 rounded-lg border border-slate-200 bg-white">
                   <div className="h-16 w-16 rounded-md bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
                     {it.image ? (
-                      <img src={it.image} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={it.image.startsWith('http') ? it.image : `/api/thumbnails?src=${encodeURIComponent(it.image)}&w=100&format=webp&q=80`}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-slate-400">
                         <Package className="h-5 w-5" />

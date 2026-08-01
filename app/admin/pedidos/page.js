@@ -671,8 +671,10 @@ export default function PedidosPage() {
                     >
                       {/* Miniatura del comprobante en <img> nativo (no next/image porque son user-uploads sin dimensiones fijas) */}
                       <img
-                        src={selectedOrder.receiptUrl}
+                        src={selectedOrder.receiptUrl.startsWith('http') ? selectedOrder.receiptUrl : `/api/thumbnails?src=${encodeURIComponent(selectedOrder.receiptUrl)}&w=300&format=webp&q=80`}
                         alt="Comprobante"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                       />
                     </button>
@@ -871,8 +873,9 @@ export default function PedidosPage() {
           </DialogHeader>
           {receiptLightbox && (
             <img
-              src={receiptLightbox}
+              src={receiptLightbox.startsWith('http') ? receiptLightbox : `/api/thumbnails?src=${encodeURIComponent(receiptLightbox)}&w=1000&format=webp&q=85`}
               alt="Comprobante ampliado"
+              decoding="async"
               className="w-full h-auto max-h-[80vh] object-contain rounded"
             />
           )}

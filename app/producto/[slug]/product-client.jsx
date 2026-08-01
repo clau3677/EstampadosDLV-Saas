@@ -17,6 +17,13 @@ import { formatCLP } from '@/lib/format';
 import { BUSINESS } from '@/lib/constants/business';
 import ProductLandingAdminBar from '@/components/product-landing-admin-bar';
 
+// Construye URL del thumbnail optimizado (WebP, q=80)
+function thumbnailUrl(imagePath, width = 600) {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  return `/api/thumbnails?src=${encodeURIComponent(imagePath)}&w=${width}&format=webp&q=80`;
+}
+
 const CATEGORY_LABELS = {
   dtf_meter:        'DTF por metro',
   blank_apparel:    'Ropa Lisa',
@@ -239,8 +246,10 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
             <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 shadow-xl aspect-square">
               {product.images?.[selectedImage] ? (
                 <img
-                  src={product.images[selectedImage]}
+                  src={thumbnailUrl(product.images[selectedImage], 800)}
                   alt={product.name}
+                  loading="eager"
+                  decoding="async"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               ) : (
@@ -294,7 +303,13 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <img src={img} alt={`${product.name} - imagen ${i + 1}`} className="h-full w-full object-cover" />
+                    <img
+                      src={thumbnailUrl(img, 150)}
+                      alt={`${product.name} - imagen ${i + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -642,7 +657,13 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                 className="group rounded-2xl border border-slate-200 bg-white hover:border-orange-300 hover:shadow-md transition-all overflow-hidden">
                 <div className="aspect-square bg-slate-100 relative overflow-hidden">
                   {p.images?.[0] ? (
-                    <img src={p.images[0]} alt={p.name} className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img
+                      src={thumbnailUrl(p.images[0], 200)}
+                      alt={p.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Package className="h-16 w-16 text-slate-300" />

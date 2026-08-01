@@ -71,9 +71,18 @@ function formatCategorySlug(slug) {
     .join(' ');
 }
 
+// Construye URL del thumbnail optimizado (WebP, 300px ancho, q=80)
+function thumbnailUrl(imagePath) {
+  if (!imagePath) return null;
+  // imagePath puede ser: "/uploads/proveedor/treck/xxx.jpg" o "https://..."
+  if (imagePath.startsWith('http')) return imagePath;
+  return `/api/thumbnails?src=${encodeURIComponent(imagePath)}&w=300&format=webp&q=80`;
+}
+
 export function ProductCard({ product }) {
   const hasImage = product.images?.length > 0;
   const mainImage = product.images?.[0];
+  const thumbSrc = hasImage ? thumbnailUrl(mainImage) : null;
   const categoryLabel = formatCategorySlug(product.category);
   const Icon = CATEGORY_ICONS[product.category] || Package;
   const gradient = PLACEHOLDER_GRADIENTS[product.category] || PLACEHOLDER_GRADIENTS.other;
@@ -86,11 +95,16 @@ export function ProductCard({ product }) {
       <article className="flex flex-col h-full rounded-xl border border-slate-200 bg-white hover:border-orange-300 hover:shadow-lg transition-all overflow-hidden">
         <div className="relative aspect-[4/5] overflow-hidden">
           {hasImage ? (
-            <img
-              src={mainImage}
-              alt={product.name}
-              className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
+            <>
+              {/* Imagen optimizada con thumbnail WebP */}
+              <img
+                src={thumbSrc}
+                alt={product.name}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </>
           ) : (
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient} flex items-center justify-center`}>
               <Icon className="h-16 w-16 text-slate-400/40" />
