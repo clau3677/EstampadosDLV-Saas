@@ -168,7 +168,9 @@ function PostsTab({ isConnected, aiConfigured }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/marketing/posts?status=${filter}`);
+      const res = await fetch(`/api/marketing/posts?status=${filter}&_t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       if (res.ok) setPosts(await res.json());
     } catch (e) { console.warn(e); }
   }, [filter]);
@@ -207,10 +209,12 @@ function PostsTab({ isConnected, aiConfigured }) {
       setOccasion(''); setScheduledAt('');
       // Refetch directo para asegurar que la lista se actualice
       try {
-        const listRes = await fetch('/api/marketing/posts?status=all');
+        const listRes = await fetch(`/api/marketing/posts?status=all&_t=${Date.now()}`, {
+          cache: 'no-store',
+        });
         if (listRes.ok) setPosts(await listRes.json());
       } catch (e) { console.warn('Refresh posts failed:', e); }
-      refresh();
+      setForceRefresh(n => n + 1);
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -225,11 +229,12 @@ function PostsTab({ isConnected, aiConfigured }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
+        cache: 'no-store',
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error publicando');
       toast.success('Publicado en Meta ✅');
-      refresh();
+      setForceRefresh(n => n + 1);
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -241,7 +246,7 @@ function PostsTab({ isConnected, aiConfigured }) {
     if (!confirm('¿Eliminar este borrador?')) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/marketing/posts?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/marketing/posts?id=${id}`, { method: 'DELETE', cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'error eliminando');
       toast.success('Post eliminado');
