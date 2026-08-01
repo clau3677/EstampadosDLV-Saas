@@ -294,7 +294,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    <img src={img} alt={`${product.name} - imagen ${i + 1}`} className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>

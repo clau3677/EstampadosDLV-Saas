@@ -15,26 +15,36 @@ export default async function sitemap() {
     ]);
 
     return [
-      { url: `${base}/tienda`,      priority: 1.0, changeFrequency: 'daily',   lastModified: new Date() },
-      { url: `${base}/gang-sheet`,  priority: 0.9, changeFrequency: 'weekly',  lastModified: new Date() },
-      { url: `${base}/servicios`,   priority: 0.8, changeFrequency: 'weekly',  lastModified: new Date() },
+      // Página principal — la más importante
+      { url: `${base}/`,               priority: 1.0, changeFrequency: 'weekly',  lastModified: new Date() },
+      { url: `${base}/tienda`,         priority: 0.95, changeFrequency: 'daily',   lastModified: new Date() },
+      { url: `${base}/gang-sheet`,     priority: 0.9, changeFrequency: 'weekly',  lastModified: new Date() },
+      { url: `${base}/servicios`,      priority: 0.85, changeFrequency: 'weekly',  lastModified: new Date() },
+      { url: `${base}/contacto`,       priority: 0.8, changeFrequency: 'monthly', lastModified: new Date() },
+      
+      // Productos — alta prioridad para indexación
       ...products.map(p => ({
         url: `${base}/producto/${p.slug}`,
         lastModified: p.updatedAt || p.createdAt,
-        priority: 0.7,
+        priority: 0.8,
         changeFrequency: 'weekly',
       })),
+      
+      // Landings de servicios — SEO local
       ...landings.map(l => ({
         url: `${base}/servicios/${l.slug}`,
         lastModified: l.updatedAt || l.createdAt,
-        priority: 0.9,
+        priority: 0.85,
         changeFrequency: 'monthly',
       })),
     ];
   } catch (e) {
     return [
-      { url: `${base}/tienda`,     priority: 1.0, changeFrequency: 'daily' },
+      { url: `${base}/`,           priority: 1.0, changeFrequency: 'weekly' },
+      { url: `${base}/tienda`,     priority: 0.95, changeFrequency: 'daily' },
       { url: `${base}/gang-sheet`, priority: 0.9, changeFrequency: 'weekly' },
+      { url: `${base}/servicios`,  priority: 0.85, changeFrequency: 'weekly' },
+      { url: `${base}/contacto`,   priority: 0.8, changeFrequency: 'monthly' },
     ];
   }
 }

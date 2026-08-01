@@ -1,5 +1,5 @@
 // SEO: robots.txt dinámico
-// Bloquea rutas admin para que Google no las indexe.
+// Permite indexación de páginas públicas, bloquea rutas admin y privadas.
 
 export default function robots() {
   const base = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -9,6 +9,7 @@ export default function robots() {
         userAgent: '*',
         allow: '/',
         disallow: [
+          // Rutas administrativas
           '/api/',
           '/kanban',
           '/pos',
@@ -19,7 +20,31 @@ export default function robots() {
           '/mantenimiento',
           '/reportes',
           '/clientes',
-          '/uploads/',  // imágenes de diseños privados
+          '/admin',
+          // Rutas de autenticación
+          '/login',
+          '/registro',
+          '/mi-cuenta',
+          '/checkout',
+          // Archivos privados
+          '/uploads/',
+          '/hot_folders/',
+        ],
+      },
+      {
+        userAgent: 'GPTBot',
+        disallow: [
+          '/api/',
+          '/admin',
+          '/uploads/',
+        ],
+      },
+      {
+        userAgent: 'ClaudeBot',
+        disallow: [
+          '/api/',
+          '/admin',
+          '/uploads/',
         ],
       },
     ],
