@@ -147,10 +147,13 @@ export default function MarketingPage() {
 // ---------------------------------------------------------------------------
 // Pestaña: Publicaciones
 // ---------------------------------------------------------------------------
+const SUPPLIER_LABELS = { cottonext: 'Cottonext', textilryu: 'Textil Ryu', treck: 'Treck' };
+
 function PostsTab({ isConnected, aiConfigured }) {
   const [posts, setPosts] = useState([]);
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   // Generador
   const [productId, setProductId] = useState('');
   const [tone, setTone] = useState('');
@@ -289,13 +292,27 @@ function PostsTab({ isConnected, aiConfigured }) {
             </p>
           )}
           <div>
+            <label className="text-xs font-medium text-muted-foreground">Proveedor</label>
+            <Select value={supplierFilter} onValueChange={(v) => { setSupplierFilter(v); setProductId(''); }}>
+              <SelectTrigger><SelectValue placeholder="Todos los proveedores" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los proveedores</SelectItem>
+                {Object.entries(SUPPLIER_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <label className="text-xs font-medium text-muted-foreground">Producto</label>
             <Select value={productId} onValueChange={setProductId}>
               <SelectTrigger><SelectValue placeholder="Selecciona un producto…" /></SelectTrigger>
               <SelectContent>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
+                {products
+                  .filter((p) => supplierFilter === 'all' || p.supplier === supplierFilter)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} {p.supplier ? `(${SUPPLIER_LABELS[p.supplier] || p.supplier})` : ''}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -478,6 +495,7 @@ function AdsTab({ isConnected, hasAdAccount }) {
   const [campaigns, setCampaigns] = useState([]);
   const [posts, setPosts] = useState([]);
   const [products, setProducts] = useState([]);
+  const [adsSupplierFilter, setAdsSupplierFilter] = useState('all');
   const [recipe, setRecipe] = useState('product_traffic');
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('5000');
@@ -576,15 +594,31 @@ function AdsTab({ isConnected, hasAdAccount }) {
             </Select>
           </div>
           {recipe === 'product_traffic' && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Producto</label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
-                <SelectContent>
-                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Proveedor</label>
+                <Select value={adsSupplierFilter} onValueChange={(v) => { setAdsSupplierFilter(v); setProductId(''); }}>
+                  <SelectTrigger><SelectValue placeholder="Todos los proveedores" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los proveedores</SelectItem>
+                    {Object.entries(SUPPLIER_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Producto</label>
+                <Select value={productId} onValueChange={setProductId}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                  <SelectContent>
+                    {products
+                      .filter((p) => adsSupplierFilter === 'all' || p.supplier === adsSupplierFilter)
+                      .map((p) => <SelectItem key={p.id} value={p.id}>{p.name} {p.supplier ? `(${SUPPLIER_LABELS[p.supplier] || p.supplier})` : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
           {recipe === 'boost_post' && (
             <div>

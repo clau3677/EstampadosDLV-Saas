@@ -219,6 +219,8 @@ export default function InventarioPage() {
   const [editingSupply, setEditingSupply] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);   // {type:'supply'|'product', item}
+  const [filterSupplier, setFilterSupplier] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -277,11 +279,105 @@ export default function InventarioPage() {
   const enrichedStock = (Array.isArray(stock) ? stock : []).map(s => {
     const p = productMap[s.productId];
     const v = p?.variants?.find(v => v.id === s.variantId);
-    return { ...s, productName: p?.name, category: p?.category, variantName: v?.name, sku: v?.sku, productImages: p?.images };
+    return { ...s, productName: p?.name, category: p?.category, subcategory: p?.subcategory, supplier: p?.supplier, supplierBrand: p?.supplierBrand, variantName: v?.name, sku: v?.sku, productImages: p?.images };
   });
-  const filteredStock = enrichedStock.filter(s =>
-    !query || s.productName?.toLowerCase().includes(query.toLowerCase()) || s.sku?.toLowerCase().includes(query.toLowerCase())
-  );
+
+  // Extractar proveedores únicos del stock enriquecido
+  const uniqueSuppliers = [...new Set(
+    enrichedStock
+      .filter(s => s.supplier)
+      .map(s => s.supplier)
+  )];
+  const supplierLabels = { cottonext: 'Cottonext', textilryu: 'Textil Ryu', treck: 'Treck' };
+  const supplierOptions = uniqueSuppliers.map(s => ({ value: s, label: supplierLabels[s] || s }));
+
+  // Extraer tipo de prenda desde el nombre del producto
+  // Palabras clave para identificar el tipo de prenda
+  const PRODUCT_TYPE_KEYWORDS = [
+    // Ropa
+    { keyword: 'polerón', group: 'Polerones' },
+    { keyword: 'poleron', group: 'Polerones' },
+    { keyword: 'polera', group: 'Poleras' },
+    { keyword: 'pantalón', group: 'Pantalones' },
+    { keyword: 'pantalon', group: 'Pantalones' },
+    { keyword: 'pantalones', group: 'Pantalones' },
+    { keyword: 'short', group: 'Shorts' },
+    { keyword: 'camisa', group: 'Camisas' },
+    { keyword: 'camiseta', group: 'Camisetas' },
+    { keyword: 'sudadera', group: 'Sudaderas' },
+    { keyword: 'buzo', group: 'Buzos' },
+    // Gorras y accesorios
+    { keyword: 'gorra', group: 'Gorras' },
+    { keyword: 'gorro', group: 'Gorros' },
+    { keyword: 'tazón', group: 'Tazones' },
+    { keyword: 'tazon', group: 'Tazones' },
+    { keyword: 'botella', group: 'Botellas' },
+    { keyword: 'llavero', group: 'Llaveros' },
+    { keyword: 'mousepad', group: 'Mouse pads' },
+    { keyword: 'mouse pad', group: 'Mouse pads' },
+    // Ropa de trabajo
+    { keyword: 'ignífuga', group: 'Ropa ignífuga' },
+    { keyword: 'ignifuga', group: 'Ropa ignífuga' },
+    { keyword: 'técnica', group: 'Ropa técnica' },
+    { keyword: 'tecnica', group: 'Ropa técnica' },
+    { keyword: 'outdoor', group: 'Ropa outdoor' },
+    { keyword: 'trabajo', group: 'Ropa de trabajo' },
+    // DTF
+    { keyword: 'dtf textil', group: 'DTF Textil' },
+    { keyword: 'dtf uv', group: 'DTF UV' },
+  ];
+
+  // Función para extraer el tipo de prenda de un nombre de producto
+  const getProductType = (name) => {
+    if (!name) return 'Otros';
+    const lower = name.toLowerCase();
+    // Buscar coincidencias, priorizando palabras más largas primero
+    const sorted = [...PRODUCT_TYPE_KEYWORDS].sort((a, b) => b.keyword.length - a.keyword.length);
+    for (const kw of sorted) {
+      if (lower.includes(kw.keyword)) return kw.group;
+    }
+    // Si no hay coincidencia, usar las primeras 3 palabras del nombre como identificador
+    const words = name.split(' ').filter(w => w.length > 2);
+    if (words.length >= 2) {
+      return words.slice(0, 3).join(' ');
+    }
+    return name;
+  };
+
+  // Enriquecer stock con tipo de prenda extraído
+  const stockWithTypes = enrichedStock.map(s => ({
+    ...s,
+    productType: getProductNameGroup(s.productName)
+  }));
+
+  // Agrupar nombres similares usando palabras clave
+  function getProductNameGroup(name) {
+    if (!name) return 'Otros';
+    const lower = name.toLowerCase();
+    const sorted = [...PRODUCT_TYPE_KEYWORDS].sort((a, b) => b.keyword.length - a.keyword.length);
+    for (const kw of sorted) {
+      if (lower.includes(kw.keyword)) return kw.group;
+    }
+    return 'Otros';
+  }
+
+  // Obtener tipos únicos filtrados por proveedor
+  const stockForTypes = filterSupplier
+    ? stockWithTypes.filter(s => s.supplier === filterSupplier)
+    : stockWithTypes;
+  const uniqueTypes = [...new Set(stockForTypes.map(s => s.productType))].sort();
+  const typeOptions = uniqueTypes.map(t => ({ value: t, label: t }));
+
+  const filteredStock = enrichedStock.filter(s => {
+    const productType = getProductNameGroup(s.productName);
+    // Filtro de búsqueda por texto
+    const matchQuery = !query || s.productName?.toLowerCase().includes(query.toLowerCase()) || s.sku?.toLowerCase().includes(query.toLowerCase());
+    // Filtro por proveedor
+    const matchSupplier = !filterSupplier || s.supplier === filterSupplier;
+    // Filtro por tipo de prenda (basado en nombre del producto)
+    const matchType = !filterCategory || productType === filterCategory;
+    return matchQuery && matchSupplier && matchType;
+  });
 
   const suppliesCritical = (Array.isArray(supplies) ? supplies : []).filter(s => s.currentQuantity <= s.minAlert).length;
 
@@ -378,7 +474,43 @@ export default function InventarioPage() {
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />Cargando stock…
             </div>
           ) : (
-            <Card className="border-slate-200/70">
+            <>
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <select
+                  value={filterSupplier}
+                  onChange={(e) => setFilterSupplier(e.target.value)}
+                  className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                >
+                  <option value="">Todos los proveedores</option>
+                  {supplierOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                  disabled={filterSupplier && typeOptions.length === 0}
+                >
+                  <option value="">{filterSupplier ? 'Todos los tipos' : 'Todos los tipos'}</option>
+                  {typeOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                {(filterSupplier || filterCategory) && (
+                  <button
+                    onClick={() => { setFilterSupplier(''); setFilterCategory(''); }}
+                    className="h-9 px-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+                <span className="text-xs text-slate-500 ml-2">
+                  {filteredStock.length} resultado{filteredStock.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <Card className="border-slate-200/70">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -476,6 +608,7 @@ export default function InventarioPage() {
                 </div>
               </CardContent>
             </Card>
+            </>
           )}
         </TabsContent>
       </Tabs>
