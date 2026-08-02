@@ -132,10 +132,9 @@ export default function RootLayout({ children }) {
         <style dangerouslySetInnerHTML={{__html: `html{background-color:#f8fafc}body{margin:0;font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif)}`}} />
         
         {/* CSS no crítico: cargar después del paint para mejorar FCP */}
-        <script dangerouslySetInnerHTML={{__html:`!function(){var s=document.createElement('link');s.rel='stylesheet';s.href='/_next/static/css/2dd2d18f512933ec.css';document.head.appendChild(s);var s2=document.createElement('link');s2.rel='stylesheet';s2.href='/_next/static/css/081a0afca5a9bd20.css';document.head.appendChild(s2)}();`}} />
+        <script dangerouslySetInnerHTML={{__html:`!function(){var s=document.createElement('link');s.rel='stylesheet';s.href='/_next/static/css/2dd2d18f512933ec.css';document.head.appendChild(s)}();`}} />
         <noscript>
           <link rel="stylesheet" href="/_next/static/css/2dd2d18f512933ec.css" />
-          <link rel="stylesheet" href="/_next/static/css/081a0afca5a9bd20.css" />
         </noscript>
         
         {/* Error handler para performance */}
