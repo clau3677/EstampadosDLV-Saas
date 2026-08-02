@@ -194,51 +194,9 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
   const related = allProducts.filter(p => p.id !== product.id && p.category === product.category && p.active !== false).slice(0, 4);
 
-  // JSON-LD para SEO
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    description: product.description,
-    image: product.images || [],
-    sku: product.sku,
-    brand: { '@type': 'Brand', name: BUSINESS.name },
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'CLP',
-      price,
-      availability: outOfStock ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
-      url: `https://estampadosdlv.com/producto/${product.slug}`,
-      validFrom: new Date().toISOString().split('T')[0],
-      shippingDetails: {
-        '@type': 'OfferShippingDetails',
-        shippingRate: { '@type': 'MonetaryAmount', value: '3490', currency: 'CLP' },
-        shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CL' },
-        deliveryTime: {
-          '@type': 'ShippingDeliveryTime',
-          handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
-          transitTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
-        },
-      },
-      hasMerchantReturnPolicy: {
-        '@type': 'MerchantReturnPolicy',
-        applicableCountry: 'CL',
-        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-        merchantReturnDays: 10,
-        returnMethod: 'https://schema.org/ReturnByMail',
-        returnFees: 'https://schema.org/FreeReturn',
-      },
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '127',
-    },
-  };
-
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {/* JSON-LD ya se genera en el server component (page.js) — no duplicar */}
 
       {/* Breadcrumb top ribbon */}
       <div className="bg-slate-50 border-b border-slate-200">
