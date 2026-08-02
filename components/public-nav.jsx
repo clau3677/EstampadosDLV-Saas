@@ -53,6 +53,7 @@ export function PublicNav() {
           <Button
             onClick={open}
             variant="outline"
+            aria-label={`Carrito de compras (${count} artículos)`}
             className="relative border-slate-200 hover:border-orange-300 hover:bg-orange-50"
           >
             <ShoppingBag className="h-4 w-4 mr-2" />

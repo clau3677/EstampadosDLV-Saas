@@ -42,7 +42,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-slate-100 transition-colors">
+        <button className="inline-flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-slate-100 transition-colors" aria-label={`Menú de usuario de ${user.fullName || user.email}`}>
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-500 to-rose-500 text-white flex items-center justify-center text-sm font-bold shadow-sm">
             {initial}
           </div>
