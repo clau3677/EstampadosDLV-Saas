@@ -40,6 +40,28 @@ export const metadata = {
 };
 
 function buildJsonLd(products) {
+  // Política de envío compartida
+  const shippingDetails = {
+    '@type': 'OfferShippingDetails',
+    shippingRate: { '@type': 'MonetaryAmount', value: '3490', currency: 'CLP' },
+    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CL' },
+    deliveryTime: {
+      '@type': 'ShippingDeliveryTime',
+      handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
+      transitTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
+    },
+  };
+
+  // Política de devolución compartida
+  const returnPolicy = {
+    '@type': 'MerchantReturnPolicy',
+    applicableCountry: 'CL',
+    returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+    merchantReturnDays: 10,
+    returnMethod: 'https://schema.org/ReturnByMail',
+    returnFees: 'https://schema.org/FreeReturn',
+  };
+
   const store = {
     '@context': 'https://schema.org',
     '@type': 'Store',
@@ -55,6 +77,8 @@ function buildJsonLd(products) {
       addressRegion: BUSINESS.address.region,
       addressCountry: BUSINESS.address.countryCode,
     },
+    hasMerchantReturnPolicy: returnPolicy,
+    shippingDetails,
   };
   const itemList = {
     '@context': 'https://schema.org',
@@ -73,6 +97,9 @@ function buildJsonLd(products) {
           price: p.basePrice || p.variants?.[0]?.price || 0,
           priceCurrency: 'CLP',
           availability: 'https://schema.org/InStock',
+          validFrom: new Date().toISOString().split('T')[0],
+          shippingDetails,
+          hasMerchantReturnPolicy: returnPolicy,
         },
       },
     })),

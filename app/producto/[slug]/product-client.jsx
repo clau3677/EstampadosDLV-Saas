@@ -208,6 +208,26 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
       priceCurrency: 'CLP',
       price,
       availability: outOfStock ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      url: `https://estampadosdlv.com/producto/${product.slug}`,
+      validFrom: new Date().toISOString().split('T')[0],
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: { '@type': 'MonetaryAmount', value: '3490', currency: 'CLP' },
+        shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CL' },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
+          transitTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'CL',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 10,
+        returnMethod: 'https://schema.org/ReturnByMail',
+        returnFees: 'https://schema.org/FreeReturn',
+      },
     },
     aggregateRating: {
       '@type': 'AggregateRating',
