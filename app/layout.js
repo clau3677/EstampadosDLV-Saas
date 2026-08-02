@@ -6,7 +6,7 @@ import LayoutSelector from '@/components/layout-selector';
 import { Toaster } from '@/components/ui/sonner';
 import { TopProgressBar } from '@/components/top-progress-bar';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap', preload: true });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap', preload: false });
 
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || 'https://estampadosdlv.com').replace(/\/$/, '');
 
@@ -125,19 +125,18 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es-CL" className={inter.variable}>
       <head>
-        {/* Preconnect para optimizar carga */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Preconnect para origen propio (las fuentes de Google se cargan localmente) */}
         <link rel="dns-prefetch" href={BASE} />
         
         {/* Critical CSS inline — minimal above-fold styles for instant paint */}
         <style dangerouslySetInnerHTML={{__html: `html{background-color:#f8fafc}body{margin:0;font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif)}`}} />
         
-        {/* Defer non-critical CSS — load after paint to improve mobile FCP */}
-        <link rel="stylesheet" href="/_next/static/css/2dd2d18f512933ec.css" media="print" onLoad="this.media='all'" />
-        <noscript><link rel="stylesheet" href="/_next/static/css/2dd2d18f512933ec.css" /></noscript>
-        <link rel="stylesheet" href="/_next/static/css/081a0afca5a9bd20.css" media="print" onLoad="this.media='all'" />
-        <noscript><link rel="stylesheet" href="/_next/static/css/081a0afca5a9bd20.css" /></noscript>
+        {/* CSS no crítico: cargar después del paint para mejorar FCP */}
+        <script dangerouslySetInnerHTML={{__html:`!function(){var s=document.createElement('link');s.rel='stylesheet';s.href='/_next/static/css/2dd2d18f512933ec.css';document.head.appendChild(s);var s2=document.createElement('link');s2.rel='stylesheet';s2.href='/_next/static/css/081a0afca5a9bd20.css';document.head.appendChild(s2)}();`}} />
+        <noscript>
+          <link rel="stylesheet" href="/_next/static/css/2dd2d18f512933ec.css" />
+          <link rel="stylesheet" href="/_next/static/css/081a0afca5a9bd20.css" />
+        </noscript>
         
         {/* Error handler para performance */}
         <script dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}} />

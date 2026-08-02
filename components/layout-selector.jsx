@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { SidebarNav } from '@/components/sidebar-nav';
-import { Topbar } from '@/components/topbar';
-import { PublicNav } from '@/components/public-nav';
-import { PublicFooter } from '@/components/public-footer';
-import { CartDrawer } from '@/components/cart-drawer';
-import ChatWidget from '@/components/chat-widget';
-import MobileActionBar from '@/components/mobile-action-bar';
+
+// Lazy load componentes pesados para reducir JS inicial
+const SidebarNav = lazy(() => import('@/components/sidebar-nav').then(m => ({ default: m.SidebarNav })));
+const Topbar = lazy(() => import('@/components/topbar').then(m => ({ default: m.Topbar })));
+const PublicNav = lazy(() => import('@/components/public-nav').then(m => ({ default: m.PublicNav })));
+const PublicFooter = lazy(() => import('@/components/public-footer').then(m => ({ default: m.PublicFooter })));
+const CartDrawer = lazy(() => import('@/components/cart-drawer').then(m => ({ default: m.CartDrawer })));
+const ChatWidget = lazy(() => import('@/components/chat-widget'));
+const MobileActionBar = lazy(() => import('@/components/mobile-action-bar').then(m => ({ default: m.default })));
 
 // Rutas totalmente aisladas: login/registro se pintan solas, sin nav, sin footer.
 const BARE_PREFIXES = ['/login', '/registro', '/mockup'];
@@ -37,12 +39,16 @@ export default function LayoutSelector({ children }) {
   if (startsWithExactPrefix(pathname, ADMIN_PREFIXES)) {
     return (
       <div className="min-h-screen">
-        <SidebarNav
-          mobileOpen={mobileNavOpen}
-          onMobileClose={() => setMobileNavOpen(false)}
-        />
+        <Suspense fallback={<div className="h-14 bg-slate-100" />}>
+          <SidebarNav
+            mobileOpen={mobileNavOpen}
+            onMobileClose={() => setMobileNavOpen(false)}
+          />
+        </Suspense>
         <div className="lg:pl-64">
-          <Topbar onToggleNav={() => setMobileNavOpen(v => !v)} />
+          <Suspense fallback={<div className="h-16 bg-slate-100 border-b" />}>
+            <Topbar onToggleNav={() => setMobileNavOpen(v => !v)} />
+          </Suspense>
           <main className="px-4 sm:px-6 py-6 sm:py-8">{children}</main>
         </div>
       </div>
@@ -53,12 +59,22 @@ export default function LayoutSelector({ children }) {
   if (startsWithExactPrefix(pathname, PUBLIC_PREFIXES)) {
     return (
       <div className="min-h-screen flex flex-col bg-white">
-        <PublicNav />
+        <Suspense fallback={<div className="h-16 bg-slate-100 border-b" />}>
+          <PublicNav />
+        </Suspense>
         <main className="flex-1">{children}</main>
-        <PublicFooter />
-        <CartDrawer />
-        <ChatWidget />
-        <MobileActionBar />
+        <Suspense fallback={null}>
+          <PublicFooter />
+        </Suspense>
+        <Suspense fallback={null}>
+          <CartDrawer />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ChatWidget />
+        </Suspense>
+        <Suspense fallback={null}>
+          <MobileActionBar />
+        </Suspense>
       </div>
     );
   }
@@ -66,12 +82,16 @@ export default function LayoutSelector({ children }) {
   // 4) Fallback — layout admin.
   return (
     <div className="min-h-screen">
-      <SidebarNav
-        mobileOpen={mobileNavOpen}
-        onMobileClose={() => setMobileNavOpen(false)}
-      />
+      <Suspense fallback={<div className="h-14 bg-slate-100" />}>
+        <SidebarNav
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
+        />
+      </Suspense>
       <div className="lg:pl-64">
-        <Topbar onToggleNav={() => setMobileNavOpen(v => !v)} />
+        <Suspense fallback={<div className="h-16 bg-slate-100 border-b" />}>
+          <Topbar onToggleNav={() => setMobileNavOpen(v => !v)} />
+        </Suspense>
         <main className="px-4 sm:px-6 py-6 sm:py-8">{children}</main>
       </div>
     </div>

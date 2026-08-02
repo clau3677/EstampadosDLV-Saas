@@ -1,5 +1,19 @@
 const nextConfig = {
   output: 'standalone',
+  // Renamed from experimental.serverComponentsExternalPackages in Next 15
+  serverExternalPackages: [
+    'mongodb', 'sharp',
+    // Baileys y WebSocket → mantener como externals para que use los binarios nativos
+    // (`bufferutil`, `utf-8-validate`) sin que webpack los rompa
+    '@whiskeysockets/baileys',
+    'ws',
+    'bufferutil',
+    'utf-8-validate',
+    'pino',
+    'pino-pretty',
+    // googleapis es muy pesado (~8MB) y solo se usa en server-side API routes
+    'googleapis',
+  ],
   // Optimizaciones de imports de paquetes pesados: Next 15 hace tree-shaking
   // agresivo de éstos, reduciendo tiempo de compilación en dev (~30%) y
   // tamaño del bundle en producción.
@@ -26,20 +40,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'avatars.githubusercontent.com', pathname: '/**' },
     ],
   },
-  // Renamed from experimental.serverComponentsExternalPackages in Next 15
-  serverExternalPackages: [
-    'mongodb', 'sharp',
-    // Baileys y WebSocket → mantener como externals para que use los binarios nativos
-    // (`bufferutil`, `utf-8-validate`) sin que webpack los rompa
-    '@whiskeysockets/baileys',
-    'ws',
-    'bufferutil',
-    'utf-8-validate',
-    'pino',
-    'pino-pretty',
-    // googleapis es muy pesado (~8MB) y solo se usa en server-side API routes
-    'googleapis',
-  ],
   webpack(config, { dev, isServer }) {
     if (dev) {
       // Reduce CPU/memory from file watching
@@ -117,6 +117,19 @@ const nextConfig = {
       // Imágenes subidas — cache mediano (se actualizan)
       {
         source: "/uploads/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate" },
+        ],
+      },
+      // Imágenes de proveedor — cache largo (no cambian)
+      {
+        source: "/cottonext/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate" },
+        ],
+      },
+      {
+        source: "/treck/:path*",
         headers: [
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate" },
         ],
