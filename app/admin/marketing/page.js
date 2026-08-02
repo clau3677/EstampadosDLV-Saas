@@ -1038,6 +1038,48 @@ function ConnectionsTab({ status, loading, onChanged }) {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Commerce Manager — Catálogo de productos</CardTitle>
+            <CardDescription>
+              Catálogo sincronizado automáticamente con Facebook. Los productos aparecerán en la Tienda de tu página de Facebook.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {status?.catalogId ? (
+              <>
+                <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span className="font-medium">Catálogo ID: {status.catalogId}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Feed: {status.feedUrl}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Facebook consulta el feed diariamente y actualiza automáticamente los productos, precios e inventario.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => copyToClipboard(status.catalogId, 'Catalog ID')}>
+                    <Copy className="h-3.5 w-3.5 mr-1" /> Copiar ID
+                  </Button>
+                  <a href="https://business.facebook.com/commerce/catalogs" target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Ver en Commerce Manager
+                    </Button>
+                  </a>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="h-4 w-4" />
+                Agrega META_CATALOG_ID al .env del servidor para activar la sincronización automática.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Publicación automática (cron)</CardTitle>
             <CardDescription>
               Para que los posts programados y las solicitudes de reseña se envíen solos, llama a este endpoint cada 10-15 min.
