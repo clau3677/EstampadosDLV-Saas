@@ -434,7 +434,7 @@ function PostsTab({ isConnected, aiConfigured }) {
                           onChange={(e) => setEditing({ ...editing, caption: e.target.value })}
                         />
                         <Input
-                          value={(editing.hashtags || []).join(' ')}
+                          value={Array.isArray(editing.hashtags) ? editing.hashtags.join(' ') : (editing.hashtags || '')}
                           onChange={(e) => setEditing({
                             ...editing,
                             hashtags: e.target.value.split(/\s+/).filter(Boolean),
@@ -455,7 +455,7 @@ function PostsTab({ isConnected, aiConfigured }) {
                     ) : (
                       <>
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-line">{post.caption}</p>
-                        <p className="text-[11px] text-blue-600 mt-1 truncate">{(post.hashtags || []).join(' ')}</p>
+                        <p className="text-[11px] text-blue-600 mt-1 truncate">{Array.isArray(post.hashtags) ? post.hashtags.join(' ') : (post.hashtags || '')}</p>
                         <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
                           {post.status === 'scheduled' && (
                             <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3" /> {fmtDate(post.scheduledAt)}</span>
