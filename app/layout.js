@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import LayoutSelector from '@/components/layout-selector';
 import { Toaster } from '@/components/ui/sonner';
 import { TopProgressBar } from '@/components/top-progress-bar';
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap', preload: false });
 
@@ -157,8 +158,190 @@ export default function RootLayout({ children }) {
             ],
           }) }}
         />
-      </head>
+              <Script id="gtm-head" strategy="afterInteractive">
+          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-WVB67FNZ');`}
+        </Script>
+        {/* WebSite JSON-LD con SearchAction (para sitelinks search box) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://estampadosdlv.com/#website",
+  "url": "https://estampadosdlv.com",
+  "name": "Estampados DLV",
+  "description": "Taller profesional de impresión DTF y DTF UV en Quilpué, Valparaíso, Chile. Poleras, polerones, gorras y merchandising personalizado.",
+  "inLanguage": "es-CL",
+  "publisher": {
+    "@id": "https://estampadosdlv.com/#organization"
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://estampadosdlv.com/tienda?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}) }}
+        />
+        {/* SiteNavigation JSON-LD (estructura de navegación para sitelinks) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "@id": "https://estampadosdlv.com/#navigation",
+  "itemListElement": [
+    {
+      "@type": "SiteNavigationElement",
+      "position": 1,
+      "name": "Inicio",
+      "url": "https://estampadosdlv.com/"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 2,
+      "name": "Catálogo / Tienda",
+      "url": "https://estampadosdlv.com/tienda"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 3,
+      "name": "DTF por Metro",
+      "url": "https://estampadosdlv.com/producto/dtf-textil"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 4,
+      "name": "DTF UV",
+      "url": "https://estampadosdlv.com/producto/dtf-uv"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 5,
+      "name": "Arma tu Pliego (Gang Sheet)",
+      "url": "https://estampadosdlv.com/gang-sheet"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 6,
+      "name": "Servicios",
+      "url": "https://estampadosdlv.com/servicios"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 7,
+      "name": "Contacto",
+      "url": "https://estampadosdlv.com/contacto"
+    }
+  ]
+}) }}
+        />
+        {/* LocalBusiness JSON-LD (para Google Business / Maps) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": [
+    "LocalBusiness",
+    "ClothingStore",
+    "PrintShop"
+  ],
+  "@id": "https://estampadosdlv.com/#business",
+  "name": "Estampados DLV",
+  "image": "https://estampadosdlv.com/og-image.png",
+  "url": "https://estampadosdlv.com",
+  "telephone": "+56954169052",
+  "email": "estampadosdlv@gmail.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Galleguillos 1870, Casa 1",
+    "addressLocality": "Quilpué",
+    "addressRegion": "Valparaíso",
+    "postalCode": "2430000",
+    "addressCountry": "CL"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": -33.0472,
+    "longitude": -71.4426
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "opens": "09:00",
+      "closes": "18:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Saturday",
+      "opens": "09:00",
+      "closes": "14:00"
+    }
+  ],
+  "sameAs": [
+    "https://www.facebook.com/estampadosdlv",
+    "https://www.instagram.com/estampadosdlv",
+    "https://www.tiktok.com/@estampadosdlv"
+  ],
+  "priceRange": "$$",
+  "makesOffer": [
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Impresión DTF Textil",
+        "description": "Impresión directa a film para textiles. Ideal para poleras, polerones y gorras."
+      }
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Impresión DTF UV",
+        "description": "Impresión UV para superficies rígidas. Llaveros, vasos, botellas."
+      }
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Ropa Lisa y Estampada",
+        "description": "Poleras, polerones, gorras y ropa de trabajo personalizadas."
+      }
+    },
+    {
+      "@type": "Offer",
+      "itemOffered": {
+        "@type": "Service",
+        "name": "Arma tu Pliego (Gang Sheet)",
+        "description": "Sube tus diseños y arma tu pliego de impresión DTF por metro lineal."
+      }
+    }
+  ],
+  "areaServed": {
+    "@type": "Country",
+    "name": "Chile"
+  }
+}) }}
+        />
+</head>
       <body className="min-h-screen bg-slate-50 font-sans antialiased">
+        <noscript dangerouslySetInnerHTML={{__html: `<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WVB67FNZ"
+height="0" width="0" style="display:none;visibility:hidden"></iframe>`}} />
+
         <Suspense fallback={null}>
           <TopProgressBar />
         </Suspense>
@@ -166,7 +349,16 @@ export default function RootLayout({ children }) {
           <LayoutSelector>{children}</LayoutSelector>
           <Toaster position="top-right" richColors />
         </Providers>
-      </body>
+      
+        <Script id="tiktok-pixel" strategy="afterInteractive">
+          {`!function (w, d, t) {
+            w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){var e=ttq._i[t]||[];for(var n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},
+ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/sdk.js?sdkid="+e;var a=ttq._i[e];a||(a={},ttq._i[e]=a,a.settings={}),a.settings.pageId=n||"",ttq[e]=ttq.instance(e);var r=document.createElement("script");r.type="text/javascript",r.async=!0,r.src=i;var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(r,s)};
+            ttq.load('REPLACE_WITH_PIXEL_ID');
+            ttq.page();
+          }(window, document, 'ttq');`}
+        </Script>
+</body>
     </html>
   );
 }

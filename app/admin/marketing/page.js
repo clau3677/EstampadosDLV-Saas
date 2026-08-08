@@ -843,6 +843,113 @@ function MetricsTab({ isConnected }) {
 // ---------------------------------------------------------------------------
 // Pestaña: Conexiones
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Toggle de Auto-Publishing
+// ---------------------------------------------------------------------------
+function AutoPublishingToggle({ status }) {
+  const [autoStatus, setAutoStatus] = useState(null);
+  const [toggling, setToggling] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAutoStatus = async () => {
+    try {
+      const res = await fetch('/api/marketing/auto/status');
+      const data = await res.json();
+      if (data.ok) setAutoStatus(data);
+    } catch (e) {
+      console.error('Error fetching auto status:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refresh = () => { setLoading(true); fetchAutoStatus(); };
+
+  useState(() => { fetchAutoStatus(); });
+
+  const toggle = async (enabled) => {
+    setToggling(true);
+    try {
+      const res = await fetch('/api/marketing/auto/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await fetchAutoStatus();
+      }
+    } catch (e) {
+      console.error('Error toggling auto-publishing:', e);
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground">Cargando estado...</p>;
+  if (!autoStatus) return <p className="text-sm text-amber-600">No disponible</p>;
+
+  const isEnabled = autoStatus.enabled;
+  const remaining = autoStatus.totalActiveProducts - autoStatus.productsPublishedThisCycle;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isEnabled ? (
+            <Play className="h-4 w-4 text-emerald-600" />
+          ) : (
+            <Pause className="h-4 w-4 text-amber-600" />
+          )}
+          <span className="text-sm font-medium">
+            {isEnabled ? 'Activo — publicando automáticamente' : 'Pausado'}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={isEnabled ? 'destructive' : 'default'}
+            size="sm"
+            disabled={toggling}
+            onClick={() => toggle(!isEnabled)}
+          >
+            {toggling ? (
+              '...'
+            ) : isEnabled ? (
+              <><Pause className="h-3.5 w-3.5 mr-1" /> Pausar</>
+            ) : (
+              <><Play className="h-3.5 w-3.5 mr-1" /> Reanudar</>
+            )}
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="rounded-lg border p-2">
+          <p className="text-muted-foreground">Publicados</p>
+          <p className="font-semibold">{autoStatus.productsPublishedThisCycle}</p>
+        </div>
+        <div className="rounded-lg border p-2">
+          <p className="text-muted-foreground">Restantes</p>
+          <p className="font-semibold">{Math.max(0, remaining)}</p>
+        </div>
+        <div className="rounded-lg border p-2">
+          <p className="text-muted-foreground">Programados hoy</p>
+          <p className="font-semibold">{autoStatus.scheduledToday}</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Ciclo: {autoStatus.totalActiveProducts} productos · Se publica 1 de cada categoría diaria · Sin repetir hasta agotar el catálogo.
+        {autoStatus.cycleStartedAt ? ` · Ciclo iniciado: ${new Date(autoStatus.cycleStartedAt).toLocaleDateString('es-CL')}` : ''}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="ghost" size="sm" onClick={refresh} disabled={toggling}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Actualizar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ConnectionsTab({ status, loading, onChanged }) {
   const [connecting, setConnecting] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -1103,6 +1210,19 @@ function ConnectionsTab({ status, loading, onChanged }) {
             </p>
           </CardContent>
         </Card>
+        {/* Auto-Publishing Toggle */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Publicación automática diaria</CardTitle>
+            <CardDescription>
+              Genera 4 posts con IA cada día (Ropa de Trabajo, Ropa Lisa, Gorras, DTF Textil) y los publica automáticamente cada 3 horas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <AutoPublishingToggle status={status} />
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
