@@ -23,7 +23,7 @@ import {
   Megaphone, RefreshCw, Sparkles, Send, CalendarClock, Trash2, Pencil,
   Facebook, Instagram, Link2, Unlink, CheckCircle2, XCircle, AlertTriangle,
   BarChart3, Rocket, ExternalLink, Copy, Clock, ImageIcon, Loader2,
-  Search, Target, TrendingUp, Zap, MapPin,
+  Search, Target, TrendingUp, Zap, MapPin, Play, Pause,
 } from 'lucide-react';
 
 const fmtCLP = (n) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(n ?? 0);
@@ -866,7 +866,7 @@ function AutoPublishingToggle({ status }) {
 
   const refresh = () => { setLoading(true); fetchAutoStatus(); };
 
-  useState(() => { fetchAutoStatus(); });
+  useEffect(() => { fetchAutoStatus(); }, []);
 
   const toggle = async (enabled) => {
     setToggling(true);
