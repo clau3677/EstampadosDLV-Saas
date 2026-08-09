@@ -37,6 +37,18 @@ export default function ThankYouPage() {
         const r = await fetch(`/api/orders/lookup?number=${orderNumber}`);
         const data = await r.json();
         if (r.ok) { setOrder(data.order); setItems(data.items || []); }
+        // Meta Pixel - Purchase event for catalog matching
+        if (typeof window.fbq === 'function' && data.order && data.items) {
+          const contentIds = data.items.map(i => i.productId || i.id).filter(Boolean);
+          window.fbq('track', 'Purchase', {
+            content_ids: contentIds,
+            content_type: 'product',
+            value: data.order.total || 0,
+            currency: 'CLP',
+            order_id: orderNumber || '',
+            num_items: data.items.length,
+          });
+        }
       } finally { setLoading(false); }
     })();
   }, [orderNumber]);

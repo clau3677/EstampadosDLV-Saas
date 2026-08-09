@@ -76,6 +76,17 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
         }
         setSelectedImage(0);
         setSelectedVariantId(prev => prev || p.variants?.[0]?.id || null);
+        // Meta Pixel - ViewContent event for catalog matching
+        if (typeof window.fbq === 'function' && p?.id) {
+          window.fbq('track', 'ViewContent', {
+            content_ids: [p.id],
+            content_type: 'product',
+            content_name: p.name || '',
+            content_category: p.category || '',
+            value: p.price || 0,
+            currency: 'CLP',
+          });
+        }
 
         const stockRows = await fetch(`/api/inventory/commercial?productId=${p.id}`).then(r => r.json());
         const stockForProduct = Array.isArray(stockRows) ? stockRows : [];
@@ -188,6 +199,17 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
       price,
       image: product.images?.[0] || null,
     }, qty);
+    // Meta Pixel - AddToCart event for catalog matching
+    if (typeof window.fbq === 'function') {
+      window.fbq('track', 'AddToCart', {
+        content_ids: [product.id],
+        content_type: 'product',
+        content_name: product.name || '',
+        content_category: product.category || '',
+        value: price || 0,
+        currency: 'CLP',
+      });
+    }
     toast.success('Agregado al carrito 🛒', { description: `${product.name} · ${selectedVariant.name}` });
     if (openAfter) openCart();
   };
