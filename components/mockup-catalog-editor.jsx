@@ -85,7 +85,115 @@ function restoreImgs(snapshotArr, cache) {
 }
 
 // ============================================================================
-// CANVAS DEL MOCKUP CON IMAGEN REAL Y BLEND PROFESIONAL
+// FUNCIONES DE DISPLACEMENT MAPPING (Estilo Placeit)
+// ============================================================================
+
+/**
+ * Genera un displacement map a partir de la imagen de la prenda.
+ * Usa la luminosidad para crear un mapa de altura que simula arrugas y relieve.
+ */
+function generateDisplacementMap(bgCanvas, dx, dy, dw, dh, designX, designY, designW, designH) {
+  const mapCanvas = document.createElement('canvas');
+  mapCanvas.width = designW;
+  mapCanvas.height = designH;
+  const mapCtx = mapCanvas.getContext('2d');
+  
+  // Dibujar la porción del fondo que está detrás del diseño
+  mapCtx.drawImage(bgCanvas, dx + designX, dy + designY, designW, designH, 0, 0, designW, designH);
+  
+  const imageData = mapCtx.getImageData(0, 0, designW, designH);
+  const data = imageData.data;
+  
+  // Aplicar blur/gaussian para suavizar (simula arrugas de tela)
+  const width = designW;
+  const height = designH;
+  const blurred = new Uint8ClampedArray(data.length);
+  
+  // Box blur simple (kernel 3x3)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      let rSum = 0, gSum = 0, bSum = 0;
+      let count = 0;
+      
+      for (let dy2 = -1; dy2 <= 1; dy2++) {
+        for (let dx2 = -1; dx2 <= 1; dx2++) {
+          const ny = y + dy2;
+          const nx = x + dx2;
+          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+            const nIdx = (ny * width + nx) * 4;
+            rSum += data[nIdx];
+            gSum += data[nIdx + 1];
+            bSum += data[nIdx + 2];
+            count++;
+          }
+        }
+      }
+      
+      const lum = (rSum / count * 0.299 + gSum / count * 0.587 + bSum / count * 0.114);
+      blurred[idx] = lum;
+      blurred[idx + 1] = lum;
+      blurred[idx + 2] = lum;
+      blurred[idx + 3] = 255;
+    }
+  }
+  
+  mapCtx.putImageData(new ImageData(blurred, width, height), 0, 0);
+  return mapCanvas;
+}
+
+/**
+ * Aplica displacement al diseño usando el mapa de la prenda.
+ * Esto hace que el diseño siga las arrugas y curvas de la tela.
+ */
+function applyDisplacement(designCanvas, displacementMap, strength) {
+  const w = designCanvas.width;
+  const h = designCanvas.height;
+  
+  const dCtx = designCanvas.getContext('2d');
+  const dData = dCtx.getImageData(0, 0, w, h);
+  const dd = dData.data;
+  
+  const mCtx = displacementMap.getContext('2d');
+  const mData = mCtx.getImageData(0, 0, w, h).data;
+  
+  // Crear nuevo canvas para el resultado
+  const resultCanvas = document.createElement('canvas');
+  resultCanvas.width = w;
+  resultCanvas.height = h;
+  const rCtx = resultCanvas.getContext('2d');
+  const rData = rCtx.createImageData(w, h);
+  const rd = rData.data;
+  
+  // Normalizar el displacement map (128 = sin desplazamiento)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const mx = x;
+      const my = y;
+      
+      // Desplazar coordenadas basado en la luminosidad del mapa
+      const displacement = ((mData[idx] - 128) / 128) * strength;
+      
+      const srcX = Math.round(mx + displacement);
+      const srcY = Math.round(my + displacement * 0.3);
+      
+      if (srcX >= 0 && srcX < w && srcY >= 0 && srcY < h) {
+        const srcIdx = (srcY * w + srcX) * 4;
+        rd[idx] = dd[srcIdx];
+        rd[idx + 1] = dd[srcIdx + 1];
+        rd[idx + 2] = dd[srcIdx + 2];
+        rd[idx + 3] = dd[srcIdx + 3];
+      }
+    }
+  }
+  
+  rCtx.putImageData(rData, 0, 0);
+  return resultCanvas;
+}
+
+// ============================================================================
+// CANVAS DEL MOCKUP CON IMAGEN REAL Y BLEND PROFESIONAL (Estilo Placeit)
 // ============================================================================
 function CatalogCanvas() {
   const canvasRef = useRef(null);
@@ -129,8 +237,9 @@ function CatalogCanvas() {
   }, [designs]);
 
   // ============================================================================
-  // FUNCIÓN DE BLEND PROFESIONAL: integra el diseño con la textura de la prenda
-  // Usa la luminosidad del fondo para simular sombras y relieve
+  // FUNCIÓN DE DISPLACEMENT + BLEND PROFESIONAL (Estilo Placeit)
+  // Usa displacement mapping para que el diseño siga las arrugas de la tela
+  // y blend luminosity para integrarse con las sombras
   // ============================================================================
   const drawDesignWithBlend = (ctx, design, bgCtx, bgCanvas, dx, dy, dw, dh) => {
     const cached = designCache.current.get(design.id);
@@ -145,62 +254,59 @@ function CatalogCanvas() {
     ctx.rotate((design.rotation || 0) * Math.PI / 180);
     ctx.translate(-cx, -cy);
 
-    // === BLEND PROFESIONAL ===
-    // 1. Dibujar el diseño normalmente
-    ctx.drawImage(cached.imgEl, design.x, design.y, design.width, design.height);
-    
-    // 2. Crear un canvas temporal con la región del fondo detrás del diseño
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = design.width;
-    tempCanvas.height = design.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // Dibujar la porción del fondo que está detrás del diseño
-    const bgScaleX = dw / bgCanvas.width;
-    const bgScaleY = dh / bgCanvas.height;
-    tempCtx.drawImage(
-      bgCanvas,
-      design.x - dx, design.y - dy, design.width, design.height,
-      0, 0, design.width, design.height
-    );
-    
-    // 3. Obtener los datos de píxeles del fondo para calcular luminosidad
-    const bgData = tempCtx.getImageData(0, 0, design.width, design.height);
-    
-    // 4. Obtener los datos de píxeles del diseño
+    // === PASO 1: Dibujar el diseño en un canvas temporal ===
     const designCanvas = document.createElement('canvas');
-    designCanvas.width = design.width;
-    designCanvas.height = design.height;
+    const dw2 = Math.round(design.width);
+    const dh2 = Math.round(design.height);
+    designCanvas.width = dw2;
+    designCanvas.height = dh2;
     const designCtx = designCanvas.getContext('2d');
-    designCtx.drawImage(cached.imgEl, 0, 0, design.width, design.height);
-    const designData = designCtx.getImageData(0, 0, design.width, design.height);
-    
-    // 5. Aplicar blend: usar la luminosidad del fondo para modificar el diseño
-    // Esto hace que el diseño siga las sombras y arrugas de la tela
-    const bd = bgData.data;
+    designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
+    const designData = designCtx.getImageData(0, 0, dw2, dh2);
     const dd = designData.data;
     
-    for (let i = 0; i < dd.length; i += 4) {
-      // Solo procesar píxeles no transparentes del diseño
-      if (dd[i + 3] > 0) {
-        // Calcular luminosidad del fondo en esta posición
+    // === PASO 2: Generar displacement map desde la textura de la tela ===
+    const dispStrength = 3; // Fuerza del desplazamiento (más alto = más arrugas visibles)
+    const dispMap = generateDisplacementMap(bgCanvas, dx, dy, dw, dh, design.x, design.y, dw2, dh2);
+    const displacedCanvas = applyDisplacement(designCanvas, dispMap, dispStrength);
+    
+    // === PASO 3: Obtener la textura de fondo para blend de luminosidad ===
+    const bgRegion = document.createElement('canvas');
+    bgRegion.width = dw2;
+    bgRegion.height = dh2;
+    const bgCtx2 = bgRegion.getContext('2d');
+    bgCtx2.drawImage(bgCanvas, dx + design.x, dy + design.y, dw2, dh2, 0, 0, dw2, dh2);
+    const bgData = bgCtx2.getImageData(0, 0, dw2, dh2);
+    const bd = bgData.data;
+    
+    // === PASO 4: Aplicar blend de luminosidad ===
+    const displacedData = displacedCanvas.getContext('2d').getImageData(0, 0, dw2, dh2);
+    const outData = displacedData.data;
+    
+    for (let i = 0; i < outData.length; i += 4) {
+      if (outData[i + 3] > 0) {
+        // Luminosidad del fondo (textura de la tela)
         const lum = (bd[i] * 0.299 + bd[i + 1] * 0.587 + bd[i + 2] * 0.114) / 255;
         
-        // Si el fondo es claro (polera blanca), aplicar el diseño con intensidad normal
-        // Si el fondo es oscuro, mantener el color pero ajustar brillo
-        const brightnessFactor = 0.7 + (lum * 0.3); // 0.7 a 1.0
+        // Multiplicar: oscurece donde la tela tiene sombras, aclara donde tiene luz
+        // Esto es el blend 'multiply' que usa Placeit
+        outData[i] = Math.min(255, Math.floor(outData[i] * lum * 1.5));
+        outData[i + 1] = Math.min(255, Math.floor(outData[i + 1] * lum * 1.5));
+        outData[i + 2] = Math.min(255, Math.floor(outData[i + 2] * lum * 1.5));
         
-        dd[i] = Math.min(255, Math.floor(dd[i] * brightnessFactor));
-        dd[i + 1] = Math.min(255, Math.floor(dd[i + 1] * brightnessFactor));
-        dd[i + 2] = Math.min(255, Math.floor(dd[i + 2] * brightnessFactor));
-        
-        // Aplicar opacidad del diseño
-        dd[i + 3] = Math.floor(dd[i + 3] * (design.opacity || 1));
+        // Opacidad
+        outData[i + 3] = Math.floor(outData[i + 3] * (design.opacity || 1));
       }
     }
     
-    // 6. Dibujar el diseño modificado sobre el canvas principal
-    ctx.putImageData(designData, design.x, design.y);
+    // === PASO 5: Dibujar el resultado final ===
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = dw2;
+    finalCanvas.height = dh2;
+    const finalCtx = finalCanvas.getContext('2d');
+    finalCtx.putImageData(new ImageData(outData, dw2, dh2), 0, 0);
+    
+    ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
     ctx.restore();
   };
 
