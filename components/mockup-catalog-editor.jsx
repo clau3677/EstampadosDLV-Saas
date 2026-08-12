@@ -192,7 +192,14 @@ function applyDisplacementAndBlend(designCanvas, displacementMap, bgRegionCanvas
         b = dd[srcIdx + 2];
         a = dd[srcIdx + 3];
       } else {
-        continue; // Pixel fuera de rango
+        // Pixel fuera de rango por displacement: usar el pixel más cercano (clamp)
+        const clampedX = Math.max(0, Math.min(w - 1, srcX));
+        const clampedY = Math.max(0, Math.min(h - 1, srcY));
+        const srcIdx = (clampedY * w + clampedX) * 4;
+        r = dd[srcIdx];
+        g = dd[srcIdx + 1];
+        b = dd[srcIdx + 2];
+        a = dd[srcIdx + 3];
       }
 
       if (a <= 0) {
