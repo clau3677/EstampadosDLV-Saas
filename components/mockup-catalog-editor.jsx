@@ -585,7 +585,9 @@ export default function CatalogCanvas() {
 
   // Funciones de gestión
   const addDesign = (imageData) => {
-    const id = crypto.randomUUID();
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const pa = printArea;
     const newDesign = {
       id,
@@ -630,7 +632,9 @@ export default function CatalogCanvas() {
   const duplicateDesign = (id) => {
     const orig = designs.find(d => d.id === id);
     if (!orig) return;
-    const newId = crypto.randomUUID();
+    const newId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newDesign = { ...orig, id: newId, x: orig.x + 20, y: orig.y + 20 };
     setDesigns(prev => [...prev, newDesign]);
     setSelectedDesignId(newId);
