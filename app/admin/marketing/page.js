@@ -409,15 +409,31 @@ function PostsTab({ isConnected, aiConfigured }) {
             <Card key={post.id}>
               <CardContent className="py-4">
                 <div className="flex gap-4">
-                  {/* Imagen */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={post.imageUrl.startsWith('http') ? post.imageUrl : `/api/thumbnails?src=${encodeURIComponent(post.imageUrl)}&w=192&format=webp&q=80`}
-                    alt={post.altText || post.productName}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-24 w-24 rounded-lg object-cover shrink-0 border"
-                  />
+                  {/* Imagen o Video thumbnail */}
+                  {post.isVideo && post.videoUrl ? (
+                    <div className="relative h-24 w-24 rounded-lg overflow-hidden shrink-0 border bg-gray-900 flex items-center justify-center">
+                      <video
+                        src={post.videoUrl.startsWith('http') ? post.videoUrl : post.videoUrl}
+                        className="h-full w-full object-cover"
+                        preload="none"
+                        muted
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-white/80 rounded-full p-1.5">
+                          <Play className="h-4 w-4 text-gray-900" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={post.imageUrl?.startsWith('http') ? post.imageUrl : `/api/thumbnails?src=${encodeURIComponent(post.imageUrl || '')}&w=192&format=webp&q=80`}
+                      alt={post.altText || post.productName}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-24 w-24 rounded-lg object-cover shrink-0 border"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm truncate">{post.productName}</span>
