@@ -1143,19 +1143,23 @@ function LibraryPicker({ onSelect }) {
           >
             Todas
           </button>
-          {folders.slice(0, 12).map(f => (
-            <button
-              key={f}
-              onClick={() => setSelectedFolder(f === selectedFolder ? null : f)}
-              className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
-                selectedFolder === f
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
+          {folders.slice(0, 12).map(f => {
+            const fName = typeof f === 'string' ? f : f?.name || 'Sin carpeta';
+            const fKey = typeof f === 'string' ? f : f?.name || 'other';
+            return (
+              <button
+                key={fKey}
+                onClick={() => setSelectedFolder(fName === selectedFolder ? null : fName)}
+                className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
+                  selectedFolder === fName
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
+                }`}
+              >
+                {fName}
+              </button>
+            );
+          })}
         </div>
       )}
 
