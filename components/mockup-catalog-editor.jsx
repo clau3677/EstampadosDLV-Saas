@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, Upload, Trash2, Copy, RotateCw, Undo2, Redo2,
   ZoomIn, ZoomOut, Download, Shirt, Loader2, Image as ImageIcon,
-  Sparkles, MousePointer2, Check, Layers,
+  Sparkles, MousePointer2, Check, Layers, Search, FolderOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,64 +15,80 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 
 // ============================================================================
-// PLANTILLAS DE PRENDAS - FOTOS REALES DEL CATÁLOGO
+// CARGA DINÁMICA DE PRODUCTOS DEL CATÁLOGO
 // ============================================================================
-const CATALOG_PRODUCT_TEMPLATES = [
-  // Poleras
-  { id: 'polera-blanca', label: 'Polera Blanca', category: 'poleras', 
-    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/mockups/polera-blanca-real.png' },
-  { id: 'polera-roja', label: 'Polera Roja', category: 'poleras',
-    printArea: { x: 0.28, y: 0.32, w: 0.44, h: 0.48 },
-    bgImage: '/uploads/proveedor/cottonext/00cd8f6ed8c08819.jpg' },
-  { id: 'polera-gris', label: 'Polera Gris', category: 'poleras',
-    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/uploads/proveedor/cottonext/0117cd2f0571f3fd.jpg' },
-  { id: 'polera-negra-hammer', label: 'Polera Negra', category: 'poleras',
-    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/uploads/proveedor/cottonext/be165532e420cda8.jpg' },
-  { id: 'polera-gildan-5000', label: 'Polera Gildan 5000', category: 'poleras',
-    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/uploads/proveedor/cottonext/e04df29255fac050.jpg' },
-  { id: 'polera-gildan-64000', label: 'Polera Gildan 64000', category: 'poleras',
-    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/uploads/proveedor/cottonext/33c472ed26654f42.jpg' },
-  // Polerones
-  { id: 'poleron-blanco', label: 'Polerón Blanco', category: 'polerones',
-    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/mockups/poleron-blanco-real.png' },
-  { id: 'poleron-crew', label: 'Polerón Crew', category: 'polerones',
-    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/uploads/proveedor/cottonext/e3c4adf1652e2d09.png' },
-  { id: 'poleron-canguro', label: 'Polerón Canguro', category: 'polerones',
-    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/uploads/proveedor/cottonext/e3e1b6eabae95719.png' },
-  { id: 'poleron-bomber', label: 'Polerón Bomber', category: 'polerones',
-    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/uploads/proveedor/cottonext/14fd520205a50fe9.png' },
-  // Gorras
-  { id: 'gorra-blanca', label: 'Gorra Blanca', category: 'gorras',
-    printArea: { x: 0.35, y: 0.32, w: 0.30, h: 0.20 },
-    bgImage: '/mockups/gorra-blanca-real.png' },
-  { id: 'gorra-5panel', label: 'Gorra 5Panel', category: 'gorras',
-    printArea: { x: 0.35, y: 0.30, w: 0.30, h: 0.22 },
-    bgImage: '/uploads/proveedor/cottonext/c43d1ab79b92f768.jpg' },
-  { id: 'gorra-6panel', label: 'Gorra 6Panel', category: 'gorras',
-    printArea: { x: 0.35, y: 0.30, w: 0.30, h: 0.22 },
-    bgImage: '/uploads/proveedor/cottonext/c156a6cfe2e46d77.jpg' },
-  { id: 'gorro-beanie', label: 'Gorro Beanie', category: 'gorras',
-    printArea: { x: 0.30, y: 0.28, w: 0.40, h: 0.30 },
-    bgImage: '/uploads/proveedor/cottonext/c43d1ab79b92f768.jpg' },
-];
+// El editor carga TODOS los productos activos del catálogo desde /api/products
+// y los muestra en el sidebar como plantillas de mockup.
 
-// Mapeo por ID para acceso rápido
-const TEMPLATE_MAP = Object.fromEntries(
-  CATALOG_PRODUCT_TEMPLATES.map(t => [t.id, t])
-);
+const CANVAS_SIZE = 800;
+const HISTORY_LIMIT = 30;
+const LIBRARY_PAGE_SIZE = 48;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// Categorías del catálogo y sus labels
+const CATEGORY_LABELS = {
+  blank_apparel: 'Ropa Lisa',
+  caps_hats: 'Gorras',
+  workwear: 'Ropa de Trabajo',
+  printed_apparel: 'Ropa Estampada',
+  merch: 'Merchandising',
+  dtf_meter: 'DTF por metro',
+};
+
+// Print areas por categoría (zona donde se coloca el diseño)
+function getPrintArea(category, subcategory, name) {
+  const n = (name || '').toLowerCase();
+  // Gorras
+  if (category === 'caps_hats' || n.includes('gorra') || n.includes('gorro')) {
+    return { x: 0.35, y: 0.30, w: 0.30, h: 0.25 };
+  }
+  // Polerones
+  if (category === 'blank_apparel' && subcategory === 'polerones') {
+    return { x: 0.25, y: 0.28, w: 0.50, h: 0.45 };
+  }
+  // Poleras
+  if (category === 'blank_apparel' && subcategory === 'poleras') {
+    return { x: 0.28, y: 0.28, w: 0.44, h: 0.48 };
+  }
+  // Pantalones / shorts / otros
+  if (category === 'blank_apparel' && (subcategory === 'pantalones' || subcategory === 'shorts')) {
+    return { x: 0.30, y: 0.25, w: 0.40, h: 0.45 };
+  }
+  // Ropa de trabajo
+  if (category === 'workwear') {
+    return { x: 0.28, y: 0.25, w: 0.44, h: 0.50 };
+  }
+  // Ropa estampada
+  if (category === 'printed_apparel') {
+    return { x: 0.28, y: 0.28, w: 0.44, h: 0.48 };
+  }
+  // Merch
+  if (category === 'merch') {
+    return { x: 0.30, y: 0.30, w: 0.40, h: 0.40 };
+  }
+  // DTF meter
+  if (category === 'dtf_meter') {
+    return { x: 0.25, y: 0.30, w: 0.50, h: 0.40 };
+  }
+  // Default
+  return { x: 0.28, y: 0.28, w: 0.44, h: 0.45 };
+}
+
+// Detectar si la prenda es clara u oscura (luminosidad promedio)
+function isGarmentDark(imgData) {
+  if (!imgData) return false;
+  const data = imgData.data;
+  let lumSum = 0;
+  let count = 0;
+  const step = Math.max(1, Math.floor(data.length / 4 / 100)); // Sample ~100 pixels
+  for (let i = 0; i < data.length; i += 4 * step) {
+    lumSum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+    count++;
+  }
+  return (lumSum / count) < 100; // < 100 = oscura
+}
 
 // Historial
-const HISTORY_LIMIT = 30;
-
 function snapshot(designs) {
   return designs.map(d => {
     const { imgEl, ...rest } = d;
@@ -85,39 +101,31 @@ function restoreImgs(snapshotArr, cache) {
 }
 
 // ============================================================================
-// FUNCIONES DE DISPLACEMENT MAPPING (Estilo Placeit)
+// GENERACIÓN DE DISPLACEMENT MAP (hace que el diseño siga las arrugas)
 // ============================================================================
-
-/**
- * Genera un displacement map a partir de la imagen de la prenda.
- * Usa la luminosidad para crear un mapa de altura que simula arrugas y relieve.
- */
-function generateDisplacementMap(bgCanvas, dx, dy, dw, dh, designX, designY, designW, designH) {
+function generateDisplacementMap(bgCanvas, dx, dy, designX, designY, designW, designH) {
   const mapCanvas = document.createElement('canvas');
   mapCanvas.width = designW;
   mapCanvas.height = designH;
   const mapCtx = mapCanvas.getContext('2d');
-  
-  // Dibujar la porción del fondo que está detrás del diseño
+
   mapCtx.drawImage(bgCanvas, dx + designX, dy + designY, designW, designH, 0, 0, designW, designH);
-  
   const imageData = mapCtx.getImageData(0, 0, designW, designH);
   const data = imageData.data;
-  
-  // Aplicar blur/gaussian para suavizar (simula arrugas de tela)
+
   const width = designW;
   const height = designH;
   const blurred = new Uint8ClampedArray(data.length);
-  
-  // Box blur simple (kernel 3x3)
+
+  // Box blur (kernel 5x5 para más suavidad)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
       let rSum = 0, gSum = 0, bSum = 0;
       let count = 0;
-      
-      for (let dy2 = -1; dy2 <= 1; dy2++) {
-        for (let dx2 = -1; dx2 <= 1; dx2++) {
+
+      for (let dy2 = -2; dy2 <= 2; dy2++) {
+        for (let dx2 = -2; dx2 <= 2; dx2++) {
           const ny = y + dy2;
           const nx = x + dx2;
           if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
@@ -129,7 +137,7 @@ function generateDisplacementMap(bgCanvas, dx, dy, dw, dh, designX, designY, des
           }
         }
       }
-      
+
       const lum = (rSum / count * 0.299 + gSum / count * 0.587 + bSum / count * 0.114);
       blurred[idx] = lum;
       blurred[idx + 1] = lum;
@@ -137,90 +145,204 @@ function generateDisplacementMap(bgCanvas, dx, dy, dw, dh, designX, designY, des
       blurred[idx + 3] = 255;
     }
   }
-  
+
   mapCtx.putImageData(new ImageData(blurred, width, height), 0, 0);
   return mapCanvas;
 }
 
-/**
- * Aplica displacement al diseño usando el mapa de la prenda.
- * Esto hace que el diseño siga las arrugas y curvas de la tela.
- */
-function applyDisplacement(designCanvas, displacementMap, strength) {
+// ============================================================================
+// APLICAR DISPLACEMENT + BLEND PROFESIONAL
+// ============================================================================
+function applyDisplacementAndBlend(designCanvas, displacementMap, bgRegionCanvas, opacity, garmentDark) {
   const w = designCanvas.width;
   const h = designCanvas.height;
-  
+
   const dCtx = designCanvas.getContext('2d');
-  const dData = dCtx.getImageData(0, 0, w, h);
-  const dd = dData.data;
-  
+  const dd = dCtx.getImageData(0, 0, w, h).data;
+
   const mCtx = displacementMap.getContext('2d');
-  const mData = mCtx.getImageData(0, 0, w, h).data;
-  
-  // Crear nuevo canvas para el resultado
+  const md = mCtx.getImageData(0, 0, w, h).data;
+
+  const bgCtx = bgRegionCanvas.getContext('2d');
+  const bd = bgCtx.getImageData(0, 0, w, h).data;
+
   const resultCanvas = document.createElement('canvas');
   resultCanvas.width = w;
   resultCanvas.height = h;
   const rCtx = resultCanvas.getContext('2d');
   const rData = rCtx.createImageData(w, h);
   const rd = rData.data;
-  
-  // Normalizar el displacement map (128 = sin desplazamiento)
+
+  const strength = 2.5; // Fuerza del displacement (sutil para realismo)
+
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = (y * w + x) * 4;
-      const mx = x;
-      const my = y;
-      
-      // Desplazar coordenadas basado en la luminosidad del mapa
-      const displacement = ((mData[idx] - 128) / 128) * strength;
-      
-      const srcX = Math.round(mx + displacement);
-      const srcY = Math.round(my + displacement * 0.3);
-      
+
+      // Desplazamiento basado en la textura de la tela
+      const disp = ((md[idx] - 128) / 128) * strength;
+      const srcX = Math.round(x + disp);
+      const srcY = Math.round(y + disp * 0.4);
+
+      let r, g, b, a;
       if (srcX >= 0 && srcX < w && srcY >= 0 && srcY < h) {
         const srcIdx = (srcY * w + srcX) * 4;
-        rd[idx] = dd[srcIdx];
-        rd[idx + 1] = dd[srcIdx + 1];
-        rd[idx + 2] = dd[srcIdx + 2];
-        rd[idx + 3] = dd[srcIdx + 3];
+        r = dd[srcIdx];
+        g = dd[srcIdx + 1];
+        b = dd[srcIdx + 2];
+        a = dd[srcIdx + 3];
+      } else {
+        continue; // Pixel fuera de rango
       }
+
+      if (a <= 0) {
+        rd[idx + 3] = 0;
+        continue;
+      }
+
+      // Luminosidad de la tela en este punto
+      const lum = (bd[idx] * 0.299 + bd[idx + 1] * 0.587 + bd[idx + 2] * 0.114) / 255;
+
+      // Blend inteligente:
+      // - Prenda CLARA: multiply (el diseño se oscurece con las sombras de la tela)
+      // - Prenda OSCURA: screen (el diseño se aclara con las luces de la tela)
+      let outR, outG, outB;
+
+      if (garmentDark) {
+        // Screen blend: 1 - (1-a)*(1-b)
+        const rNorm = r / 255;
+        const gNorm = g / 255;
+        const bNorm = b / 255;
+        outR = (1 - (1 - rNorm) * (1 - lum)) * 255;
+        outG = (1 - (1 - gNorm) * (1 - lum)) * 255;
+        outB = (1 - (1 - bNorm) * (1 - lum)) * 255;
+      } else {
+        // Multiply blend: a * b
+        outR = r * lum;
+        outG = g * lum;
+        outB = b * lum;
+      }
+
+      rd[idx] = Math.min(255, Math.max(0, Math.floor(outR)));
+      rd[idx + 1] = Math.min(255, Math.max(0, Math.floor(outG)));
+      rd[idx + 2] = Math.min(255, Math.max(0, Math.floor(outB)));
+      rd[idx + 3] = Math.floor(a * opacity);
     }
   }
-  
+
   rCtx.putImageData(rData, 0, 0);
   return resultCanvas;
 }
 
 // ============================================================================
-// CANVAS DEL MOCKUP CON IMAGEN REAL Y BLEND PROFESIONAL (Estilo Placeit)
+// COMPONENTE PRINCIPAL: Editor de Mockups
 // ============================================================================
-function CatalogCanvas() {
+export default function CatalogCanvas() {
   const canvasRef = useRef(null);
   const [bgImage, setBgImage] = useState(null);
+  const [bgImgData, setBgImgData] = useState(null); // Para detección de oscuridad
   const [designs, setDesigns] = useState([]);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [zoom, setZoom] = useState(1);
-  const [selectedTemplate, setSelectedTemplate] = useState('polera-blanca');
+  const [selectedProduct, setSelectedProduct] = useState(null); // Producto del catálogo
   const [showPrintArea, setShowPrintArea] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [resizeState, setResizeState] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Productos del catálogo
+  const [catalogProducts, setCatalogProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [productSearch, setProductSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(null);
+
   const designCache = useRef(new Map());
-  const canvasSize = 800;
 
-  const template = TEMPLATE_MAP[selectedTemplate] || TEMPLATE_MAP['polera-blanca'];
-  const pa = template.printArea;
-
-  // Cargar imagen de fondo
+  // Cargar productos del catálogo
   useEffect(() => {
+    const loadProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const r = await fetch('/api/products');
+        if (r.ok) {
+          const all = await r.json();
+          // Filtrar productos activos con imágenes
+          const active = all.filter(p => p.active && p.images && p.images.length > 0);
+          setCatalogProducts(active);
+          // Seleccionar el primer producto por defecto
+          if (active.length > 0) {
+            setSelectedProduct(active[0]);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading products:', err);
+        toast.error('Error al cargar el catálogo');
+      }
+      setLoadingProducts(false);
+    };
+    loadProducts();
+  }, []);
+
+  // Obtener print area del producto seleccionado
+  const printArea = useMemo(() => {
+    if (!selectedProduct) return getPrintArea('blank_apparel', 'poleras', '');
+    return getPrintArea(selectedProduct.category, selectedProduct.subcategory, selectedProduct.name);
+  }, [selectedProduct]);
+
+  // Productos filtrados
+  const filteredProducts = useMemo(() => {
+    let result = catalogProducts;
+    if (categoryFilter) {
+      result = result.filter(p => p.category === categoryFilter);
+    }
+    if (productSearch.trim()) {
+      const q = productSearch.toLowerCase();
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q) ||
+        (p.subcategory || '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [catalogProducts, categoryFilter, productSearch]);
+
+  // Categorías disponibles
+  const availableCategories = useMemo(() => {
+    const cats = new Map();
+    catalogProducts.forEach(p => {
+      const c = p.category || 'other';
+      const label = CATEGORY_LABELS[c] || c;
+      if (!cats.has(c)) {
+        cats.set(c, { code: c, label, count: 0 });
+      }
+      cats.get(c).count++;
+    });
+    return Array.from(cats.values()).sort((a, b) => b.count - a.count);
+  }, [catalogProducts]);
+
+  // Cargar imagen de fondo cuando cambia el producto
+  useEffect(() => {
+    if (!selectedProduct) return;
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => setBgImage(img);
-    img.onerror = () => { toast.error('Error al cargar imagen de la prenda'); };
-    img.src = template.bgImage;
-  }, [selectedTemplate]);
+    img.onload = () => {
+      setBgImage(img);
+      // Detectar si la prenda es clara u oscura
+      const tmpCanvas = document.createElement('canvas');
+      const w = Math.min(img.width, 200);
+      const h = Math.min(img.height, 200);
+      tmpCanvas.width = w;
+      tmpCanvas.height = h;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.drawImage(img, 0, 0, w, h);
+      setBgImgData(tmpCtx.getImageData(0, 0, w, h));
+    };
+    img.onerror = () => {
+      toast.error('Error al cargar imagen del producto');
+    };
+    img.src = selectedProduct.images[0];
+  }, [selectedProduct]);
 
   // Cache de imágenes de diseño
   useEffect(() => {
@@ -236,97 +358,23 @@ function CatalogCanvas() {
     });
   }, [designs]);
 
-  // ============================================================================
-  // FUNCIÓN DE DISPLACEMENT + BLEND PROFESIONAL (Estilo Placeit)
-  // Usa displacement mapping para que el diseño siga las arrugas de la tela
-  // y blend luminosity para integrarse con las sombras
-  // ============================================================================
-  const drawDesignWithBlend = (ctx, design, bgCtx, bgCanvas, dx, dy, dw, dh) => {
-    const cached = designCache.current.get(design.id);
-    if (!cached?.imgEl) return;
-
-    ctx.save();
-    
-    // Centro de rotación
-    const cx = design.x + design.width / 2;
-    const cy = design.y + design.height / 2;
-    ctx.translate(cx, cy);
-    ctx.rotate((design.rotation || 0) * Math.PI / 180);
-    ctx.translate(-cx, -cy);
-
-    // === PASO 1: Dibujar el diseño en un canvas temporal ===
-    const designCanvas = document.createElement('canvas');
-    const dw2 = Math.round(design.width);
-    const dh2 = Math.round(design.height);
-    designCanvas.width = dw2;
-    designCanvas.height = dh2;
-    const designCtx = designCanvas.getContext('2d');
-    designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
-    const designData = designCtx.getImageData(0, 0, dw2, dh2);
-    const dd = designData.data;
-    
-    // === PASO 2: Generar displacement map desde la textura de la tela ===
-    const dispStrength = 3; // Fuerza del desplazamiento (más alto = más arrugas visibles)
-    const dispMap = generateDisplacementMap(bgCanvas, dx, dy, dw, dh, design.x, design.y, dw2, dh2);
-    const displacedCanvas = applyDisplacement(designCanvas, dispMap, dispStrength);
-    
-    // === PASO 3: Obtener la textura de fondo para blend de luminosidad ===
-    const bgRegion = document.createElement('canvas');
-    bgRegion.width = dw2;
-    bgRegion.height = dh2;
-    const bgCtx2 = bgRegion.getContext('2d');
-    bgCtx2.drawImage(bgCanvas, dx + design.x, dy + design.y, dw2, dh2, 0, 0, dw2, dh2);
-    const bgData = bgCtx2.getImageData(0, 0, dw2, dh2);
-    const bd = bgData.data;
-    
-    // === PASO 4: Aplicar blend de luminosidad ===
-    const displacedData = displacedCanvas.getContext('2d').getImageData(0, 0, dw2, dh2);
-    const outData = displacedData.data;
-    
-    for (let i = 0; i < outData.length; i += 4) {
-      if (outData[i + 3] > 0) {
-        // Luminosidad del fondo (textura de la tela)
-        const lum = (bd[i] * 0.299 + bd[i + 1] * 0.587 + bd[i + 2] * 0.114) / 255;
-        
-        // Multiplicar: oscurece donde la tela tiene sombras, aclara donde tiene luz
-        // Esto es el blend 'multiply' que usa Placeit
-        outData[i] = Math.min(255, Math.floor(outData[i] * lum * 1.5));
-        outData[i + 1] = Math.min(255, Math.floor(outData[i + 1] * lum * 1.5));
-        outData[i + 2] = Math.min(255, Math.floor(outData[i + 2] * lum * 1.5));
-        
-        // Opacidad
-        outData[i + 3] = Math.floor(outData[i + 3] * (design.opacity || 1));
-      }
-    }
-    
-    // === PASO 5: Dibujar el resultado final ===
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = dw2;
-    finalCanvas.height = dh2;
-    const finalCtx = finalCanvas.getContext('2d');
-    finalCtx.putImageData(new ImageData(outData, dw2, dh2), 0, 0);
-    
-    ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
-    ctx.restore();
-  };
-
   // Dibujar canvas
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const cs = canvasSize * zoom;
+    const cs = CANVAS_SIZE * zoom;
     canvas.width = cs;
     canvas.height = cs;
 
     ctx.clearRect(0, 0, cs, cs);
 
-    // Dibujar imagen de fondo (prenda real)
+    // Dibujar imagen de fondo (producto real)
+    let drawW, drawH, drawX, drawY;
     if (bgImage) {
       const imgAspect = bgImage.width / bgImage.height;
       const canvasAspect = 1;
 
-      let drawW, drawH, drawX, drawY;
       if (imgAspect > canvasAspect) {
         drawW = cs * 0.95;
         drawH = drawW / imgAspect;
@@ -347,10 +395,10 @@ function CatalogCanvas() {
       ctx.strokeStyle = 'rgba(255,100,0,0.5)';
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 4]);
-      const px = pa.x * cs;
-      const py = pa.y * cs;
-      const pw = pa.w * cs;
-      const ph = pa.h * cs;
+      const px = printArea.x * cs;
+      const py = printArea.y * cs;
+      const pw = printArea.w * cs;
+      const ph = printArea.h * cs;
       ctx.strokeRect(px, py, pw, ph);
       ctx.fillStyle = 'rgba(255,100,0,0.7)';
       ctx.font = `${Math.max(10, cs * 0.018)}px system-ui`;
@@ -363,9 +411,45 @@ function CatalogCanvas() {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
 
-      // Usar blend profesional (integra con la textura de la prenda)
-      drawDesignWithBlend(ctx, design, ctx, canvas, drawX || 0, drawY || 0, drawW || cs, drawH || cs);
-      
+      // Paso 1: Canvas temporal del diseño
+      const designCanvas = document.createElement('canvas');
+      const dw2 = Math.round(design.width);
+      const dh2 = Math.round(design.height);
+      designCanvas.width = dw2;
+      designCanvas.height = dh2;
+      const designCtx = designCanvas.getContext('2d');
+
+      // Aplicar rotación
+      designCtx.save();
+      const cx = dw2 / 2;
+      const cy = dh2 / 2;
+      designCtx.translate(cx, cy);
+      designCtx.rotate((design.rotation || 0) * Math.PI / 180);
+      designCtx.translate(-cx, -cy);
+      designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
+      designCtx.restore();
+
+      // Paso 2: Generar displacement map desde la textura de la tela
+      const dispMap = generateDisplacementMap(canvas, drawX || 0, drawY || 0, design.x, design.y, dw2, dh2);
+
+      // Paso 3: Obtener la región de fondo detrás del diseño
+      const bgRegion = document.createElement('canvas');
+      bgRegion.width = dw2;
+      bgRegion.height = dh2;
+      const bgCtx2 = bgRegion.getContext('2d');
+      bgCtx2.drawImage(canvas, (drawX || 0) + design.x, (drawY || 0) + design.y, dw2, dh2, 0, 0, dw2, dh2);
+
+      // Paso 4: Aplicar displacement + blend
+      const isDark = isGarmentDark(bgImgData);
+      const finalCanvas = applyDisplacementAndBlend(
+        designCanvas, dispMap, bgRegion, design.opacity || 1, isDark
+      );
+
+      // Paso 5: Dibujar resultado
+      ctx.save();
+      ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
+      ctx.restore();
+
       // Borde de selección
       if (design.id === selectedDesignId) {
         ctx.save();
@@ -380,15 +464,15 @@ function CatalogCanvas() {
         ctx.restore();
       }
     }
-  }, [bgImage, designs, selectedDesignId, zoom, canvasSize, pa, showPrintArea]);
+  }, [bgImage, bgImgData, designs, selectedDesignId, zoom, printArea, showPrintArea]);
 
   useEffect(() => { drawCanvas(); }, [drawCanvas]);
 
   // Eventos de mouse
   const getMousePos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
-    const scaleX = canvasSize * zoom / rect.width;
-    const scaleY = canvasSize * zoom / rect.height;
+    const scaleX = CANVAS_SIZE * zoom / rect.width;
+    const scaleY = CANVAS_SIZE * zoom / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
@@ -397,8 +481,9 @@ function CatalogCanvas() {
 
   const handleMouseDown = (e) => {
     const pos = getMousePos(e);
-    const cs = canvasSize * zoom;
+    const cs = CANVAS_SIZE * zoom;
 
+    // Resize handle
     if (selectedDesignId) {
       const sel = designs.find(d => d.id === selectedDesignId);
       if (sel) {
@@ -418,6 +503,7 @@ function CatalogCanvas() {
       }
     }
 
+    // Hit test
     let clickedId = null;
     for (let i = designs.length - 1; i >= 0; i--) {
       const d = designs[i];
@@ -500,13 +586,14 @@ function CatalogCanvas() {
   // Funciones de gestión
   const addDesign = (imageData) => {
     const id = crypto.randomUUID();
+    const pa = printArea;
     const newDesign = {
       id,
       ...imageData,
-      x: canvasSize * 0.35,
-      y: canvasSize * 0.35,
-      width: canvasSize * 0.30,
-      height: canvasSize * 0.30,
+      x: pa.x * CANVAS_SIZE,
+      y: pa.y * CANVAS_SIZE,
+      width: pa.w * CANVAS_SIZE,
+      height: pa.h * CANVAS_SIZE,
       rotation: 0,
       opacity: 1,
     };
@@ -584,24 +671,24 @@ function CatalogCanvas() {
 
     const exportCanvas = document.createElement('canvas');
     const scale = 2;
-    exportCanvas.width = canvasSize * scale;
-    exportCanvas.height = canvasSize * scale;
+    exportCanvas.width = CANVAS_SIZE * scale;
+    exportCanvas.height = CANVAS_SIZE * scale;
     const ctx = exportCanvas.getContext('2d');
 
+    let drawW, drawH, drawX, drawY;
     if (bgImage) {
       const imgAspect = bgImage.width / bgImage.height;
       const canvasAspect = 1;
-      let drawW, drawH, drawX, drawY;
       if (imgAspect > canvasAspect) {
-        drawW = canvasSize * scale * 0.95;
+        drawW = CANVAS_SIZE * scale * 0.95;
         drawH = drawW / imgAspect;
-        drawX = (canvasSize * scale - drawW) / 2;
-        drawY = (canvasSize * scale - drawH) / 2;
+        drawX = (CANVAS_SIZE * scale - drawW) / 2;
+        drawY = (CANVAS_SIZE * scale - drawH) / 2;
       } else {
-        drawH = canvasSize * scale * 0.95;
+        drawH = CANVAS_SIZE * scale * 0.95;
         drawW = drawH * imgAspect;
-        drawX = (canvasSize * scale - drawW) / 2;
-        drawY = (canvasSize * scale - drawH) / 2;
+        drawX = (CANVAS_SIZE * scale - drawW) / 2;
+        drawY = (CANVAS_SIZE * scale - drawH) / 2;
       }
       ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
     }
@@ -611,7 +698,7 @@ function CatalogCanvas() {
       if (!cached?.imgEl) continue;
       ctx.save();
       ctx.globalAlpha = design.opacity || 1;
-      const sx = canvasSize * scale / canvasSize;
+      const sx = scale;
       const cx = (design.x + design.width / 2) * sx;
       const cy = (design.y + design.height / 2) * sx;
       ctx.translate(cx, cy);
@@ -623,19 +710,14 @@ function CatalogCanvas() {
 
     const dataUrl = exportCanvas.toDataURL('image/png', 1.0);
     const link = document.createElement('a');
-    link.download = `mockup-${template.label.replace(/\s|\(|\)/g, '_')}-${Date.now()}.png`;
+    const productName = selectedProduct?.name?.replace(/\s+/g, '_') || 'mockup';
+    link.download = `mockup-${productName}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
     toast.success('Mockup exportado');
   };
 
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
-
-  const garmentTypes = [
-    { group: 'Poleras', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'poleras').map(t => t.id) },
-    { group: 'Polerones', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'polerones').map(t => t.id) },
-    { group: 'Gorras', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'gorras').map(t => t.id) },
-  ];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-140px)]">
@@ -647,9 +729,11 @@ function CatalogCanvas() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <h1 className="text-xl font-bold text-slate-900">Editor de Mockups</h1>
-            <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px]">
-              {template?.label}
-            </Badge>
+            {selectedProduct && (
+              <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px]">
+                {selectedProduct.name}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0} title="Deshacer">
@@ -674,7 +758,7 @@ function CatalogCanvas() {
 
         {/* Canvas */}
         <div className="relative rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-white"
-          style={{ width: canvasSize * zoom, height: canvasSize * zoom }}
+          style={{ width: CANVAS_SIZE * zoom, height: CANVAS_SIZE * zoom }}
         >
           <canvas
             ref={canvasRef}
@@ -687,6 +771,11 @@ function CatalogCanvas() {
             onTouchEnd={handleMouseUp}
             className="block w-full h-full"
           />
+          {loadingProducts && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            </div>
+          )}
         </div>
         <div className="mt-3 flex items-center gap-3">
           <Button variant="outline" size="sm"
@@ -705,66 +794,116 @@ function CatalogCanvas() {
         </div>
         <div className="mt-4 text-center text-xs text-slate-500 max-w-md">
           Arrastra los diseños para posicionarlos. Usa el handle naranja para redimensionar.
+          Selecciona un producto del catálogo para cambiar la prenda base.
         </div>
       </div>
 
       {/* ============ SIDEBAR ============ */}
-      <div className="w-full lg:w-80 xl:w-96 shrink-0">
+      <div className="w-full lg:w-96 xl:w-[420px] shrink-0">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
           <div className="p-4 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto">
-            {/* Selector de prendas del catálogo */}
+
+            {/* Selector de productos del catálogo */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Elige tu prenda</h3>
-              <div className="space-y-3">
-                {garmentTypes.map(group => (
-                  <div key={group.group}>
-                    <div className="text-xs text-slate-500 font-medium mb-1.5">{group.group}</div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {group.items.map(id => {
-                        const t = TEMPLATE_MAP[id];
-                        if (!t) return null;
-                        const active = selectedTemplate === id;
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => {
-                              setSelectedTemplate(id);
-                              setDesigns([]);
-                              setSelectedDesignId(null);
-                              setHistory([]);
-                              setHistoryIndex(-1);
-                              designCache.current.clear();
-                            }}
-                            className={`
-                              relative rounded-lg overflow-hidden border-2 transition-all aspect-square
-                              ${active
-                                ? 'border-orange-500 shadow-md ring-2 ring-orange-200'
-                                : 'border-slate-200 hover:border-orange-300'}
-                            `}
-                          >
-                            <img
-                              src={t.bgImage}
-                              alt={t.label}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                            <div className={`absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] py-0.5 px-1 truncate`}>
-                              {t.label}
-                            </div>
-                            {active && (
-                              <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-0.5">
-                                <Check className="h-2.5 w-2.5 text-white" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                <Shirt className="h-3.5 w-3.5" />
+                Elige tu producto ({catalogProducts.length})
+              </h3>
+
+              {/* Buscador */}
+              <div className="relative mb-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Buscar producto..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="pl-8 text-xs h-8"
+                />
+              </div>
+
+              {/* Filtro por categoría */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
+                    !categoryFilter
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-orange-300'
+                  }`}
+                >
+                  Todos ({catalogProducts.length})
+                </button>
+                {availableCategories.map(cat => (
+                  <button
+                    key={cat.code}
+                    onClick={() => setCategoryFilter(cat.code === categoryFilter ? null : cat.code)}
+                    className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
+                      categoryFilter === cat.code
+                        ? 'bg-orange-500 text-white border-orange-500'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-orange-300'
+                    }`}
+                  >
+                    {cat.label} ({cat.count})
+                  </button>
                 ))}
               </div>
-              <div className="mt-2 text-xs text-slate-500">
-                <strong>{template?.label}</strong> — Foto real del catálogo.
+
+              {/* Grid de productos */}
+              <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto">
+                {filteredProducts.map(product => {
+                  const isActive = selectedProduct?.id === product.id;
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setDesigns([]);
+                        setSelectedDesignId(null);
+                        setHistory([]);
+                        setHistoryIndex(-1);
+                        designCache.current.clear();
+                      }}
+                      className={`
+                        relative rounded-lg overflow-hidden border-2 transition-all aspect-square
+                        ${isActive
+                          ? 'border-orange-500 shadow-md ring-2 ring-orange-200'
+                          : 'border-slate-200 hover:border-orange-300'}
+                      `}
+                      title={product.name}
+                    >
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[8px] py-0.5 px-1 truncate">
+                        {product.name}
+                      </div>
+                      {isActive && (
+                        <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-0.5">
+                          <Check className="h-2.5 w-2.5 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {filteredProducts.length === 0 && !loadingProducts && (
+                <p className="text-xs text-slate-500 text-center py-4">No se encontraron productos</p>
+              )}
+              {loadingProducts && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                </div>
+              )}
+              <div className="mt-2 text-[10px] text-slate-400">
+                {selectedProduct && (
+                  <span>
+                    <strong>{selectedProduct.name}</strong> — {CATEGORY_LABELS[selectedProduct.category] || selectedProduct.category}
+                    {selectedProduct.subcategory && ` / ${selectedProduct.subcategory}`}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -773,7 +912,7 @@ function CatalogCanvas() {
               <DesignUploader addDesign={addDesign} />
             </div>
 
-            {/* Biblioteca */}
+            {/* Biblioteca de plantillas */}
             <div className="border-t border-slate-100 pt-4">
               <LibraryPicker onSelect={addDesign} />
             </div>
@@ -870,107 +1009,250 @@ function DesignUploader({ addDesign }) {
 }
 
 // ============================================================================
-// SIDEBAR: BIBLIOTECA DE DISEÑOS
+// SIDEBAR: BIBLIOTECA DE PLANTILLAS (versión mejorada con paginación)
 // ============================================================================
 function LibraryPicker({ onSelect }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [q, setQ] = useState('');
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [page, setPage] = useState(1);
+  const [folders, setFolders] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const cacheRef = useRef({ data: [], folders: [], ts: 0, filterKey: '' });
+
+  const filterKey = `${q.toLowerCase()}|${selectedFolder || ''}`;
+
+  const fetchLibrary = useCallback(async (pageNum = 1, append = false) => {
+    const params = new URLSearchParams({
+      page: String(pageNum),
+      size: String(LIBRARY_PAGE_SIZE),
+    });
+    if (q) params.set('search', q);
+    if (selectedFolder) params.set('folder', selectedFolder);
+
+    if (!append && !q && !selectedFolder &&
+        cacheRef.current.data.length > 0 &&
+        Date.now() - cacheRef.current.ts < CACHE_TTL_MS) {
+      setItems(cacheRef.current.data);
+      setFolders(cacheRef.current.folders);
+      return;
+    }
+
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      const r = await fetch(`/api/design-library?${params}`);
+      if (r.ok) {
+        const data = await r.json();
+        const newItems = Array.isArray(data.items) ? data.items : [];
+
+        if (append) {
+          setItems(prev => [...prev, ...newItems]);
+        } else {
+          setItems(newItems);
+        }
+
+        if (Array.isArray(data.folders)) {
+          setFolders(data.folders);
+        }
+        setTotalPages(data.totalPages || 1);
+        setPage(pageNum);
+
+        if (!append && !q && !selectedFolder) {
+          cacheRef.current = {
+            data: newItems,
+            folders: data.folders || [],
+            ts: Date.now(),
+            filterKey: '',
+          };
+        }
+      }
+    } catch {
+      toast.error('Error cargando biblioteca');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [q, selectedFolder]);
 
   useEffect(() => {
-    const fetchLibrary = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ limit: '200' });
-        if (search) params.set('search', search);
-        if (selectedFolder) params.set('folderId', selectedFolder);
-        const r = await fetch(`/api/design-library?${params}`);
-        if (r.ok) {
-          const data = await r.json();
-          setItems(data.items || data.designs || []);
-        }
-      } catch {
-        toast.error('Error cargando biblioteca');
-      }
-      setLoading(false);
+    fetchLibrary(1, false);
+  }, [q, selectedFolder, fetchLibrary]);
+
+  const handleSelect = (item) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      onSelect({
+        imageUrl: item.imageUrl,
+        name: item.name,
+        srcWidthPx: item.srcWidthPx || img.naturalWidth,
+        srcHeightPx: item.srcHeightPx || img.naturalHeight,
+      });
+      fetch(`/api/design-library/${item.id}/use`, { method: 'POST' }).catch(() => {});
+      toast.success('Plantilla agregada', { description: item.name });
     };
-    fetchLibrary();
-  }, [search, selectedFolder]);
+    img.onerror = () => {
+      onSelect({
+        imageUrl: item.imageUrl,
+        name: item.name,
+        srcWidthPx: item.srcWidthPx || 1000,
+        srcHeightPx: item.srcHeightPx || 1000,
+      });
+      fetch(`/api/design-library/${item.id}/use`, { method: 'POST' }).catch(() => {});
+      toast.success('Plantilla agregada', { description: item.name });
+    };
+    img.src = item.imageUrl;
+  };
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
         <ImageIcon className="h-3.5 w-3.5" />
-        Biblioteca
+        Biblioteca de Plantillas
       </h3>
-      <Input
-        placeholder="Buscar en la biblioteca..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-2 text-xs"
-      />
-      <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
-        {loading ? (
-          <div className="col-span-3 flex items-center justify-center py-4">
-            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+
+      <div className="relative mb-2">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        <Input
+          placeholder="Buscar plantillas..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="pl-8 text-xs h-8"
+        />
+      </div>
+
+      {/* Filtro por carpeta */}
+      {folders.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          <button
+            onClick={() => setSelectedFolder(null)}
+            className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
+              !selectedFolder
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
+            }`}
+          >
+            Todas
+          </button>
+          {folders.slice(0, 12).map(f => (
+            <button
+              key={f}
+              onClick={() => setSelectedFolder(f === selectedFolder ? null : f)}
+              className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
+                selectedFolder === f
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Grid de plantillas */}
+      <div className="grid grid-cols-3 gap-1.5 max-h-[200px] overflow-y-auto">
+        {loading && items.length === 0 ? (
+          <div className="col-span-3 flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
           </div>
         ) : items.length === 0 ? (
-          <div className="col-span-3 text-xs text-slate-400 text-center py-4">Sin resultados</div>
+          <div className="col-span-3 text-center py-4 text-xs text-slate-500">
+            Sin resultados
+          </div>
         ) : (
-          items.map((item) => (
+          items.map(item => (
             <button
-              key={item.id || item._id}
-              onClick={() => onSelect({
-                imageUrl: item.imageUrl || item.url || item.image,
-                name: item.name || item.filename || 'Diseño',
-                srcWidthPx: item.widthPx || 512,
-                srcHeightPx: item.heightPx || 512,
-              })}
-              className="relative rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 aspect-square bg-slate-50 transition-all"
+              key={item.id}
+              onClick={() => handleSelect(item)}
+              className="relative rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 transition-all aspect-square group"
+              title={item.name}
             >
               <img
-                src={item.imageUrl || item.url || item.image}
-                alt={item.name || 'Diseño'}
+                src={item.imageUrl}
+                alt={item.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-all" />
+              </div>
             </button>
           ))
         )}
       </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1 || loadingMore}
+            onClick={() => fetchLibrary(page - 1, false)}
+            className="h-6 px-2 text-[10px]"
+          >
+            ← Ant
+          </Button>
+          <span className="text-[10px] text-slate-500">{page}/{totalPages}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages || loadingMore}
+            onClick={() => {
+              fetchLibrary(page + 1, true);
+              setPage(page + 1);
+            }}
+            className="h-6 px-2 text-[10px]"
+          >
+            Sig →
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 // ============================================================================
-// SIDEBAR: LISTA DE CAPAS
+// LISTA DE CAPAS
 // ============================================================================
 function LayersList({ designs, selectedDesignId, onSelect, onRemove }) {
   if (designs.length === 0) {
-    return <div className="text-xs text-slate-400">Sin diseños. Sube uno o elige de la biblioteca.</div>;
+    return (
+      <div className="text-xs text-slate-400 text-center py-3">
+        No hay capas. Sube un diseño o elige una plantilla.
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-1.5">
-      {designs.map(d => (
+    <div className="space-y-1">
+      {designs.map((d, i) => (
         <div
           key={d.id}
           onClick={() => onSelect(d.id)}
           className={`
-            flex items-center gap-2 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all
+            flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all
             ${selectedDesignId === d.id
               ? 'bg-orange-50 border border-orange-300'
-              : 'hover:bg-slate-50 border border-transparent'}
+              : 'bg-slate-50 border border-slate-200 hover:border-slate-300'}
           `}
         >
-          <div className="w-8 h-8 rounded overflow-hidden bg-slate-100 shrink-0">
-            <img src={d.imageUrl} alt={d.name} className="w-full h-full object-cover" />
+          <div className="w-8 h-8 rounded overflow-hidden bg-white border border-slate-200 shrink-0">
+            <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain" />
           </div>
-          <span className="text-xs text-slate-700 truncate flex-1">{d.name}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-slate-700 truncate">{d.name || `Capa ${i + 1}`}</div>
+            <div className="text-[10px] text-slate-400">{d.srcWidthPx}×{d.srcHeightPx}px</div>
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(d.id); }}
-            className="text-slate-400 hover:text-red-500 transition-colors"
+            className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -981,43 +1263,41 @@ function LayersList({ designs, selectedDesignId, onSelect, onRemove }) {
 }
 
 // ============================================================================
-// SIDEBAR: PROPIEDADES DEL DISEÑO
+// PROPIEDADES DEL DISEÑO
 // ============================================================================
 function DesignProperties({ design, onUpdate, onDuplicate, onRemove }) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs text-slate-600 block mb-1">Opacidad</label>
+        <label className="text-xs text-slate-500 block mb-1">Opacidad: {Math.round((design.opacity || 1) * 100)}%</label>
         <Slider
-          value={[design.opacity || 1]}
-          onValueChange={([v]) => onUpdate({ opacity: v })}
-          min={0}
-          max={1}
-          step={0.05}
+          value={[(design.opacity || 1) * 100]}
+          onValueChange={(v) => onUpdate({ opacity: v[0] / 100 })}
+          min={10}
+          max={100}
+          step={1}
+          className="h-4"
         />
       </div>
       <div>
-        <label className="text-xs text-slate-600 block mb-1">Rotación: {Math.round(design.rotation || 0)}°</label>
+        <label className="text-xs text-slate-500 block mb-1">Rotación: {Math.round(design.rotation || 0)}°</label>
         <Slider
           value={[design.rotation || 0]}
-          onValueChange={([v]) => onUpdate({ rotation: v })}
+          onValueChange={(v) => onUpdate({ rotation: v[0] })}
           min={-180}
           max={180}
           step={1}
+          className="h-4"
         />
       </div>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onDuplicate} className="flex-1">
+        <Button variant="outline" size="sm" className="flex-1" onClick={onDuplicate}>
           <Copy className="h-3 w-3 mr-1" /> Duplicar
         </Button>
-        <Button variant="outline" size="sm" onClick={onRemove} className="flex-1 text-red-600 hover:text-red-700">
+        <Button variant="outline" size="sm" className="flex-1 text-red-500 hover:text-red-600" onClick={onRemove}>
           <Trash2 className="h-3 w-3 mr-1" /> Eliminar
         </Button>
       </div>
     </div>
   );
-}
-
-export default function MockupCatalogEditor() {
-  return <CatalogCanvas />;
 }
