@@ -203,21 +203,62 @@ function applyDisplacementAndBlend(designCanvas, displacementMap, bgRegionCanvas
       // Luminosidad de la tela en este punto
       const lum = (bd[idx] * 0.299 + bd[idx + 1] * 0.587 + bd[idx + 2] * 0.114) / 255;
 
-      // Blend inteligente:
+      // Luminosidad del pixel del diseño
+      const designLum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+
+      // Blend inteligente con manejo de fondos:
+      // - Si el pixel del diseño es muy claro (fondo blanco/casi blanco), reducir alpha
+      //   para que la tela se vea a través. Esto hace que fondos blancos se vean transparentes.
       // - Prenda CLARA: multiply (el diseño se oscurece con las sombras de la tela)
-      // - Prenda OSCURA: screen (el diseño se aclara con las luces de la tela)
-      let outR, outG, outB;
+      // - Prenda OSCURA: se usa luminosity blend que mantiene los colores del diseño
+      //   pero los oscurece/aclara según la textura de la tela.
+      let outR, outG, outB, outA;
+
+      // Detectar si el pixel del diseño es un fondo blanco/gris muy claro
+      // (saturation baja + luminosidad alta = fondo, no diseño real)
+      const maxC = Math.max(r, g, b) / 255;
+      const minC = Math.min(r, g, b) / 255;
+      const saturation = (maxC - minC);
+
+      if (designLum > 0.92 && saturation < 0.1) {
+        // Pixel casi blanco con baja saturación = fondo blanco del PNG
+        // En prendas oscuras: hacer completamente transparente
+        // En prendas claras: mantener pero aclarar ligeramente
+        if (garmentDark) {
+          outA = 0; // Totalmente transparente sobre prenda oscura
+        } else {
+          outA = a * 0.3 * opacity; // Semi-transparente sobre prenda clara
+        }
+        outR = bd[idx];
+        outG = bd[idx + 1];
+        outB = bd[idx + 2];
+        rd[idx] = outR;
+        rd[idx + 1] = outG;
+        rd[idx + 2] = outB;
+        rd[idx + 3] = Math.floor(outA);
+        continue;
+      }
 
       if (garmentDark) {
-        // Screen blend: 1 - (1-a)*(1-b)
-        const rNorm = r / 255;
-        const gNorm = g / 255;
-        const bNorm = b / 255;
-        outR = (1 - (1 - rNorm) * (1 - lum)) * 255;
-        outG = (1 - (1 - gNorm) * (1 - lum)) * 255;
-        outB = (1 - (1 - bNorm) * (1 - lum)) * 255;
+        // Para prendas oscuras: usar "luminosity" blend que preserva los colores
+        // del diseño pero ajusta la luminosidad según la textura de la tela.
+        // El diseño mantiene su color original pero se integra con las sombras/luz de la tela.
+        const designLumNorm = designLum;
+        // Luminosity blend: tomar hue/saturation del diseño, luminance de la tela
+        // Simplificado: el diseño se dibuja con su color pero ajustado por la textura
+        // de la tela para que se vea integrado (como una impresión real DTF)
+        
+        // Factor de ajuste: la tela oscura absorbe parte de la luz
+        // Los diseños claros se ven más, los oscuros se integran con la tela
+        const fabricAdjust = 0.7 + 0.3 * lum; // 0.7-1.0 según brillo de la tela
+        
+        // Para diseños claros sobre tela oscura: mantener brillo pero con textura
+        // Para diseños oscuros sobre tela oscura: se integran naturalmente
+        outR = r * (0.85 + 0.15 * lum);
+        outG = g * (0.85 + 0.15 * lum);
+        outB = b * (0.85 + 0.15 * lum);
       } else {
-        // Multiply blend: a * b
+        // Para prendas claras: multiply blend (el diseño se oscurece con las sombras)
         outR = r * lum;
         outG = g * lum;
         outB = b * lum;
