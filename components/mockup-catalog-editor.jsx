@@ -15,45 +15,60 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 
 // ============================================================================
-// PLANTILLAS DE PRENDAS DEL CATÁLOGO (imágenes PNG reales)
+// PLANTILLAS DE PRENDAS - FOTOS REALES DEL CATÁLOGO
 // ============================================================================
-export const CATALOG_TEMPLATES = {
-  polera_frontal: {
-    id: 'polera_frontal',
-    label: 'Polera (Frontal)',
-    category: 'poleras',
+const CATALOG_PRODUCT_TEMPLATES = [
+  // Poleras
+  { id: 'polera-blanca', label: 'Polera Blanca', category: 'poleras', 
     printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/mockups/polera-blanca.png',
-  },
-  polera_espalda: {
-    id: 'polera_espalda',
-    label: 'Polera (Espalda)',
-    category: 'poleras',
+    bgImage: '/mockups/polera-blanca-real.png' },
+  { id: 'polera-roja', label: 'Polera Roja', category: 'poleras',
+    printArea: { x: 0.28, y: 0.32, w: 0.44, h: 0.48 },
+    bgImage: '/uploads/proveedor/cottonext/00cd8f6ed8c08819.jpg' },
+  { id: 'polera-gris', label: 'Polera Gris', category: 'poleras',
     printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
-    bgImage: '/mockups/polera-blanca-back.png',
-  },
-  poleron_frontal: {
-    id: 'poleron_frontal',
-    label: 'Polerón (Frontal)',
-    category: 'polerones',
+    bgImage: '/uploads/proveedor/cottonext/0117cd2f0571f3fd.jpg' },
+  { id: 'polera-negra-hammer', label: 'Polera Negra', category: 'poleras',
+    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
+    bgImage: '/uploads/proveedor/cottonext/be165532e420cda8.jpg' },
+  { id: 'polera-gildan-5000', label: 'Polera Gildan 5000', category: 'poleras',
+    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
+    bgImage: '/uploads/proveedor/cottonext/e04df29255fac050.jpg' },
+  { id: 'polera-gildan-64000', label: 'Polera Gildan 64000', category: 'poleras',
+    printArea: { x: 0.28, y: 0.28, w: 0.44, h: 0.48 },
+    bgImage: '/uploads/proveedor/cottonext/33c472ed26654f42.jpg' },
+  // Polerones
+  { id: 'poleron-blanco', label: 'Polerón Blanco', category: 'polerones',
     printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/mockups/poleron-blanco.png',
-  },
-  poleron_espalda: {
-    id: 'poleron_espalda',
-    label: 'Polerón (Espalda)',
-    category: 'polerones',
+    bgImage: '/mockups/poleron-blanco-real.png' },
+  { id: 'poleron-crew', label: 'Polerón Crew', category: 'polerones',
     printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
-    bgImage: '/mockups/poleron-blanco-back.png',
-  },
-  gorra_frontal: {
-    id: 'gorra_frontal',
-    label: 'Gorra (Frontal)',
-    category: 'gorras',
+    bgImage: '/uploads/proveedor/cottonext/e3c4adf1652e2d09.png' },
+  { id: 'poleron-canguro', label: 'Polerón Canguro', category: 'polerones',
+    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
+    bgImage: '/uploads/proveedor/cottonext/e3e1b6eabae95719.png' },
+  { id: 'poleron-bomber', label: 'Polerón Bomber', category: 'polerones',
+    printArea: { x: 0.25, y: 0.30, w: 0.50, h: 0.42 },
+    bgImage: '/uploads/proveedor/cottonext/14fd520205a50fe9.png' },
+  // Gorras
+  { id: 'gorra-blanca', label: 'Gorra Blanca', category: 'gorras',
     printArea: { x: 0.35, y: 0.32, w: 0.30, h: 0.20 },
-    bgImage: '/mockups/gorra-blanca.png',
-  },
-};
+    bgImage: '/mockups/gorra-blanca-real.png' },
+  { id: 'gorra-5panel', label: 'Gorra 5Panel', category: 'gorras',
+    printArea: { x: 0.35, y: 0.30, w: 0.30, h: 0.22 },
+    bgImage: '/uploads/proveedor/cottonext/c43d1ab79b92f768.jpg' },
+  { id: 'gorra-6panel', label: 'Gorra 6Panel', category: 'gorras',
+    printArea: { x: 0.35, y: 0.30, w: 0.30, h: 0.22 },
+    bgImage: '/uploads/proveedor/cottonext/c156a6cfe2e46d77.jpg' },
+  { id: 'gorro-beanie', label: 'Gorro Beanie', category: 'gorras',
+    printArea: { x: 0.30, y: 0.28, w: 0.40, h: 0.30 },
+    bgImage: '/uploads/proveedor/cottonext/c43d1ab79b92f768.jpg' },
+];
+
+// Mapeo por ID para acceso rápido
+const TEMPLATE_MAP = Object.fromEntries(
+  CATALOG_PRODUCT_TEMPLATES.map(t => [t.id, t])
+);
 
 // Historial
 const HISTORY_LIMIT = 30;
@@ -70,7 +85,7 @@ function restoreImgs(snapshotArr, cache) {
 }
 
 // ============================================================================
-// CANVAS DEL MOCKUP CON IMAGEN REAL
+// CANVAS DEL MOCKUP CON IMAGEN REAL Y BLEND PROFESIONAL
 // ============================================================================
 function CatalogCanvas() {
   const canvasRef = useRef(null);
@@ -78,48 +93,116 @@ function CatalogCanvas() {
   const [designs, setDesigns] = useState([]);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [zoom, setZoom] = useState(1);
+  const [selectedTemplate, setSelectedTemplate] = useState('polera-blanca');
+  const [showPrintArea, setShowPrintArea] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [resizeState, setResizeState] = useState(null);
-  const [showPrintArea, setShowPrintArea] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState('polera_frontal');
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const designCache = useRef(new Map());
+  const canvasSize = 800;
 
-  const template = CATALOG_TEMPLATES[selectedTemplate];
-  const pa = template?.printArea || { x: 0.25, y: 0.25, w: 0.50, h: 0.50 };
-  const canvasSize = 600;
+  const template = TEMPLATE_MAP[selectedTemplate] || TEMPLATE_MAP['polera-blanca'];
+  const pa = template.printArea;
 
   // Cargar imagen de fondo
   useEffect(() => {
-    if (!template?.bgImage) { setBgImage(null); return; }
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      setBgImage(img);
-    };
-    // Cache-busting para forzar recarga cuando cambia la plantilla
-    img.src = `${template.bgImage}?t=${Date.now()}`;
-    return () => { img.onload = null; img.src = ''; };
-  }, [template?.bgImage]);
+    img.onload = () => setBgImage(img);
+    img.onerror = () => { toast.error('Error al cargar imagen de la prenda'); };
+    img.src = template.bgImage;
+  }, [selectedTemplate]);
 
-  // Pre-cargar imágenes de diseño
-  const designCache = useRef(new Map());
-
-  // Preload all design images
+  // Cache de imágenes de diseño
   useEffect(() => {
     designs.forEach(d => {
-      if (!designCache.current.has(d.id) && d.imageUrl) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          designCache.current.set(d.id, { ...d, imgEl: img });
-          // Trigger re-render
-          setDesigns(prev => [...prev]);
-        };
-        img.src = d.imageUrl;
-      }
+      if (designCache.current.has(d.id)) return;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        designCache.current.set(d.id, { imgEl: img });
+        drawCanvas();
+      };
+      img.src = d.imageUrl;
     });
   }, [designs]);
+
+  // ============================================================================
+  // FUNCIÓN DE BLEND PROFESIONAL: integra el diseño con la textura de la prenda
+  // Usa la luminosidad del fondo para simular sombras y relieve
+  // ============================================================================
+  const drawDesignWithBlend = (ctx, design, bgCtx, bgCanvas, dx, dy, dw, dh) => {
+    const cached = designCache.current.get(design.id);
+    if (!cached?.imgEl) return;
+
+    ctx.save();
+    
+    // Centro de rotación
+    const cx = design.x + design.width / 2;
+    const cy = design.y + design.height / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate((design.rotation || 0) * Math.PI / 180);
+    ctx.translate(-cx, -cy);
+
+    // === BLEND PROFESIONAL ===
+    // 1. Dibujar el diseño normalmente
+    ctx.drawImage(cached.imgEl, design.x, design.y, design.width, design.height);
+    
+    // 2. Crear un canvas temporal con la región del fondo detrás del diseño
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = design.width;
+    tempCanvas.height = design.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Dibujar la porción del fondo que está detrás del diseño
+    const bgScaleX = dw / bgCanvas.width;
+    const bgScaleY = dh / bgCanvas.height;
+    tempCtx.drawImage(
+      bgCanvas,
+      design.x - dx, design.y - dy, design.width, design.height,
+      0, 0, design.width, design.height
+    );
+    
+    // 3. Obtener los datos de píxeles del fondo para calcular luminosidad
+    const bgData = tempCtx.getImageData(0, 0, design.width, design.height);
+    
+    // 4. Obtener los datos de píxeles del diseño
+    const designCanvas = document.createElement('canvas');
+    designCanvas.width = design.width;
+    designCanvas.height = design.height;
+    const designCtx = designCanvas.getContext('2d');
+    designCtx.drawImage(cached.imgEl, 0, 0, design.width, design.height);
+    const designData = designCtx.getImageData(0, 0, design.width, design.height);
+    
+    // 5. Aplicar blend: usar la luminosidad del fondo para modificar el diseño
+    // Esto hace que el diseño siga las sombras y arrugas de la tela
+    const bd = bgData.data;
+    const dd = designData.data;
+    
+    for (let i = 0; i < dd.length; i += 4) {
+      // Solo procesar píxeles no transparentes del diseño
+      if (dd[i + 3] > 0) {
+        // Calcular luminosidad del fondo en esta posición
+        const lum = (bd[i] * 0.299 + bd[i + 1] * 0.587 + bd[i + 2] * 0.114) / 255;
+        
+        // Si el fondo es claro (polera blanca), aplicar el diseño con intensidad normal
+        // Si el fondo es oscuro, mantener el color pero ajustar brillo
+        const brightnessFactor = 0.7 + (lum * 0.3); // 0.7 a 1.0
+        
+        dd[i] = Math.min(255, Math.floor(dd[i] * brightnessFactor));
+        dd[i + 1] = Math.min(255, Math.floor(dd[i + 1] * brightnessFactor));
+        dd[i + 2] = Math.min(255, Math.floor(dd[i + 2] * brightnessFactor));
+        
+        // Aplicar opacidad del diseño
+        dd[i + 3] = Math.floor(dd[i + 3] * (design.opacity || 1));
+      }
+    }
+    
+    // 6. Dibujar el diseño modificado sobre el canvas principal
+    ctx.putImageData(designData, design.x, design.y);
+    ctx.restore();
+  };
 
   // Dibujar canvas
   const drawCanvas = useCallback(() => {
@@ -134,9 +217,8 @@ function CatalogCanvas() {
 
     // Dibujar imagen de fondo (prenda real)
     if (bgImage) {
-      // Calcular cómo escalar la imagen para que quepa en el canvas
       const imgAspect = bgImage.width / bgImage.height;
-      const canvasAspect = 1; // canvas es cuadrado
+      const canvasAspect = 1;
 
       let drawW, drawH, drawX, drawY;
       if (imgAspect > canvasAspect) {
@@ -170,45 +252,27 @@ function CatalogCanvas() {
       ctx.restore();
     }
 
-    // Dibujar diseños
+    // Dibujar diseños con blend profesional
     for (const design of designs) {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
 
-      ctx.save();
-      ctx.globalAlpha = design.opacity || 1;
-
-      // Centro de rotación
-      const cx = design.x + design.width / 2;
-      const cy = design.y + design.height / 2;
-      ctx.translate(cx, cy);
-      ctx.rotate((design.rotation || 0) * Math.PI / 180);
-      ctx.translate(-cx, -cy);
-
-      // Sombra si seleccionado
-      if (design.id === selectedDesignId) {
-        ctx.shadowColor = 'rgba(249,115,22,0.6)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-      }
-
-      ctx.drawImage(cached.imgEl, design.x, design.y, design.width, design.height);
-
+      // Usar blend profesional (integra con la textura de la prenda)
+      drawDesignWithBlend(ctx, design, ctx, canvas, drawX || 0, drawY || 0, drawW || cs, drawH || cs);
+      
       // Borde de selección
       if (design.id === selectedDesignId) {
+        ctx.save();
         ctx.strokeStyle = '#f97316';
         ctx.lineWidth = 2;
         ctx.setLineDash([]);
         ctx.strokeRect(design.x, design.y, design.width, design.height);
 
-        // Handle de resize
         const hs = cs * 0.025;
         ctx.fillStyle = '#f97316';
         ctx.fillRect(design.x + design.width - hs, design.y + design.height - hs, hs, hs);
+        ctx.restore();
       }
-
-      ctx.restore();
     }
   }, [bgImage, designs, selectedDesignId, zoom, canvasSize, pa, showPrintArea]);
 
@@ -229,7 +293,6 @@ function CatalogCanvas() {
     const pos = getMousePos(e);
     const cs = canvasSize * zoom;
 
-    // Verificar si clic en handle de resize
     if (selectedDesignId) {
       const sel = designs.find(d => d.id === selectedDesignId);
       if (sel) {
@@ -249,7 +312,6 @@ function CatalogCanvas() {
       }
     }
 
-    // Verificar si clic en un diseño (de atrás hacia adelante)
     let clickedId = null;
     for (let i = designs.length - 1; i >= 0; i--) {
       const d = designs[i];
@@ -304,7 +366,6 @@ function CatalogCanvas() {
 
   const handleMouseUp = () => {
     if (dragState || resizeState) {
-      // Push to history
       const snap = snapshot(designs);
       setHistory(prev => {
         const newH = prev.slice(0, historyIndex + 1);
@@ -333,123 +394,53 @@ function CatalogCanvas() {
   // Funciones de gestión
   const addDesign = (imageData) => {
     const id = crypto.randomUUID();
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const aspect = img.width / img.height;
-      const initialW = pa.w * canvasSize * 0.4;
-      const initialH = aspect >= 1 ? initialW : initialW / aspect;
-      const centerX = (pa.x + pa.w / 2) * canvasSize;
-      const centerY = (pa.y + pa.h / 2) * canvasSize;
-
-      designCache.current.set(id, { id, imgEl: img });
-      const newDesign = {
-        id,
-        imageUrl: imageData.imageUrl,
-        name: imageData.name || 'Diseño',
-        srcWidthPx: imageData.srcWidthPx || img.width,
-        srcHeightPx: imageData.srcHeightPx || img.height,
-        x: centerX - initialW / 2,
-        y: centerY - initialH / 2,
-        width: initialW,
-        height: initialH,
-        rotation: 0,
-        opacity: 1,
-      };
-
-      const snap = snapshot(designs);
-      setHistory(prev => {
-        const newH = prev.slice(0, historyIndex + 1);
+    const newDesign = {
+      id,
+      ...imageData,
+      x: canvasSize * 0.35,
+      y: canvasSize * 0.35,
+      width: canvasSize * 0.30,
+      height: canvasSize * 0.30,
+      rotation: 0,
+      opacity: 1,
+    };
+    setDesigns(prev => {
+      const snap = snapshot(prev);
+      setHistory(h => {
+        const newH = h.slice(0, historyIndex + 1);
         newH.push(snap);
         if (newH.length > HISTORY_LIMIT) newH.shift();
         return newH;
       });
-      setHistoryIndex(prev => prev + 1);
-
-      setDesigns(prev => [...prev, newDesign]);
-      setSelectedDesignId(id);
-    };
-    img.src = imageData.imageUrl;
-  };
-
-  const undo = () => {
-    if (historyIndex <= 0) return;
-    const newIndex = historyIndex - 1;
-    const snap = history[newIndex];
-    const cache = new Map();
-    designs.forEach(d => {
-      const cached = designCache.current.get(d.id);
-      if (cached?.imgEl) cache.set(d.id, cached.imgEl);
+      setHistoryIndex(hi => Math.min(hi + 1, HISTORY_LIMIT - 1));
+      return [...prev, newDesign];
     });
-    const restored = restoreImgs(snap, cache);
-    restored.forEach(d => {
-      if (d.imgEl) designCache.current.set(d.id, { ...d, imgEl: d.imgEl });
-    });
-    setDesigns(restored);
-    setHistoryIndex(newIndex);
-    setSelectedDesignId(null);
-  };
-
-  const redo = () => {
-    if (historyIndex >= history.length - 1) return;
-    const newIndex = historyIndex + 1;
-    const snap = history[newIndex];
-    const cache = new Map();
-    designs.forEach(d => {
-      const cached = designCache.current.get(d.id);
-      if (cached?.imgEl) cache.set(d.id, cached.imgEl);
-    });
-    const restored = restoreImgs(snap, cache);
-    restored.forEach(d => {
-      if (d.imgEl) designCache.current.set(d.id, { ...d, imgEl: d.imgEl });
-    });
-    setDesigns(restored);
-    setHistoryIndex(newIndex);
-    setSelectedDesignId(null);
+    setSelectedDesignId(id);
   };
 
   const removeDesign = (id) => {
-    designCache.current.delete(id);
-    const snap = snapshot(designs);
-    setHistory(prev => {
-      const newH = prev.slice(0, historyIndex + 1);
-      newH.push(snap);
-      if (newH.length > HISTORY_LIMIT) newH.shift();
-      return newH;
+    setDesigns(prev => {
+      const snap = snapshot(prev);
+      setHistory(h => {
+        const newH = h.slice(0, historyIndex + 1);
+        newH.push(snap);
+        if (newH.length > HISTORY_LIMIT) newH.shift();
+        return newH;
+      });
+      setHistoryIndex(hi => Math.min(hi + 1, HISTORY_LIMIT - 1));
+      designCache.current.delete(id);
+      return prev.filter(d => d.id !== id);
     });
-    setHistoryIndex(prev => prev + 1);
-    setDesigns(prev => prev.filter(d => d.id !== id));
     if (selectedDesignId === id) setSelectedDesignId(null);
   };
 
   const duplicateDesign = (id) => {
-    const src = designs.find(d => d.id === id);
-    if (!src) return;
+    const orig = designs.find(d => d.id === id);
+    if (!orig) return;
     const newId = crypto.randomUUID();
-    const cached = designCache.current.get(id);
-    const newDesign = {
-      ...src,
-      id: newId,
-      x: src.x + 20,
-      y: src.y + 20,
-    };
-    designCache.current.set(newId, cached);
+    const newDesign = { ...orig, id: newId, x: orig.x + 20, y: orig.y + 20 };
     setDesigns(prev => [...prev, newDesign]);
     setSelectedDesignId(newId);
-  };
-
-  const clearDesigns = () => {
-    designCache.current.clear();
-    const snap = snapshot(designs);
-    setHistory(prev => {
-      const newH = prev.slice(0, historyIndex + 1);
-      newH.push(snap);
-      if (newH.length > HISTORY_LIMIT) newH.shift();
-      return newH;
-    });
-    setHistoryIndex(prev => prev + 1);
-    setDesigns([]);
-    setSelectedDesignId(null);
   };
 
   const updateDesignLive = (id, patch) => {
@@ -458,19 +449,39 @@ function CatalogCanvas() {
     ));
   };
 
+  const undo = () => {
+    if (historyIndex < 0) return;
+    const prevSnapshot = history[historyIndex];
+    setDesigns(restoreImgs(prevSnapshot, designCache.current));
+    setHistoryIndex(prev => prev - 1);
+  };
+
+  const redo = () => {
+    if (historyIndex >= history.length - 1) return;
+    const nextSnapshot = history[historyIndex + 1];
+    setDesigns(restoreImgs(nextSnapshot, designCache.current));
+    setHistoryIndex(prev => prev + 1);
+  };
+
+  const clearDesigns = () => {
+    const snap = snapshot(designs);
+    setHistory(prev => [...prev.slice(0, historyIndex + 1), snap]);
+    setHistoryIndex(prev => prev + 1);
+    setDesigns([]);
+    setSelectedDesignId(null);
+  };
+
   // Exportar
   const handleExport = async () => {
     const canvas = canvasRef.current;
     if (!canvas) { toast.error('No hay canvas'); return; }
 
-    // Crear canvas temporal sin la zona de impresión
     const exportCanvas = document.createElement('canvas');
-    const scale = 2; // Alta resolución
+    const scale = 2;
     exportCanvas.width = canvasSize * scale;
     exportCanvas.height = canvasSize * scale;
     const ctx = exportCanvas.getContext('2d');
 
-    // Dibujar fondo
     if (bgImage) {
       const imgAspect = bgImage.width / bgImage.height;
       const canvasAspect = 1;
@@ -489,7 +500,6 @@ function CatalogCanvas() {
       ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
     }
 
-    // Dibujar diseños
     for (const design of designs) {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
@@ -507,7 +517,7 @@ function CatalogCanvas() {
 
     const dataUrl = exportCanvas.toDataURL('image/png', 1.0);
     const link = document.createElement('a');
-    link.download = `mockup-${template.label.replace(/\s|\(/g, '_').replace(/\)/g, '')}-${Date.now()}.png`;
+    link.download = `mockup-${template.label.replace(/\s|\(|\)/g, '_')}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
     toast.success('Mockup exportado');
@@ -516,9 +526,9 @@ function CatalogCanvas() {
   const selectedDesign = designs.find(d => d.id === selectedDesignId);
 
   const garmentTypes = [
-    { group: 'Poleras', items: ['polera_frontal', 'polera_espalda'] },
-    { group: 'Polerones', items: ['poleron_frontal', 'poleron_espalda'] },
-    { group: 'Gorras', items: ['gorra_frontal'] },
+    { group: 'Poleras', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'poleras').map(t => t.id) },
+    { group: 'Polerones', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'polerones').map(t => t.id) },
+    { group: 'Gorras', items: CATALOG_PRODUCT_TEMPLATES.filter(t => t.category === 'gorras').map(t => t.id) },
   ];
 
   return (
@@ -596,16 +606,17 @@ function CatalogCanvas() {
       <div className="w-full lg:w-80 xl:w-96 shrink-0">
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
           <div className="p-4 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto">
-            {/* Selector de tipo de prenda */}
+            {/* Selector de prendas del catálogo */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">Tipo de prenda</h3>
-              <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-slate-700 mb-2">Elige tu prenda</h3>
+              <div className="space-y-3">
                 {garmentTypes.map(group => (
                   <div key={group.group}>
-                    <div className="text-xs text-slate-500 font-medium mb-1">{group.group}</div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="text-xs text-slate-500 font-medium mb-1.5">{group.group}</div>
+                    <div className="grid grid-cols-2 gap-1.5">
                       {group.items.map(id => {
-                        const t = CATALOG_TEMPLATES[id];
+                        const t = TEMPLATE_MAP[id];
+                        if (!t) return null;
                         const active = selectedTemplate === id;
                         return (
                           <button
@@ -619,13 +630,26 @@ function CatalogCanvas() {
                               designCache.current.clear();
                             }}
                             className={`
-                              px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
+                              relative rounded-lg overflow-hidden border-2 transition-all aspect-square
                               ${active
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}
+                                ? 'border-orange-500 shadow-md ring-2 ring-orange-200'
+                                : 'border-slate-200 hover:border-orange-300'}
                             `}
                           >
-                            {t?.label}
+                            <img
+                              src={t.bgImage}
+                              alt={t.label}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            <div className={`absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] py-0.5 px-1 truncate`}>
+                              {t.label}
+                            </div>
+                            {active && (
+                              <div className="absolute top-1 right-1 bg-orange-500 rounded-full p-0.5">
+                                <Check className="h-2.5 w-2.5 text-white" />
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -634,7 +658,7 @@ function CatalogCanvas() {
                 ))}
               </div>
               <div className="mt-2 text-xs text-slate-500">
-                <strong>{template?.label}</strong> — Imagen real del catálogo.
+                <strong>{template?.label}</strong> — Foto real del catálogo.
               </div>
             </div>
 
@@ -744,142 +768,103 @@ function DesignUploader({ addDesign }) {
 // ============================================================================
 function LibraryPicker({ onSelect }) {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [folders, setFolders] = useState([]);
-  const [selectedFolder, setSelectedFolder] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState(null);
 
   useEffect(() => {
-    loadLibrary();
-  }, [search, selectedFolder, page]);
-
-  const loadLibrary = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page: String(page), size: '24' });
-      if (search) params.set('search', search);
-      if (selectedFolder) params.set('folder', selectedFolder);
-      const r = await fetch(`/api/design-library?${params}`);
-      if (r.ok) {
-        const data = await r.json();
-        setItems(data.items || []);
-        setTotalPages(data.totalPages || 1);
-        setFolders(data.folders || []);
+    const fetchLibrary = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ limit: '200' });
+        if (search) params.set('search', search);
+        if (selectedFolder) params.set('folderId', selectedFolder);
+        const r = await fetch(`/api/design-library?${params}`);
+        if (r.ok) {
+          const data = await r.json();
+          setItems(data.items || data.designs || []);
+        }
+      } catch {
+        toast.error('Error cargando biblioteca');
       }
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  };
+      setLoading(false);
+    };
+    fetchLibrary();
+  }, [search, selectedFolder]);
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-slate-700">Biblioteca</h3>
+    <div>
+      <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+        <ImageIcon className="h-3.5 w-3.5" />
+        Biblioteca
+      </h3>
       <Input
         placeholder="Buscar en la biblioteca..."
         value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        className="h-9 text-sm"
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-2 text-xs"
       />
-      {folders.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          <button
-            onClick={() => setSelectedFolder('')}
-            className={`px-2 py-0.5 rounded text-[10px] ${!selectedFolder ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'}`}
-          >
-            Todos
-          </button>
-          {folders.slice(0, 8).map(f => (
-            <button
-              key={f.name}
-              onClick={() => { setSelectedFolder(f.name); setPage(1); }}
-              className={`px-2 py-0.5 rounded text-[10px] ${selectedFolder === f.name ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'}`}
-            >
-              {f.name}
-            </button>
-          ))}
-        </div>
-      )}
-      {loading ? (
-        <div className="flex items-center justify-center py-6 text-slate-500 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando...
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-6 text-slate-400 text-sm">
-          <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          Sin resultados
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
-            {items.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onSelect({
-                    imageUrl: item.imageUrl,
-                    name: item.name,
-                    srcWidthPx: item.srcWidthPx,
-                    srcHeightPx: item.srcHeightPx,
-                  });
-                  fetch(`/api/design-library/${item.id}/use`, { method: 'POST' }).catch(() => {});
-                  toast.success(`${item.name} agregado al mockup`);
-                }}
-                className="group relative aspect-square rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 hover:shadow-md transition-all bg-slate-50"
-              >
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="w-full h-full object-contain p-1"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-              </button>
-            ))}
+      <div className="grid grid-cols-3 gap-1.5 max-h-48 overflow-y-auto">
+        {loading ? (
+          <div className="col-span-3 flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
           </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹</Button>
-              <span className="text-xs text-slate-500">{page} / {totalPages}</span>
-              <Button variant="ghost" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>›</Button>
-            </div>
-          )}
-        </>
-      )}
+        ) : items.length === 0 ? (
+          <div className="col-span-3 text-xs text-slate-400 text-center py-4">Sin resultados</div>
+        ) : (
+          items.map((item) => (
+            <button
+              key={item.id || item._id}
+              onClick={() => onSelect({
+                imageUrl: item.imageUrl || item.url || item.image,
+                name: item.name || item.filename || 'Diseño',
+                srcWidthPx: item.widthPx || 512,
+                srcHeightPx: item.heightPx || 512,
+              })}
+              className="relative rounded-lg overflow-hidden border border-slate-200 hover:border-orange-400 aspect-square bg-slate-50 transition-all"
+            >
+              <img
+                src={item.imageUrl || item.url || item.image}
+                alt={item.name || 'Diseño'}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
 // ============================================================================
-// LISTA DE CAPAS
+// SIDEBAR: LISTA DE CAPAS
 // ============================================================================
 function LayersList({ designs, selectedDesignId, onSelect, onRemove }) {
   if (designs.length === 0) {
-    return (
-      <div className="text-center py-4 text-slate-400 text-xs">
-        Sin diseños. Sube uno o elige de la biblioteca.
-      </div>
-    );
+    return <div className="text-xs text-slate-400">Sin diseños. Sube uno o elige de la biblioteca.</div>;
   }
 
   return (
-    <div className="space-y-1 max-h-[160px] overflow-y-auto">
-      {[...designs].reverse().map(d => (
+    <div className="space-y-1.5">
+      {designs.map(d => (
         <div
           key={d.id}
           onClick={() => onSelect(d.id)}
           className={`
-            flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all
+            flex items-center gap-2 rounded-lg px-2.5 py-1.5 cursor-pointer transition-all
             ${selectedDesignId === d.id
-              ? 'bg-orange-50 border border-orange-200'
+              ? 'bg-orange-50 border border-orange-300'
               : 'hover:bg-slate-50 border border-transparent'}
           `}
         >
-          <img src={d.imageUrl} alt="" className="w-6 h-6 object-contain rounded" />
+          <div className="w-8 h-8 rounded overflow-hidden bg-slate-100 shrink-0">
+            <img src={d.imageUrl} alt={d.name} className="w-full h-full object-cover" />
+          </div>
           <span className="text-xs text-slate-700 truncate flex-1">{d.name}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onRemove(d.id); }}
-            className="text-slate-400 hover:text-red-500"
+            className="text-slate-400 hover:text-red-500 transition-colors"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -890,62 +875,43 @@ function LayersList({ designs, selectedDesignId, onSelect, onRemove }) {
 }
 
 // ============================================================================
-// PROPIEDADES DEL DISEÑO
+// SIDEBAR: PROPIEDADES DEL DISEÑO
 // ============================================================================
 function DesignProperties({ design, onUpdate, onDuplicate, onRemove }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-700 truncate max-w-[160px]">{design.name}</span>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onDuplicate} title="Duplicar">
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700" onClick={onRemove} title="Eliminar">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-
       <div>
-        <label className="text-xs text-slate-600">Rotación: {design.rotation}°</label>
+        <label className="text-xs text-slate-600 block mb-1">Opacidad</label>
+        <Slider
+          value={[design.opacity || 1]}
+          onValueChange={([v]) => onUpdate({ opacity: v })}
+          min={0}
+          max={1}
+          step={0.05}
+        />
+      </div>
+      <div>
+        <label className="text-xs text-slate-600 block mb-1">Rotación: {Math.round(design.rotation || 0)}°</label>
         <Slider
           value={[design.rotation || 0]}
-          min={0}
-          max={360}
-          step={1}
           onValueChange={([v]) => onUpdate({ rotation: v })}
-          className="mt-1"
-        />
-      </div>
-
-      <div>
-        <label className="text-xs text-slate-600">Opacidad: {Math.round((design.opacity || 1) * 100)}%</label>
-        <Slider
-          value={[(design.opacity || 1) * 100]}
-          min={0}
-          max={100}
+          min={-180}
+          max={180}
           step={1}
-          onValueChange={([v]) => onUpdate({ opacity: v / 100 })}
-          className="mt-1"
         />
       </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-slate-600">Ancho: {Math.round(design.width)}px</label>
-        </div>
-        <div>
-          <label className="text-xs text-slate-600">Alto: {Math.round(design.height)}px</label>
-        </div>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={onDuplicate} className="flex-1">
+          <Copy className="h-3 w-3 mr-1" /> Duplicar
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRemove} className="flex-1 text-red-600 hover:text-red-700">
+          <Trash2 className="h-3 w-3 mr-1" /> Eliminar
+        </Button>
       </div>
     </div>
   );
 }
 
-// ============================================================================
-// COMPONENTE PRINCIPAL
-// ============================================================================
 export default function MockupCatalogEditor() {
   return <CatalogCanvas />;
 }
