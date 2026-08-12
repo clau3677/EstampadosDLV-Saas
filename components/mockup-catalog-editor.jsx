@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, Upload, Trash2, Copy, RotateCw, Undo2, Redo2,
+  ArrowLeft, Upload, Trash2, Copy, Undo2, Redo2,
   ZoomIn, ZoomOut, Download, Shirt, Loader2, Image as ImageIcon,
-  Sparkles, MousePointer2, Check, Layers, Search, FolderOpen,
+  Sparkles, Check, Layers, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
