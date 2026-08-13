@@ -207,7 +207,11 @@ export default function CatalogCanvas() {
             );
             if (active.length > 0) {
               setCatalogProducts(active);
-              setSelectedProduct(active[0]);
+              // Por defecto mostrar una polera (no una gorra ni beanie)
+              const defaultProduct = active.find(p => 
+                p.category === 'blank_apparel' && p.subcategory === 'poleras'
+              ) || active[0];
+              setSelectedProduct(defaultProduct);
               setLoadingProducts(false);
               return;
             }
