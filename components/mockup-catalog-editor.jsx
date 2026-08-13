@@ -1021,36 +1021,25 @@ function LibraryPicker({ onSelect }) {
         />
       </div>
 
-      {/* Filtro por carpeta */}
-      {folders.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          <button
-            onClick={() => setSelectedFolder(null)}
-            className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
-              !selectedFolder
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
-            }`}
+      {/* Filtro por carpeta - Dropdown */}
+      {folders.length > 1 && (
+        <div className="mb-2">
+          <select
+            value={selectedFolder || ''}
+            onChange={(e) => setSelectedFolder(e.target.value || null)}
+            className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 cursor-pointer"
           >
-            Todas
-          </button>
-          {folders.slice(0, 12).map(f => {
-            const fName = typeof f === 'string' ? f : f?.name || 'Sin carpeta';
-            const fKey = typeof f === 'string' ? f : f?.name || 'other';
-            return (
-              <button
-                key={fKey}
-                onClick={() => setSelectedFolder(fName === selectedFolder ? null : fName)}
-                className={`px-2 py-1 text-[10px] rounded-full border transition-all ${
-                  selectedFolder === fName
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300'
-                }`}
-              >
-                {fName}
-              </button>
-            );
-          })}
+            <option value="">Todas las carpetas</option>
+            {folders.map(f => {
+              const fName = typeof f === 'string' ? f : f?.name || 'Sin carpeta';
+              const fCount = typeof f === 'object' ? f?.count || 0 : 0;
+              return (
+                <option key={fName} value={fName}>
+                  {fName} ({fCount})
+                </option>
+              );
+            })}
+          </select>
         </div>
       )}
 
