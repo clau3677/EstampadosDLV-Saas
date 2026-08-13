@@ -233,9 +233,9 @@ export default function GangSheetCanvas() {
           const s = useGangSheet.getState();
           let newX = Math.round((image.x() - offX) / scale);
           let newY = Math.round((image.y() - offY) / scale);
-          // Clamp al lienzo: no salir por la izquierda ni por el ancho
+          // Clamp al lienzo: no salir por los bordes
           newX = Math.max(0, Math.min(newX, s.canvasWidthMm - d.widthMm));
-          newY = Math.max(0, newY);
+          newY = Math.max(0, Math.min(newY, canvasLengthMm - d.heightMm));
           // (G) Snap to grid on drop
           if (s.snapEnabled && s.snapGridMm > 0) {
             newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
@@ -265,9 +265,9 @@ export default function GangSheetCanvas() {
           const s = useGangSheet.getState();
           let newX = Math.round((image.x() - offX) / scale);
           let newY = Math.round((image.y() - offY) / scale);
-          // Clamp al lienzo
+          // Clamp al lienzo: no salir por los bordes
           newX = Math.max(0, Math.min(newX, s.canvasWidthMm - newW));
-          newY = Math.max(0, newY);
+          newY = Math.max(0, Math.min(newY, canvasLengthMm - newH));
           if (s.snapEnabled && s.snapGridMm > 0) {
             newX = Math.round(newX / s.snapGridMm) * s.snapGridMm;
             newY = Math.round(newY / s.snapGridMm) * s.snapGridMm;
