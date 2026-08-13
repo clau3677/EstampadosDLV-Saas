@@ -101,184 +101,37 @@ function restoreImgs(snapshotArr, cache) {
 }
 
 // ============================================================================
-// GENERACIÓN DE DISPLACEMENT MAP (hace que el diseño siga las arrugas)
+// APLICAR BLEND PROFESIONAL (estilo Placeit.net - compositeOperation nativo)
 // ============================================================================
-function generateDisplacementMap(bgCanvas, dx, dy, designX, designY, designW, designH) {
-  const mapCanvas = document.createElement('canvas');
-  mapCanvas.width = designW;
-  mapCanvas.height = designH;
-  const mapCtx = mapCanvas.getContext('2d');
-
-  mapCtx.drawImage(bgCanvas, dx + designX, dy + designY, designW, designH, 0, 0, designW, designH);
-  const imageData = mapCtx.getImageData(0, 0, designW, designH);
-  const data = imageData.data;
-
-  const width = designW;
-  const height = designH;
-  const blurred = new Uint8ClampedArray(data.length);
-
-  // Box blur (kernel 5x5 para más suavidad)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      let rSum = 0, gSum = 0, bSum = 0;
-      let count = 0;
-
-      for (let dy2 = -2; dy2 <= 2; dy2++) {
-        for (let dx2 = -2; dx2 <= 2; dx2++) {
-          const ny = y + dy2;
-          const nx = x + dx2;
-          if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            const nIdx = (ny * width + nx) * 4;
-            rSum += data[nIdx];
-            gSum += data[nIdx + 1];
-            bSum += data[nIdx + 2];
-            count++;
-          }
-        }
-      }
-
-      const lum = (rSum / count * 0.299 + gSum / count * 0.587 + bSum / count * 0.114);
-      blurred[idx] = lum;
-      blurred[idx + 1] = lum;
-      blurred[idx + 2] = lum;
-      blurred[idx + 3] = 255;
-    }
-  }
-
-  mapCtx.putImageData(new ImageData(blurred, width, height), 0, 0);
-  return mapCanvas;
-}
-
+// Placeit usa blend modes nativos del canvas (multiply/screen) que son:
+// - Multiplicación: oscurece, perfecto para diseños sobre fondos claros
+// - Screen: aclara, perfecto para diseños sobre fondos oscuros
+// Esto es más simple, más rápido y produce resultados más naturales
+// porque no distorsiona la imagen como el displacement mapping.
 // ============================================================================
-// APLICAR DISPLACEMENT + BLEND PROFESIONAL
-// ============================================================================
-function applyDisplacementAndBlend(designCanvas, displacementMap, bgRegionCanvas, opacity, garmentDark) {
+function applyBlendNative(designCanvas, bgRegionCanvas, opacity, garmentDark) {
   const w = designCanvas.width;
   const h = designCanvas.height;
 
-  const dCtx = designCanvas.getContext('2d');
-  const dd = dCtx.getImageData(0, 0, w, h).data;
-
-  const mCtx = displacementMap.getContext('2d');
-  const md = mCtx.getImageData(0, 0, w, h).data;
-
-  const bgCtx = bgRegionCanvas.getContext('2d');
-  const bd = bgCtx.getImageData(0, 0, w, h).data;
-
+  // Crear canvas temporal para aplicar el blend
   const resultCanvas = document.createElement('canvas');
   resultCanvas.width = w;
   resultCanvas.height = h;
   const rCtx = resultCanvas.getContext('2d');
-  const rData = rCtx.createImageData(w, h);
-  const rd = rData.data;
 
-  const strength = 2.5; // Fuerza del displacement (sutil para realismo)
+  // Primero dibujar el diseño con opacidad
+  rCtx.globalAlpha = opacity;
+  rCtx.drawImage(designCanvas, 0, 0, w, h);
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 4;
+  // Aplicar blend mode nativo
+  // Multiply: el blanco se vuelve transparente (los colores del diseño se mezclan con la tela)
+  // Screen: el negro se vuelve transparente (los colores claros del diseño brillan)
+  rCtx.globalCompositeOperation = garmentDark ? 'screen' : 'multiply';
+  rCtx.drawImage(designCanvas, 0, 0, w, h);
 
-      // Desplazamiento basado en la textura de la tela
-      const disp = ((md[idx] - 128) / 128) * strength;
-      const srcX = Math.round(x + disp);
-      const srcY = Math.round(y + disp * 0.4);
+  // Volver al blend normal para cualquier otra operación
+  rCtx.globalCompositeOperation = 'source-over';
 
-      let r, g, b, a;
-      if (srcX >= 0 && srcX < w && srcY >= 0 && srcY < h) {
-        const srcIdx = (srcY * w + srcX) * 4;
-        r = dd[srcIdx];
-        g = dd[srcIdx + 1];
-        b = dd[srcIdx + 2];
-        a = dd[srcIdx + 3];
-      } else {
-        // Pixel fuera de rango por displacement: usar el pixel más cercano (clamp)
-        const clampedX = Math.max(0, Math.min(w - 1, srcX));
-        const clampedY = Math.max(0, Math.min(h - 1, srcY));
-        const srcIdx = (clampedY * w + clampedX) * 4;
-        r = dd[srcIdx];
-        g = dd[srcIdx + 1];
-        b = dd[srcIdx + 2];
-        a = dd[srcIdx + 3];
-      }
-
-      if (a <= 0) {
-        rd[idx + 3] = 0;
-        continue;
-      }
-
-      // Luminosidad de la tela en este punto
-      const lum = (bd[idx] * 0.299 + bd[idx + 1] * 0.587 + bd[idx + 2] * 0.114) / 255;
-
-      // Luminosidad del pixel del diseño
-      const designLum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-
-      // Blend inteligente con manejo de fondos:
-      // - Si el pixel del diseño es muy claro (fondo blanco/casi blanco), reducir alpha
-      //   para que la tela se vea a través. Esto hace que fondos blancos se vean transparentes.
-      // - Prenda CLARA: multiply (el diseño se oscurece con las sombras de la tela)
-      // - Prenda OSCURA: se usa luminosity blend que mantiene los colores del diseño
-      //   pero los oscurece/aclara según la textura de la tela.
-      let outR, outG, outB, outA;
-
-      // Detectar si el pixel del diseño es un fondo blanco/gris muy claro
-      // (saturation baja + luminosidad alta = fondo, no diseño real)
-      const maxC = Math.max(r, g, b) / 255;
-      const minC = Math.min(r, g, b) / 255;
-      const saturation = (maxC - minC);
-
-      if (designLum > 0.92 && saturation < 0.1) {
-        // Pixel casi blanco con baja saturación = fondo blanco del PNG
-        // En prendas oscuras: hacer completamente transparente
-        // En prendas claras: mantener pero aclarar ligeramente
-        if (garmentDark) {
-          outA = 0; // Totalmente transparente sobre prenda oscura
-        } else {
-          outA = a * 0.3 * opacity; // Semi-transparente sobre prenda clara
-        }
-        outR = bd[idx];
-        outG = bd[idx + 1];
-        outB = bd[idx + 2];
-        rd[idx] = outR;
-        rd[idx + 1] = outG;
-        rd[idx + 2] = outB;
-        rd[idx + 3] = Math.floor(outA);
-        continue;
-      }
-
-      if (garmentDark) {
-        // Para prendas oscuras: usar "luminosity" blend que preserva los colores
-        // del diseño pero ajusta la luminosidad según la textura de la tela.
-        // El diseño mantiene su color original pero se integra con las sombras/luz de la tela.
-        const designLumNorm = designLum;
-        // Luminosity blend: tomar hue/saturation del diseño, luminance de la tela
-        // Simplificado: el diseño se dibuja con su color pero ajustado por la textura
-        // de la tela para que se vea integrado (como una impresión real DTF)
-        
-        // Factor de ajuste: la tela oscura absorbe parte de la luz
-        // Los diseños claros se ven más, los oscuros se integran con la tela
-        const fabricAdjust = 0.7 + 0.3 * lum; // 0.7-1.0 según brillo de la tela
-        
-        // Para diseños claros sobre tela oscura: mantener brillo pero con textura
-        // Para diseños oscuros sobre tela oscura: se integran naturalmente
-        outR = r * (0.85 + 0.15 * lum);
-        outG = g * (0.85 + 0.15 * lum);
-        outB = b * (0.85 + 0.15 * lum);
-      } else {
-        // Para prendas claras: multiply blend (el diseño se oscurece con las sombras)
-        outR = r * lum;
-        outG = g * lum;
-        outB = b * lum;
-      }
-
-      rd[idx] = Math.min(255, Math.max(0, Math.floor(outR)));
-      rd[idx + 1] = Math.min(255, Math.max(0, Math.floor(outG)));
-      rd[idx + 2] = Math.min(255, Math.max(0, Math.floor(outB)));
-      rd[idx + 3] = Math.floor(a * opacity);
-    }
-  }
-
-  rCtx.putImageData(rData, 0, 0);
   return resultCanvas;
 }
 
@@ -454,7 +307,7 @@ export default function CatalogCanvas() {
       ctx.restore();
     }
 
-    // Dibujar diseños con blend profesional
+    // Dibujar diseños con blend profesional estilo Placeit.net
     for (const design of designs) {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
@@ -477,23 +330,13 @@ export default function CatalogCanvas() {
       designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
       designCtx.restore();
 
-      // Paso 2: Generar displacement map desde la textura de la tela
-      const dispMap = generateDisplacementMap(canvas, drawX || 0, drawY || 0, design.x, design.y, dw2, dh2);
-
-      // Paso 3: Obtener la región de fondo detrás del diseño
-      const bgRegion = document.createElement('canvas');
-      bgRegion.width = dw2;
-      bgRegion.height = dh2;
-      const bgCtx2 = bgRegion.getContext('2d');
-      bgCtx2.drawImage(canvas, (drawX || 0) + design.x, (drawY || 0) + design.y, dw2, dh2, 0, 0, dw2, dh2);
-
-      // Paso 4: Aplicar displacement + blend
+      // Paso 2: Aplicar blend nativo (multiply para claras, screen para oscuras)
       const isDark = isGarmentDark(bgImgData);
-      const finalCanvas = applyDisplacementAndBlend(
-        designCanvas, dispMap, bgRegion, design.opacity || 1, isDark
+      const finalCanvas = applyBlendNative(
+        designCanvas, null, design.opacity || 1, isDark
       );
 
-      // Paso 5: Dibujar resultado
+      // Paso 3: Dibujar resultado sobre el canvas principal
       ctx.save();
       ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
       ctx.restore();
