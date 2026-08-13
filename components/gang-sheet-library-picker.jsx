@@ -23,7 +23,7 @@ import {
 
 // Configuración
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const THUMB_WIDTH = 300;
+const THUMB_WIDTH = 150;
 const PAGE_SIZE = 48;
 const THUMB_FORMAT = 'webp';
 
