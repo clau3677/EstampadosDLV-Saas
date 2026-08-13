@@ -201,8 +201,9 @@ export default function CatalogCanvas() {
               p.category !== 'dtf_textil' &&
               p.category !== 'workwear' &&
               p.category !== 'gorra_parche_animal' &&
-              !['dtf_uv', 'dtf_textil', 'gorra_parche_animal', 'lisa'].includes(p.subcategory || '') &&
-              !(p.name && p.name.toLowerCase().includes('animal malla'))
+              !['dtf_uv', 'dtf_textil', 'gorra_parche_animal'].includes(p.subcategory || '') &&
+              !(p.name && p.name.toLowerCase().includes('animal malla')) &&
+              (p.category !== 'caps_hats' || (p.category === 'caps_hats' && !p.name.toLowerCase().includes('animal')))
             );
             if (active.length > 0) {
               setCatalogProducts(active);
