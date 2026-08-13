@@ -572,13 +572,41 @@ export default function CatalogCanvas() {
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const pa = printArea;
+    const paW = pa.w * CANVAS_SIZE;
+    const paH = pa.h * CANVAS_SIZE;
+
+    // Calcular dimensiones respetando el aspect ratio real de la imagen
+    let designWidth, designHeight;
+    const srcW = imageData.srcWidthPx || paW;
+    const srcH = imageData.srcHeightPx || paH;
+    const srcAspect = srcW / srcH;
+
+    if (srcAspect >= 1) {
+      // Imagen más ancha que alta: limitar por ancho del print area
+      designWidth = Math.min(paW, srcW > CANVAS_SIZE ? paW : srcW);
+      designHeight = designWidth / srcAspect;
+      // Si excede el alto, limitar por alto
+      if (designHeight > paH) {
+        designHeight = paH;
+        designWidth = designHeight * srcAspect;
+      }
+    } else {
+      // Imagen más alta que ancha: limitar por alto del print area
+      designHeight = Math.min(paH, srcH > CANVAS_SIZE ? paH : srcH);
+      designWidth = designHeight * srcAspect;
+      if (designWidth > paW) {
+        designWidth = paW;
+        designHeight = designWidth / srcAspect;
+      }
+    }
+
     const newDesign = {
       id,
       ...imageData,
-      x: pa.x * CANVAS_SIZE,
-      y: pa.y * CANVAS_SIZE,
-      width: pa.w * CANVAS_SIZE,
-      height: pa.h * CANVAS_SIZE,
+      x: pa.x * CANVAS_SIZE + (paW - designWidth) / 2,
+      y: pa.y * CANVAS_SIZE + (paH - designHeight) / 2,
+      width: designWidth,
+      height: designHeight,
       rotation: 0,
       opacity: 1,
     };
