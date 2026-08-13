@@ -7,7 +7,7 @@ import useSWR from 'swr';
 import {
   Search, Layers, Sparkles, ArrowRight, Loader2, X, Star, Truck, ShieldCheck,
   Heart, Wallet, Palette, CheckCircle2, Package,
-  Shirt, Gift, HardHat, CircleUser,
+  Shirt, Gift, HardHat, CircleUser, Image as ImageIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -275,6 +275,13 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
               asChild
             >
               <a href="#catalogo">Ver catálogo <ArrowRight className="h-4 w-4 ml-2" /></a>
+            </Button>
+            <Button
+              size="lg"
+              className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold shadow-lg shadow-yellow-400/25"
+              asChild
+            >
+              <Link href="/mockup"><ImageIcon className="h-4 w-4 mr-2" />Crea tu mockup gratis</Link>
             </Button>
           </div>
 
