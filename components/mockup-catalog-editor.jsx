@@ -109,28 +109,27 @@ function restoreImgs(snapshotArr, cache) {
 // Esto es más simple, más rápido y produce resultados más naturales
 // porque no distorsiona la imagen como el displacement mapping.
 // ============================================================================
-function applyBlendNative(designCanvas, bgRegionCanvas, opacity, garmentDark) {
+// Apply blend by compositing the design onto the garment region underneath
+function applyBlendNative(mainCanvas, designCanvas, designX, designY, opacity, garmentDark) {
   const w = designCanvas.width;
   const h = designCanvas.height;
 
-  // Crear canvas temporal para aplicar el blend
   const resultCanvas = document.createElement('canvas');
   resultCanvas.width = w;
   resultCanvas.height = h;
   const rCtx = resultCanvas.getContext('2d');
 
-  // Primero dibujar el diseño con opacidad
-  rCtx.globalAlpha = opacity;
-  rCtx.drawImage(designCanvas, 0, 0, w, h);
+  // 1. Draw the garment region underneath the design
+  rCtx.drawImage(mainCanvas, designX, designY, w, h, 0, 0, w, h);
 
-  // Aplicar blend mode nativo
-  // Multiply: el blanco se vuelve transparente (los colores del diseño se mezclan con la tela)
-  // Screen: el negro se vuelve transparente (los colores claros del diseño brillan)
+  // 2. Apply blend mode: design over garment
+  // Multiply: white parts of design become transparent (design darkens the fabric)
+  // Screen: dark parts of design become transparent (design brightens the fabric)
+  rCtx.globalAlpha = opacity;
   rCtx.globalCompositeOperation = garmentDark ? 'screen' : 'multiply';
   rCtx.drawImage(designCanvas, 0, 0, w, h);
-
-  // Volver al blend normal para cualquier otra operación
   rCtx.globalCompositeOperation = 'source-over';
+  rCtx.globalAlpha = 1;
 
   return resultCanvas;
 }
@@ -336,13 +335,13 @@ export default function CatalogCanvas() {
       designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
       designCtx.restore();
 
-      // Paso 2: Aplicar blend nativo (multiply para claras, screen para oscuras)
+      // Paso 2: Aplicar blend nativo sobre la región de la prenda
       const isDark = isGarmentDark(bgImgData);
       const finalCanvas = applyBlendNative(
-        designCanvas, null, design.opacity || 1, isDark
+        canvas, designCanvas, design.x, design.y, design.opacity || 1, isDark
       );
 
-      // Paso 3: Dibujar resultado sobre el canvas principal
+      // Paso 3: Dibujar resultado blend sobre el canvas principal
       ctx.save();
       ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
       ctx.restore();
