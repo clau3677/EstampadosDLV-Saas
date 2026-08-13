@@ -148,27 +148,38 @@ export default function CatalogCanvas() {
   useEffect(() => {
     const loadProducts = async () => {
       setLoadingProducts(true);
-      try {
-        const r = await fetch('/api/products');
-        if (r.ok) {
-          const all = await r.json();
-          // Filtrar productos activos con imágenes
-          // Excluir máquinas DTF (no son prendas para mockup)
-          const active = all.filter(p =>
-            p.active && p.images && p.images.length > 0 &&
-            p.category !== 'dtf_uv' &&
-            p.category !== 'dtf_textil' &&
-            !['dtf_uv', 'dtf_textil'].includes(p.subcategory || '')
-          );
-          setCatalogProducts(active);
-          // Seleccionar el primer producto por defecto
-          if (active.length > 0) {
-            setSelectedProduct(active[0]);
+      // Retry up to 3 times with increasing timeout
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), (attempt + 1) * 15000);
+          const r = await fetch('/api/products', { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (r.ok) {
+            const all = await r.json();
+            // Filtrar productos activos con imágenes
+            // Excluir máquinas DTF (no son prendas para mockup)
+            const active = all.filter(p =>
+              p.active && p.images && p.images.length > 0 &&
+              p.category !== 'dtf_uv' &&
+              p.category !== 'dtf_textil' &&
+              !['dtf_uv', 'dtf_textil'].includes(p.subcategory || '')
+            );
+            if (active.length > 0) {
+              setCatalogProducts(active);
+              setSelectedProduct(active[0]);
+              setLoadingProducts(false);
+              return;
+            }
           }
+        } catch (err) {
+          if (attempt === 2) {
+            console.error('Error loading products after 3 retries:', err);
+            toast.error('Error al cargar el catálogo. Recarga la página.');
+          }
+          // Wait before retrying
+          await new Promise(res => setTimeout(res, 1000 * (attempt + 1)));
         }
-      } catch (err) {
-        console.error('Error loading products:', err);
-        toast.error('Error al cargar el catálogo');
       }
       setLoadingProducts(false);
     };
