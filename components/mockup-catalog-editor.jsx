@@ -169,7 +169,13 @@ export default function CatalogCanvas() {
         if (r.ok) {
           const all = await r.json();
           // Filtrar productos activos con imágenes
-          const active = all.filter(p => p.active && p.images && p.images.length > 0);
+          // Excluir máquinas DTF (no son prendas para mockup)
+          const active = all.filter(p =>
+            p.active && p.images && p.images.length > 0 &&
+            p.category !== 'dtf_uv' &&
+            p.category !== 'dtf_textil' &&
+            !['dtf_uv', 'dtf_textil'].includes(p.subcategory || '')
+          );
           setCatalogProducts(active);
           // Seleccionar el primer producto por defecto
           if (active.length > 0) {
