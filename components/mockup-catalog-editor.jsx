@@ -153,7 +153,7 @@ export default function CatalogCanvas() {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), (attempt + 1) * 15000);
-          const r = await fetch('/api/products', { signal: controller.signal });
+          const r = await fetch('/api/products?lite=true', { signal: controller.signal });
           clearTimeout(timeoutId);
           if (r.ok) {
             const all = await r.json();
