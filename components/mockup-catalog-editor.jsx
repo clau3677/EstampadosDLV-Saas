@@ -335,8 +335,11 @@ export default function CatalogCanvas() {
       blendCtx.drawImage(canvas, design.x, design.y, dw2, dh2, 0, 0, dw2, dh2);
 
       // Aplicar blend: diseño sobre la región de la prenda
+      // Usamos 'multiply' siempre porque los diseños de la biblioteca
+      // tienen fondo blanco opaco. Multiply hace que el blanco se vuelva
+      // transparente y solo los colores se mezclen con la prenda.
       blendCtx.globalAlpha = design.opacity || 1;
-      blendCtx.globalCompositeOperation = garmentDark ? 'screen' : 'multiply';
+      blendCtx.globalCompositeOperation = 'multiply';
       blendCtx.drawImage(designCanvas, 0, 0, dw2, dh2);
       blendCtx.globalCompositeOperation = 'source-over';
       blendCtx.globalAlpha = 1;
@@ -622,9 +625,9 @@ export default function CatalogCanvas() {
       // Extract garment region from export canvas
       bCtx.drawImage(exportCanvas, design.x * scale, design.y * scale, dw, dh, 0, 0, dw, dh);
 
-      // Apply blend
+      // Apply blend (multiply: white becomes transparent, colors mix with fabric)
       bCtx.globalAlpha = design.opacity || 1;
-      bCtx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
+      bCtx.globalCompositeOperation = 'multiply';
       bCtx.drawImage(designCanvas, 0, 0, dw, dh);
       bCtx.globalCompositeOperation = 'source-over';
       bCtx.globalAlpha = 1;
