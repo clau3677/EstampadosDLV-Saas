@@ -284,7 +284,42 @@ export default function CatalogCanvas() {
     img.onerror = () => {
       toast.error('Error al cargar imagen del producto');
     };
-    img.src = selectedProduct.images[0];
+    // Para gorras, usar la imagen frontal generada con IA si existe
+    let imgSrc = selectedProduct.images[0];
+    const isCap = selectedProduct.category === 'caps_hats';
+    if (isCap && selectedProduct.sku) {
+      const frontalUrl = `/uploads/caps-frontal/${selectedProduct.sku}.png`;
+      // Probar primero la imagen frontal, si falla usar la original
+      const testImg = new Image();
+      testImg.crossOrigin = 'anonymous';
+      testImg.onload = () => {
+        // La imagen frontal existe, usarla
+        const img2 = new Image();
+        img2.crossOrigin = 'anonymous';
+        img2.onload = () => {
+          setBgImage(img2);
+          const tmpCanvas = document.createElement('canvas');
+          const w = Math.min(img2.width, 200);
+          const h = Math.min(img2.height, 200);
+          tmpCanvas.width = w;
+          tmpCanvas.height = h;
+          const tmpCtx = tmpCanvas.getContext('2d');
+          tmpCtx.drawImage(img2, 0, 0, w, h);
+          const imgData = tmpCtx.getImageData(0, 0, w, h);
+          setBgImgData(imgData);
+          setGarmentIsDark(isGarmentDark(imgData));
+        };
+        img2.onerror = img.onerror;
+        img2.src = frontalUrl;
+      };
+      testImg.onerror = () => {
+        // La imagen frontal no existe, usar la original
+        img.src = imgSrc;
+      };
+      testImg.src = frontalUrl;
+    } else {
+      img.src = imgSrc;
+    }
   }, [selectedProduct]);
 
   // Cache de imágenes de diseño
