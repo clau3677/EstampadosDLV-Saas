@@ -199,7 +199,9 @@ export default function CatalogCanvas() {
               p.active && p.images && p.images.length > 0 &&
               p.category !== 'dtf_uv' &&
               p.category !== 'dtf_textil' &&
-              !['dtf_uv', 'dtf_textil'].includes(p.subcategory || '')
+              p.category !== 'workwear' &&
+              p.subcategory !== 'gorra_parche_animal' &&
+              !['dtf_uv', 'dtf_textil', 'gorra_parche_animal'].includes(p.subcategory || '')
             );
             if (active.length > 0) {
               setCatalogProducts(active);
