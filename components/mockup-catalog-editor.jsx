@@ -75,17 +75,26 @@ function getPrintArea(category, subcategory, name) {
 }
 
 // Detectar si la prenda es clara u oscura (luminosidad promedio)
+// Solo muestrea píxeles que NO son blancos (fondo) para determinar el color de la prenda
 function isGarmentDark(imgData) {
   if (!imgData) return false;
   const data = imgData.data;
   let lumSum = 0;
-  let count = 0;
-  const step = Math.max(1, Math.floor(data.length / 4 / 100)); // Sample ~100 pixels
+  let darkCount = 0;
+  let totalSampled = 0;
+  const step = Math.max(1, Math.floor(data.length / 4 / 500)); // Sample ~500 pixels
   for (let i = 0; i < data.length; i += 4 * step) {
-    lumSum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-    count++;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    // Skip near-white pixels (background)
+    if (r > 230 && g > 230 && b > 230) continue;
+    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+    lumSum += lum;
+    totalSampled++;
+    if (lum < 128) darkCount++;
   }
-  return (lumSum / count) < 100; // < 100 = oscura
+  if (totalSampled === 0) return false;
+  // Si la mayoría de los píxeles no-blancos son oscuros, la prenda es oscura
+  return (darkCount / totalSampled) > 0.3; // > 30% oscuros = prenda oscura
 }
 
 // Historial
@@ -109,30 +118,6 @@ function restoreImgs(snapshotArr, cache) {
 // Esto es más simple, más rápido y produce resultados más naturales
 // porque no distorsiona la imagen como el displacement mapping.
 // ============================================================================
-// Apply blend by compositing the design onto the garment region underneath
-function applyBlendNative(mainCanvas, designCanvas, designX, designY, opacity, garmentDark) {
-  const w = designCanvas.width;
-  const h = designCanvas.height;
-
-  const resultCanvas = document.createElement('canvas');
-  resultCanvas.width = w;
-  resultCanvas.height = h;
-  const rCtx = resultCanvas.getContext('2d');
-
-  // 1. Draw the garment region underneath the design
-  rCtx.drawImage(mainCanvas, designX, designY, w, h, 0, 0, w, h);
-
-  // 2. Apply blend mode: design over garment
-  // Multiply: white parts of design become transparent (design darkens the fabric)
-  // Screen: dark parts of design become transparent (design brightens the fabric)
-  rCtx.globalAlpha = opacity;
-  rCtx.globalCompositeOperation = garmentDark ? 'screen' : 'multiply';
-  rCtx.drawImage(designCanvas, 0, 0, w, h);
-  rCtx.globalCompositeOperation = 'source-over';
-  rCtx.globalAlpha = 1;
-
-  return resultCanvas;
-}
 
 // ============================================================================
 // COMPONENTE PRINCIPAL: Editor de Mockups
@@ -313,11 +298,14 @@ export default function CatalogCanvas() {
     }
 
     // Dibujar diseños con blend profesional estilo Placeit.net
+    // Estrategia: aplicar el blend directamente sobre el canvas principal
+    // usando globalCompositeOperation, extrayendo la región del fondo
+    // y compositando el diseño encima
     for (const design of designs) {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
 
-      // Paso 1: Canvas temporal del diseño
+      // Paso 1: Canvas temporal del diseño (con rotación)
       const designCanvas = document.createElement('canvas');
       const dw2 = Math.round(design.width);
       const dh2 = Math.round(design.height);
@@ -325,7 +313,6 @@ export default function CatalogCanvas() {
       designCanvas.height = dh2;
       const designCtx = designCanvas.getContext('2d');
 
-      // Aplicar rotación
       designCtx.save();
       const cx = dw2 / 2;
       const cy = dh2 / 2;
@@ -335,16 +322,27 @@ export default function CatalogCanvas() {
       designCtx.drawImage(cached.imgEl, 0, 0, dw2, dh2);
       designCtx.restore();
 
-      // Paso 2: Aplicar blend nativo sobre la región de la prenda
-      const isDark = isGarmentDark(bgImgData);
-      const finalCanvas = applyBlendNative(
-        canvas, designCanvas, design.x, design.y, design.opacity || 1, isDark
-      );
+      // Paso 2: Crear canvas de resultado del blend
+      const blendCanvas = document.createElement('canvas');
+      blendCanvas.width = dw2;
+      blendCanvas.height = dh2;
+      const blendCtx = blendCanvas.getContext('2d');
+
+      // Extraer la región del fondo (prenda) que está debajo del diseño
+      // Las coordenadas design.x/y son relativas al canvas principal (cs)
+      // Necesitamos mapearlas al espacio del fondo considerando el offset
+      const garmentDark = isGarmentDark(bgImgData);
+      blendCtx.drawImage(canvas, design.x, design.y, dw2, dh2, 0, 0, dw2, dh2);
+
+      // Aplicar blend: diseño sobre la región de la prenda
+      blendCtx.globalAlpha = design.opacity || 1;
+      blendCtx.globalCompositeOperation = garmentDark ? 'screen' : 'multiply';
+      blendCtx.drawImage(designCanvas, 0, 0, dw2, dh2);
+      blendCtx.globalCompositeOperation = 'source-over';
+      blendCtx.globalAlpha = 1;
 
       // Paso 3: Dibujar resultado blend sobre el canvas principal
-      ctx.save();
-      ctx.drawImage(finalCanvas, design.x, design.y, dw2, dh2);
-      ctx.restore();
+      ctx.drawImage(blendCanvas, design.x, design.y, dw2, dh2);
 
       // Borde de selección
       if (design.id === selectedDesignId) {
@@ -593,19 +591,46 @@ export default function CatalogCanvas() {
       ctx.drawImage(bgImage, drawX, drawY, drawW, drawH);
     }
 
+    const isDark = isGarmentDark(bgImgData);
     for (const design of designs) {
       const cached = designCache.current.get(design.id);
       if (!cached?.imgEl) continue;
-      ctx.save();
-      ctx.globalAlpha = design.opacity || 1;
-      const sx = scale;
-      const cx = (design.x + design.width / 2) * sx;
-      const cy = (design.y + design.height / 2) * sx;
-      ctx.translate(cx, cy);
-      ctx.rotate((design.rotation || 0) * Math.PI / 180);
-      ctx.translate(-cx, -cy);
-      ctx.drawImage(cached.imgEl, design.x * sx, design.y * sx, design.width * sx, design.height * sx);
-      ctx.restore();
+
+      // Create design canvas with rotation
+      const designCanvas = document.createElement('canvas');
+      const dw = Math.round(design.width * scale);
+      const dh = Math.round(design.height * scale);
+      designCanvas.width = dw;
+      designCanvas.height = dh;
+      const dCtx = designCanvas.getContext('2d');
+
+      dCtx.save();
+      const dCx = dw / 2;
+      const dCy = dh / 2;
+      dCtx.translate(dCx, dCy);
+      dCtx.rotate((design.rotation || 0) * Math.PI / 180);
+      dCtx.translate(-dCx, -dCy);
+      dCtx.drawImage(cached.imgEl, 0, 0, dw, dh);
+      dCtx.restore();
+
+      // Create blend result canvas
+      const blendCanvas = document.createElement('canvas');
+      blendCanvas.width = dw;
+      blendCanvas.height = dh;
+      const bCtx = blendCanvas.getContext('2d');
+
+      // Extract garment region from export canvas
+      bCtx.drawImage(exportCanvas, design.x * scale, design.y * scale, dw, dh, 0, 0, dw, dh);
+
+      // Apply blend
+      bCtx.globalAlpha = design.opacity || 1;
+      bCtx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
+      bCtx.drawImage(designCanvas, 0, 0, dw, dh);
+      bCtx.globalCompositeOperation = 'source-over';
+      bCtx.globalAlpha = 1;
+
+      // Draw result onto export canvas
+      ctx.drawImage(blendCanvas, design.x * scale, design.y * scale, dw, dh);
     }
 
     const dataUrl = exportCanvas.toDataURL('image/png', 1.0);
