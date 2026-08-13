@@ -1068,7 +1068,7 @@ function LibraryPicker({ onSelect }) {
               title={item.name}
             >
               <img
-                src={item.imageUrl}
+                src={`/api/thumbnails?src=${encodeURIComponent(item.imageUrl)}&w=150&q=75`}
                 alt={item.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
@@ -1138,7 +1138,7 @@ function LayersList({ designs, selectedDesignId, onSelect, onRemove }) {
           `}
         >
           <div className="w-8 h-8 rounded overflow-hidden bg-white border border-slate-200 shrink-0">
-            <img src={d.imageUrl} alt={d.name} className="w-full h-full object-contain" />
+            <img src={`/api/thumbnails?src=${encodeURIComponent(d.imageUrl)}&w=80&q=75`} alt={d.name} className="w-full h-full object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium text-slate-700 truncate">{d.name || `Capa ${i + 1}`}</div>
