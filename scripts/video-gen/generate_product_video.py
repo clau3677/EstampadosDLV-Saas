@@ -33,7 +33,10 @@ VIDEO_DIR = "/var/www/estampadosdlv/public/videos"
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 BG_MUSIC = "/var/www/dlv-video-assets/bg-music.mp3"
-VOICE = "es-CL-CatalinaNeural"
+# Voces chilenas nativas: CatalinaNeural (mujer) y LorenzoNeural (hombre)
+# Se alternan según el SKU para variedad (mismo SKU = siempre misma voz)
+VOICES = ["es-CL-CatalinaNeural", "es-CL-LorenzoNeural"]
+VOICE = VOICES[0]
 
 os.makedirs(VIDEO_DIR, exist_ok=True)
 WORK_DIR = ""  # Set in main()
@@ -286,15 +289,17 @@ def generate_voice_minimax(text, output_path):
         return False
 
 
-def generate_voice(text, output_path):
-    """Generate TTS voice - try MiniMax first, then Edge-TTS."""
-    if MINIMAX_API_KEY:
-        if generate_voice_minimax(text, output_path):
-            return True
-    # Fallback to Edge-TTS
+def get_voice_for_sku(sku):
+    """Selecciona la voz según el SKU: alterna entre las 2 voces chilenas."""
+    hash_val = sum(ord(c) for c in sku) % len(VOICES)
+    return VOICES[hash_val]
+
+def generate_voice(text, output_path, sku="default"):
+    """Generate TTS voice using Chilean native voices only (Edge-TTS)."""
+    voice = get_voice_for_sku(sku)
     try:
         result = subprocess.run(
-            f'edge-tts --voice "{VOICE}" --text "{text}" --write-media "{output_path}"',
+            f'edge-tts --voice "{voice}" --text "{text}" --rate="+5%" --write-media "{output_path}"',
             shell=True, capture_output=True, text=True, timeout=60
         )
         return os.path.exists(output_path) and os.path.getsize(output_path) > 1000
@@ -737,7 +742,7 @@ def main():
     # Generate voice
     voice_file = os.path.join(WORK_DIR, "voice.mp3")
     print(f"  Generating voice-over...")
-    if not generate_voice(voice_script, voice_file):
+    if not generate_voice(voice_script, voice_file, sku=sku_safe):
         print("ERROR: Voice generation failed")
         sys.exit(1)
 
