@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -164,6 +165,7 @@ function PostsTab({ isConnected, aiConfigured }) {
   const [generating, setGenerating] = useState(false);
   // Edición
   const [editing, setEditing] = useState(null); // post en edición
+  const [previewVideo, setPreviewVideo] = useState(null); // URL del video en preview
   const [busyId, setBusyId] = useState(null);
 
   const refresh = useCallback(async () => {
@@ -285,6 +287,7 @@ function PostsTab({ isConnected, aiConfigured }) {
   };
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Generador */}
       <Card className="lg:col-span-1 h-fit">
@@ -411,15 +414,21 @@ function PostsTab({ isConnected, aiConfigured }) {
                 <div className="flex gap-4">
                   {/* Imagen o Video thumbnail */}
                   {post.isVideo && post.videoUrl ? (
-                    <div className="relative h-24 w-24 rounded-lg overflow-hidden shrink-0 border bg-gray-900 flex items-center justify-center">
+                    <div
+                      className="relative h-24 w-24 rounded-lg overflow-hidden shrink-0 border bg-gray-900 flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                      onClick={() => {
+                        const vidUrl = post.videoUrl.startsWith('http') ? post.videoUrl : `https://estampadosdlv.com${post.videoUrl}`;
+                        setPreviewVideo({ url: vidUrl, title: post.productName });
+                      }}
+                    >
                       <video
                         src={post.videoUrl.startsWith('http') ? post.videoUrl : post.videoUrl}
                         className="h-full w-full object-cover"
                         preload="none"
                         muted
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-white/80 rounded-full p-1.5">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="bg-white/90 rounded-full p-1.5">
                           <Play className="h-4 w-4 text-gray-900" />
                         </div>
                       </div>
@@ -511,12 +520,33 @@ function PostsTab({ isConnected, aiConfigured }) {
               </CardContent>
             </Card>
           );
-        })}
+                })}
       </div>
     </div>
+
+    {/* Video Preview Modal */}
+    <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>
+      <DialogContent className="max-w-2xl w-full">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Vista previa del video</DialogTitle>
+        </DialogHeader>
+        {previewVideo && (
+          <div className="relative w-full">
+            <video
+              src={previewVideo.url}
+              className="w-full rounded-lg"
+              controls
+              autoPlay
+              playsInline
+            />
+            <p className="text-sm text-gray-500 mt-2 text-center truncate">{previewVideo.title || 'Video promocional'}</p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
-
 // ---------------------------------------------------------------------------
 // Pestaña: Anuncios (Meta Ads — recetas)
 // ---------------------------------------------------------------------------
