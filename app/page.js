@@ -290,7 +290,7 @@ export default async function HomePage() {
                   const imageUrl = rawImg
                     ? (rawImg.startsWith('http')
                         ? rawImg
-                        : `${BASE}/api/thumbnails?src=${encodeURIComponent(rawImg)}&w=400`)
+                        : `${BASE}${rawImg}`)
                     : null;
                   const price = product.basePrice || product.variants?.[0]?.price || 0;
                   return (

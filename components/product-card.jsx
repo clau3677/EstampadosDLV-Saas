@@ -76,7 +76,7 @@ function thumbnailUrl(imagePath) {
   if (!imagePath) return null;
   // imagePath puede ser: "/uploads/proveedor/treck/xxx.jpg" o "https://..."
   if (imagePath.startsWith('http')) return imagePath;
-  return `/api/thumbnails?src=${encodeURIComponent(imagePath)}&w=300&format=webp&q=80`;
+  return imagePath;
 }
 
 export function ProductCard({ product }) {
