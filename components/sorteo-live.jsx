@@ -201,10 +201,10 @@ export function SorteoLive() {
               onClick={async () => {
                 setPickingApi(true);
                 try {
-                  const r = await fetch('/api/marketing/contest/pick-winners-auto', {
+                  const r = await fetch('/api/marketing/contest/privileged', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ winners }),
+                    body: JSON.stringify({ action: 'auto-pick' }),
                   });
                   await r.json();
                   setPickingApi(false);
