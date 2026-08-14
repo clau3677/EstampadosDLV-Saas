@@ -101,19 +101,25 @@ def download_image(url, output_path):
 
 def generate_ai_script_minimax(product_name, price, category):
     """Generate an advertising script using MiniMax M3 model."""
+    # Spell out the price in words for the AI to use in the script
+    price_num = number_to_words_chilean(price)
+    price_words = f"{price_num} pesos chilenos"
     prompt = f"""Genera un guion publicitario CORTO y LLAMATIVO en español chileno para un producto.
 Producto: {product_name}
-Precio: {price} CLP
+Precio: {price} CLP (en palabras se dice: "{price_words}")
 Categoría: {category}
 
 Requisitos:
 - Máximo 3-4 oraciones cortas
 - Tono entusiasta y de venta
-- Mencionar el precio de forma atractiva
+- Cuando menciones el precio, usa EXACTAMENTE la frase "{price_words}" tal cual, sin agregar palabras adicionales antes de "mil"
 - Mencionar envío a todo Chile por $3.490
 - Incluir llamado a la acción (compra ahora / escríbenos)
 - NO usar el teléfono en el guion (aparece en el video)
 - El guion debe sonar natural al ser leído por una voz de IA
+- PROHIBIDO: escribir el precio con símbolos $ o números como "$6.990", "6.990", "$6990"
+- PROHIBIDO: decir "seis pesos mil novecientos noventa" — debe ser "seis mil novecientos noventa pesos chilenos"
+- EJEMPLO CORRECTO: "Consíguela ahora por solo seis mil novecientos noventa pesos chilenos"
 
 Formato JSON:
 {{"hook": "frase gancho impactante", "body": "descripción del producto y beneficios", "cta": "llamado a la acción con precio y envío"}}"""
@@ -160,19 +166,24 @@ Formato JSON:
 
 def generate_ai_script_groq(product_name, price, category):
     """Generate an advertising script using Groq API (backup)."""
+    price_num = number_to_words_chilean(price)
+    price_words = f"{price_num} pesos chilenos"
     prompt = f"""Genera un guion publicitario CORTO y LLAMATIVO en español chileno para un producto.
 Producto: {product_name}
-Precio: {price} CLP
+Precio: {price} CLP (en palabras se dice: "{price_words}")
 Categoría: {category}
 
 Requisitos:
 - Máximo 3-4 oraciones cortas
 - Tono entusiasta y de venta
-- Mencionar el precio de forma atractiva
+- Cuando menciones el precio, usa EXACTAMENTE la frase "{price_words}" tal cual, sin agregar palabras adicionales antes de "mil"
 - Mencionar envío a todo Chile por $3.490
 - Incluir llamado a la acción (compra ahora / escríbenos)
 - NO usar el teléfono en el guion (aparece en el video)
 - El guion debe sonar natural al ser leído por una voz de IA
+- PROHIBIDO: escribir el precio con símbolos $ o números como "$6.990", "6.990", "$6990"
+- PROHIBIDO: decir "seis pesos mil novecientos noventa" — debe ser "seis mil novecientos noventa pesos chilenos"
+- EJEMPLO CORRECTO: "Consíguela ahora por solo seis mil novecientos noventa pesos chilenos"
 
 Formato JSON:
 {{"hook": "frase gancho impactante", "body": "descripción del producto y beneficios", "cta": "llamado a la acción con precio y envío"}}"""
@@ -565,13 +576,88 @@ Formato JSON:
     return None
 
 
-def create_voice_script_from_ai(ai_script):
-    """Convert AI-generated script to a spoken voice script."""
+def number_to_words_chilean(price_str):
+    """Convert a Chilean price string like '$6.990' to spoken words.
+    Returns just the number in words WITHOUT 'pesos' suffix - caller adds context.
+    """
+    # Remove $ and CLP
+    clean = price_str.replace('$', '').replace('CLP', '').replace('.', '').replace(' ', '').strip()
+    try:
+        num = int(clean)
+    except ValueError:
+        return price_str
+    
+    if num == 0:
+        return "cero pesos"
+    
+    units = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"]
+    teens = ["diez", "once", "doce", "trece", "catorce", "quince", "dieciseis", "diecisiete", "dieciocho", "diecinueve"]
+    tens = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"]
+    hundreds = ["", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"]
+    
+    if num < 10:
+        return f"{units[num]}"
+    elif num < 20:
+        return f"{teens[num - 10]}"
+    elif num < 100:
+        t, u = divmod(num, 10)
+        if u == 0:
+            return f"{tens[t]}"
+        return f"{tens[t]} y {units[u]}"
+    elif num < 1000:
+        h, rest = divmod(num, 100)
+        if rest == 0:
+            return f"{hundreds[h]}"
+        return f"{hundreds[h]} {number_to_words_chilean(str(rest))}"
+    elif num < 1000000:
+        thousands, rest = divmod(num, 1000)
+        if thousands == 1:
+            result = "mil"
+        else:
+            result = f"{number_to_words_chilean(str(thousands))} mil"
+        if rest > 0:
+            result += f" {number_to_words_chilean(str(rest))}"
+        return result
+    else:
+        millions, rest = divmod(num, 1000000)
+        if millions == 1:
+            result = "un millon"
+        else:
+            result = f"{number_to_words_chilean(str(millions))} millones"
+        if rest > 0:
+            result += f" {number_to_words_chilean(str(rest))}"
+        return result
+
+
+def create_voice_script_from_ai(ai_script, price):
+    """Convert AI-generated script to a spoken voice script.
+    CRITICAL: Replace any numeric price references with spelled-out words
+    to prevent TTS from mispronouncing (e.g., '$6.990' -> 'novecientos noventa')
+    """
     hook = ai_script.get("hook", "")
     body = ai_script.get("body", "")
     cta = ai_script.get("cta", "")
 
     script = f"{hook} {body} {cta}"
+    
+    # Fix price pronunciation: replace any remaining numeric price patterns
+    # with the spelled-out version
+    price_num = number_to_words_chilean(price)
+    price_words = f"{price_num} pesos chilenos"
+    
+    # Match patterns like: $6.990, 6.990, 6990, $ 6.990, etc.
+    script = re.sub(r'\$?\s*\d{1,3}(\.?\d{3})\b', price_words, script)
+    
+    # Also fix malformed price mentions like "seis pesos mil novecientos noventa pesos"
+    # Replace with clean version
+    script = re.sub(
+        r'(\w+)\s+pesos?\s+(\w+\s+)?(mil)\s+',
+        lambda m: f"{m.group(1)} {m.group(2) or ''}{m.group(3)} ",
+        script
+    )
+    # Remove trailing "pesos" before "chilenos" duplicates
+    script = re.sub(r'\b(pesos\s+chilenos)\s+(pesos)\b', r'\1', script)
+    
     return script
 
 
@@ -641,7 +727,7 @@ def main():
     if GROQ_KEY:
         ai_script = generate_ai_script(name, price, category)
         if ai_script:
-            voice_script = create_voice_script_from_ai(ai_script)
+            voice_script = create_voice_script_from_ai(ai_script, price)
             print(f"  AI script: {voice_script[:80]}...")
 
     if not voice_script:
