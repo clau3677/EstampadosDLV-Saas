@@ -8,13 +8,6 @@ import { BUSINESS } from '@/lib/constants/business';
 
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || 'https://estampadosdlv.com').replace(/\/$/, '');
 
-// Metadata con canonical para Google
-export const metadata = {
-  title: 'Editor de Mockups Gratis · Estampados DLV',
-  description: 'Visualiza tu diseño en poleras, gorras, tazones y más con nuestro editor de mockups gratis.',
-  alternates: { canonical: `${BASE}/mockup` },
-};
-
 // Error boundary para capturar errores client-side
 class MockupErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, err: null }; }
