@@ -285,8 +285,12 @@ export default async function HomePage() {
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredProducts.map((product) => {
-                  const imageUrl = product.images?.[0]
-                    ? (product.images[0].startsWith('http') ? product.images[0] : `${BASE}${product.images[0]}`)
+                  const rawImg = product.images?.[0] || null;
+                  // Usar miniatura WebP (~15KB) para carga rápida en móvil
+                  const imageUrl = rawImg
+                    ? (rawImg.startsWith('http')
+                        ? rawImg
+                        : `${BASE}/api/thumbnails?src=${encodeURIComponent(rawImg)}&w=400`)
                     : null;
                   const price = product.basePrice || product.variants?.[0]?.price || 0;
                   return (

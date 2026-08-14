@@ -31,7 +31,7 @@ class MockupErrorBoundary extends React.Component {
 
 export default function MockupPage() {
   return (
-    <div className="h-screen bg-slate-50">
+    <div className="min-h-screen overflow-y-auto bg-slate-50">
       <MockupErrorBoundary>
         <MockupCatalogEditor />
       </MockupErrorBoundary>
