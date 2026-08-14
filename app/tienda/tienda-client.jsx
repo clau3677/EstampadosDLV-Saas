@@ -7,7 +7,7 @@ import useSWR from 'swr';
 import {
   Search, Layers, Sparkles, ArrowRight, Loader2, X, Star, Truck, ShieldCheck,
   Heart, Wallet, Palette, CheckCircle2, Package,
-  Shirt, Gift, HardHat, CircleUser, Image as ImageIcon,
+  Shirt, Gift, HardHat, CircleUser, Image as ImageIcon, MessageCircle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -521,12 +521,11 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
               </Button>
               <Button
                 size="lg"
-                variant="outline"
-                className="border-white/40 text-white hover:bg-white/10 font-bold"
+                className="bg-green-600 text-white hover:bg-green-700 font-bold shadow-xl"
                 asChild
               >
                 <a href={BUSINESS.whatsapp.url('Hola! Quiero cotizar')} target="_blank" rel="noopener noreferrer">
-                  WhatsApp
+                  <MessageCircle className="h-4 w-4 mr-2" />WhatsApp
                 </a>
               </Button>
             </div>
