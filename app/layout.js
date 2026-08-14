@@ -76,6 +76,7 @@ export const metadata = {
   verification: {
     google: '', // Agregar Google Search Console verification token aquí
   },
+  alternates: { canonical: BASE },
 };
 
 // JSON-LD Organization (global, para todas las páginas)

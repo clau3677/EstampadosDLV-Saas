@@ -7,6 +7,7 @@ import { COLLECTIONS } from '@/lib/models';
 export const metadata = {
   title: 'Servicios de impresión DTF en Chile · Estampados DLV',
   description: 'Cobertura nacional en Chile. Encuentra el servicio de estampado DTF y DTF UV en tu ciudad.',
+  alternates: { canonical: 'https://estampadosdlv.com/servicios' },
 };
 
 async function fetchLandings() {
