@@ -86,9 +86,10 @@ export function ProductCard({ product }) {
   const categoryLabel = formatCategorySlug(product.category);
   const Icon = CATEGORY_ICONS[product.category] || Package;
   const gradient = PLACEHOLDER_GRADIENTS[product.category] || PLACEHOLDER_GRADIENTS.other;
-  const priceRange = product.variants?.length > 1
-    ? product.variants.reduce((min, v) => Math.min(min, v.price), Infinity)
-    : product.basePrice;
+  // Soporta tanto el endpoint completo (variants) como el endpoint shop (variantCount, minPrice)
+  const variantCount = product.variantCount ?? product.variants?.length ?? 0;
+  const minPrice = product.minPrice ?? product.variants?.[0]?.price ?? product.basePrice;
+  const priceRange = variantCount > 1 ? minPrice : product.basePrice;
 
   return (
     <Link href={`/producto/${product.slug}`} className="group">
@@ -125,8 +126,8 @@ export function ProductCard({ product }) {
           <div className="mt-3 flex items-end justify-between">
             <div>
               <div className="text-lg font-bold text-slate-900 font-mono">{formatCLP(priceRange || product.basePrice)}</div>
-              {product.variants?.length > 1 && (
-                <div className="text-[10px] text-slate-500">{product.variants.length} variantes</div>
+              {variantCount > 1 && (
+                <div className="text-[10px] text-slate-500">{variantCount} variantes</div>
               )}
             </div>
           </div>

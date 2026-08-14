@@ -164,7 +164,7 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
 
   // SSR/ISR (auditoría jul-2026): el Server Component pasa los productos ya
   // renderizados en HTML; SWR revalida en cliente sin flash de "0 productos".
-  const { data: prData, isLoading } = useSWR('/api/products', fetcher, {
+  const { data: prData, isLoading } = useSWR('/api/products?shop=true', fetcher, {
     keepPreviousData: true,
     fallbackData: initialProducts || undefined,
   });
