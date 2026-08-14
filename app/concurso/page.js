@@ -3,10 +3,12 @@
 //   - Formulario de participación
 //   - Countdown hasta el cierre del concurso
 //   - Bases del concurso
+//   - Se oculta automáticamente (404) cuando no hay sorteo activo
 import { ContestForm } from '@/components/contest-form';
 import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { BUSINESS } from '@/lib/constants/business';
+import { notFound } from 'next/navigation';
 
 export const metadata = {
   title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
@@ -22,7 +24,22 @@ export const metadata = {
   },
 };
 
-export default function ConcursoPage() {
+export default async function ConcursoPage() {
+  // Verificar si hay un concurso activo — si no, mostrar 404
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://estampadosdlv.com';
+    const res = await fetch(`${baseUrl}/api/marketing/contest`, {
+      cache: 'no-store',
+      next: { revalidate: 0 },
+    });
+    const data = await res.json();
+    if (!data.contest || data.contest.status !== 'active') {
+      notFound();
+    }
+  } catch {
+    notFound();
+  }
+
   return (
     <>
       {/* Hero */}
