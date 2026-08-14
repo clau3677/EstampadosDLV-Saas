@@ -126,8 +126,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es-CL" className={inter.variable}>
       <head>
-        {/* Preconnect para origen propio (las fuentes de Google se cargan localmente) */}
+        {/* Preconnect para origen propio y dominios de terceros */}
         <link rel="dns-prefetch" href={BASE} />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://connect.facebook.net" />
         
         {/* Critical CSS inline — minimal above-fold styles for instant paint */}
         <style dangerouslySetInnerHTML={{__html: `html{background-color:#f8fafc}body{margin:0;font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif)}`}} />
