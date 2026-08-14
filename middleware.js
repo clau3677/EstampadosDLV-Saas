@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
   '/login', '/registro', '/api', '/uploads', '/mockup', '/mockups',
   '/_next', '/favicon', '/robots', '/sitemap', '/manifest', '/og-image', '/llms',
+  '/concurso', '/sorteo',
 ];
 
 // Rutas de cliente — requieren token pero cualquier rol (customer/admin/operator).
