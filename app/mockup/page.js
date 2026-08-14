@@ -31,10 +31,22 @@ class MockupErrorBoundary extends React.Component {
 
 export default function MockupPage() {
   return (
-    <div className="h-screen bg-slate-50">
-      <MockupErrorBoundary>
-        <MockupCatalogEditor />
-      </MockupErrorBoundary>
+    <div className="h-screen bg-slate-50 flex flex-col">
+      <div className="flex-1">
+        <MockupErrorBoundary>
+          <MockupCatalogEditor />
+        </MockupErrorBoundary>
+      </div>
+      {/* Footer con enlaces internos para SEO (sitelinks) */}
+      <div className="flex-shrink-0 bg-white border-t border-slate-200 py-2 px-4">
+        <nav className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-xs text-slate-500">
+          <a href="/" className="hover:text-orange-500 transition-colors">Inicio</a>
+          <a href="/tienda" className="hover:text-orange-500 transition-colors">Tienda</a>
+          <a href="/gang-sheet" className="hover:text-orange-500 transition-colors">Gang Sheet Builder</a>
+          <a href="/servicios" className="hover:text-orange-500 transition-colors">Servicios</a>
+          <a href="/contacto" className="hover:text-orange-500 transition-colors">Contacto</a>
+        </nav>
+      </div>
     </div>
   );
 }

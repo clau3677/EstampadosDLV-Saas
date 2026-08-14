@@ -248,12 +248,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     {
       "@type": "SiteNavigationElement",
       "position": 6,
+      "name": "Editor de Mockups Gratis",
+      "url": "https://estampadosdlv.com/mockup"
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "position": 7,
       "name": "Servicios",
       "url": "https://estampadosdlv.com/servicios"
     },
     {
       "@type": "SiteNavigationElement",
-      "position": 7,
+      "position": 8,
       "name": "Contacto",
       "url": "https://estampadosdlv.com/contacto"
     }

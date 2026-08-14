@@ -19,6 +19,7 @@ export default async function sitemap() {
       { url: `${base}/`,               priority: 1.0, changeFrequency: 'weekly',  lastModified: new Date() },
       { url: `${base}/tienda`,         priority: 0.95, changeFrequency: 'daily',   lastModified: new Date() },
       { url: `${base}/gang-sheet`,     priority: 0.9, changeFrequency: 'weekly',  lastModified: new Date() },
+      { url: `${base}/mockup`,         priority: 0.9, changeFrequency: 'weekly',  lastModified: new Date() },
       { url: `${base}/servicios`,      priority: 0.85, changeFrequency: 'weekly',  lastModified: new Date() },
       { url: `${base}/contacto`,       priority: 0.8, changeFrequency: 'monthly', lastModified: new Date() },
       
@@ -43,6 +44,7 @@ export default async function sitemap() {
       { url: `${base}/`,           priority: 1.0, changeFrequency: 'weekly' },
       { url: `${base}/tienda`,     priority: 0.95, changeFrequency: 'daily' },
       { url: `${base}/gang-sheet`, priority: 0.9, changeFrequency: 'weekly' },
+      { url: `${base}/mockup`,     priority: 0.9, changeFrequency: 'weekly' },
       { url: `${base}/servicios`,  priority: 0.85, changeFrequency: 'weekly' },
       { url: `${base}/contacto`,   priority: 0.8, changeFrequency: 'monthly' },
     ];
