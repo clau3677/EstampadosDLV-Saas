@@ -20,6 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { ContestAdmin } from '@/components/contest-admin';
 import {
   Megaphone, RefreshCw, Sparkles, Send, CalendarClock, Trash2, Pencil,
   Facebook, Instagram, Link2, Unlink, CheckCircle2, XCircle, AlertTriangle,
@@ -117,12 +118,13 @@ export default function MarketingPage() {
       )}
 
       <Tabs defaultValue="posts" className="space-y-4">
-        <TabsList className="grid grid-cols-5 w-full md:w-auto">
+        <TabsList className="grid grid-cols-6 w-full md:w-auto">
           <TabsTrigger value="posts">Publicaciones</TabsTrigger>
           <TabsTrigger value="ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="google-ads">Google Ads</TabsTrigger>
           <TabsTrigger value="metrics">Métricas</TabsTrigger>
           <TabsTrigger value="connections">Conexiones</TabsTrigger>
+          <TabsTrigger value="contests">Concursos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts">
@@ -137,6 +139,10 @@ export default function MarketingPage() {
         <TabsContent value="metrics">
           <MetricsTab isConnected={isConnected} />
         </TabsContent>
+        <TabsContent value="contests">
+          <ContestAdmin />
+        </TabsContent>
+
         <TabsContent value="connections">
           <ConnectionsTab status={status} loading={loading} onChanged={refreshStatus} />
         </TabsContent>
