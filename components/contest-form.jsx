@@ -51,6 +51,16 @@ function shareUrl(network) {
   }
 }
 
+function festiveConfettiBurst() {
+  try {
+    if (typeof window !== 'undefined' && window.confetti) {
+      window.confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      setTimeout(() => window.confetti({ particleCount: 60, spread: 60, origin: { x: 0.3, y: 0.7 } }), 250);
+      setTimeout(() => window.confetti({ particleCount: 60, spread: 60, origin: { x: 0.7, y: 0.7 } }), 450);
+    }
+  } catch { /* noop */ }
+}
+
 export function ContestForm() {
   const [contest, setContest] = useState(null);
   const [participantCount, setParticipantCount] = useState(0);
@@ -79,6 +89,7 @@ export function ContestForm() {
         setContest(d.contest);
         setParticipantCount(d.participantCount || 0);
         setLoading(false);
+        festiveConfettiBurst();
       })
       .catch(() => setLoading(false));
   }, []);
@@ -201,6 +212,7 @@ export function ContestForm() {
       }
       setRegistered(true);
       setParticipantCount(c => c + 1);
+      festiveConfettiBurst();
       toast.success('¡Estás participando! 🎉');
     } catch (err) {
       toast.error(err.message || 'Error al registrarte');
@@ -212,7 +224,7 @@ export function ContestForm() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+        <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
       </div>
     );
   }
@@ -222,7 +234,7 @@ export function ContestForm() {
   if (!isActive && contest?.winners) {
     return (
       <div className="text-center py-12">
-        <h3 className="text-3xl font-bold text-white mb-8">🏆 ¡Ganadores del concurso!</h3>
+        <h3 className="text-4xl font-black text-white mb-8">🏆 ¡Ganadores del concurso!</h3>
         <div className="grid gap-4 max-w-md mx-auto">
           {contest.winners.first && (
             <div className="rounded-xl bg-yellow-500/20 border border-yellow-500/30 p-4 text-center">
@@ -263,7 +275,7 @@ export function ContestForm() {
     return (
       <div className="text-center py-12">
         <Gift className="h-16 w-16 text-white/30 mx-auto mb-4" />
-        <h3 className="text-2xl font-bold text-white mb-2">No hay un concurso activo</h3>
+        <h3 className="text-3xl font-black text-white mb-2">No hay un concurso activo</h3>
         <p className="text-white/70">Estamos preparando el próximo concurso. ¡Vuelve pronto!</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/tienda" className="inline-flex items-center gap-2 rounded-lg bg-white text-rose-600 hover:bg-white/95 font-bold px-6 py-3 shadow-xl transition-all hover:scale-105">
@@ -276,40 +288,32 @@ export function ContestForm() {
 
   return (
     <div className="space-y-8">
-      {/* Premio destaque */}
+      {/* Título del formulario */}
       <div className="text-center">
-        <h3 className="text-2xl md:text-3xl font-bold text-white">🎁 3 premios increíbles</h3>
-        <p className="mt-2 text-white/70">¡Todos participan por los 3 premios!</p>
-      </div>
-
-      {/* Cards de premios */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {PRIZES.map((p, i) => (
-          <div key={i} className={`relative rounded-2xl bg-gradient-to-b ${p.color} p-[1px] shadow-xl`}>
-            <div className="rounded-2xl bg-zinc-900/90 p-5 text-center h-full">
-              <p.icon className="h-8 w-8 text-white mx-auto mb-2" />
-              <span className="text-sm font-bold text-white/60">{p.rank}</span>
-              <h4 className="text-lg font-bold text-white mt-1">{p.prize}</h4>
-              <p className="text-sm text-white/50 mt-1">{p.desc}</p>
-            </div>
-          </div>
-        ))}
+        <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 px-5 py-2 mb-4 shadow-lg shadow-orange-500/20">
+          <Gift className="h-4 w-4 text-amber-300" />
+          <span className="text-amber-200 text-sm font-bold">REGISTRO GRATIS · 3 PREMIOS</span>
+        </div>
+        <h3 className="text-3xl md:text-4xl font-black text-white">
+          ¡Participa en <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">4 pasos</span>! 🎉
+        </h3>
+        <p className="mt-2 text-white/70">Comparte, sigue nuestras redes y deja tus datos</p>
       </div>
 
       {/* Countdown */}
       {timeLeft && (
-        <div className="flex items-center justify-center gap-3 text-center">
-          <Clock className="h-5 w-5 text-orange-400" />
+        <div className="flex items-center justify-center gap-2 text-center">
+          <Clock className="h-5 w-5 text-amber-300" />
           <span className="text-white/80 font-mono text-lg">
-            Quedan <span className="text-orange-400 font-bold">{timeLeft.d}d {timeLeft.h}h {timeLeft.m}m</span>
+            Termina en <span className="text-amber-300 font-bold">{timeLeft.d}d {timeLeft.h}h {timeLeft.m}m</span>
           </span>
         </div>
       )}
 
       {/* Contador de participantes */}
-      <div className="flex items-center justify-center gap-2 text-white/60 text-sm">
-        <Users className="h-4 w-4" />
-        <span>{participantCount} participantes ya se inscribieron</span>
+      <div className="flex items-center justify-center gap-2 text-white/70 text-sm font-semibold">
+        <Users className="h-4 w-4 text-orange-400" />
+        <span className="rounded-full bg-white/10 px-4 py-1 border border-white/15">{participantCount} participantes ya se inscribieron</span>
       </div>
 
       {/* Flujo viral paso a paso */}
@@ -349,7 +353,8 @@ export function ContestForm() {
             <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
               <div className="text-center mb-5">
                 <Share2 className="h-10 w-10 text-orange-400 mx-auto mb-3" />
-                <h4 className="text-xl font-bold text-white">Paso 1: Comparte nuestra web</h4>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">1</div>
+              <h4 className="text-2xl font-black text-white">Paso 1: Comparte nuestra web</h4>
                 <p className="text-white/60 text-sm mt-1">Elige una red social y comparte la web de Estampados DLV</p>
               </div>
 
@@ -427,7 +432,8 @@ export function ContestForm() {
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
                   <Share2 className="h-10 w-10 text-orange-400 mx-auto" />
                 </div>
-                <h4 className="text-xl font-bold text-white">Paso 2: Comparte en otra red</h4>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">2</div>
+              <h4 className="text-2xl font-black text-white">Paso 2: Comparte en otra red</h4>
                 <p className="text-white/60 text-sm mt-1">Ahora elige una red DIFERENTE para compartir</p>
               </div>
 
@@ -496,7 +502,8 @@ export function ContestForm() {
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
                   <Share2 className="h-10 w-10 text-orange-400 mx-auto" />
                 </div>
-                <h4 className="text-xl font-bold text-white">Paso 3: Síguenos en redes sociales</h4>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">3</div>
+              <h4 className="text-2xl font-black text-white">Paso 3: Síguenos en redes sociales</h4>
                 <p className="text-white/60 text-sm mt-1">Sigue a Estampados DLV en Facebook e Instagram</p>
               </div>
 
@@ -553,7 +560,8 @@ export function ContestForm() {
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
                 </div>
-                <h4 className="text-xl font-bold text-white">¡Casi listo! Completa tus datos</h4>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">4</div>
+              <h4 className="text-2xl font-black text-white">¡Casi listo! Completa tus datos</h4>
                 <p className="text-white/60 text-sm mt-1">Todos tus comprobantes fueron recibidos ✅</p>
               </div>
 
