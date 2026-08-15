@@ -98,7 +98,7 @@ export default async function ConcursoPage() {
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-[400px] w-[400px] rounded-full bg-amber-500/15 blur-3xl" />
 
         {/* ===== HERO FESTIVO ===== */}
-        <section className="relative pt-14 md:pt-20 pb-10 px-4">
+        <section className="relative pt-16 md:pt-20 pb-10 px-4">
           <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
             <div className="text-center md:text-left">
               <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 px-4 py-2 mb-6 shadow-lg shadow-orange-500/20">
@@ -122,16 +122,16 @@ export default async function ConcursoPage() {
               {/* Countdown grande */}
               <CountdownBlock />
 
-              <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
+              <div className="mt-6 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center md:justify-start gap-3">
                 <a
                   href="#participar"
-                  className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-zinc-900 font-extrabold px-8 py-4 text-lg shadow-xl shadow-orange-500/30 transition-all hover:scale-105 animate-pulse-slow"
+                  className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-zinc-900 font-extrabold px-8 py-4 text-lg shadow-xl shadow-orange-500/30 transition-all hover:scale-105 animate-pulse-slow"
                 >
                   <Gift className="h-6 w-6" /> ¡Quiero participar!
                 </a>
                 <Link
                   href="/tienda"
-                  className="inline-flex items-center gap-2 rounded-full border-2 border-white/30 hover:bg-white/10 text-white font-bold px-6 py-4 transition-colors"
+                  className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border-2 border-white/30 hover:bg-white/10 text-white font-bold px-6 py-4 transition-colors"
                 >
                   Ver la tienda <ArrowRight className="h-5 w-5" />
                 </Link>

@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Printer, ShoppingBag, Layers, User, LogIn } from 'lucide-react';
+import { Printer, ShoppingBag, Layers, User, LogIn, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart, cartCount } from '@/lib/cart-store';
 import { useAuth } from '@/hooks/use-auth';
@@ -15,8 +16,9 @@ export function PublicNav() {
   const open = useCart(s => s.open);
   const count = cartCount(items);
   const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const link = (href, label) => (
+  const link = (href, label, icon) => (
     <Link
       href={href}
       className={cn(
@@ -29,19 +31,21 @@ export function PublicNav() {
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="container flex h-16 items-center gap-6">
-        <Link href="/tienda" className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-md shadow-orange-500/20">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="container mx-auto flex h-16 items-center gap-2 sm:gap-4">
+        {/* Logo */}
+        <Link href="/tienda" className="flex min-w-0 items-center gap-2">
+          <div className="h-9 w-9 shrink-0 rounded-lg bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center shadow-md shadow-orange-500/20">
             <Printer className="h-4 w-4 text-white" />
           </div>
-          <div>
-            <div className="font-bold text-slate-900 leading-tight">Estampados DLV</div>
-            <div className="text-[10px] uppercase tracking-widest text-orange-500">DTF & DTF UV · Chile</div>
+          <div className="min-w-0 leading-tight">
+            <div className="font-bold text-slate-900 truncate">Estampados DLV</div>
+            <div className="hidden sm:block text-[10px] uppercase tracking-widest text-orange-500">DTF & DTF UV · Chile</div>
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-5 ml-4">
+        {/* Links de escritorio */}
+        <nav className="hidden lg:flex items-center gap-5 ml-4">
           {link('/tienda', 'Catálogo')}
           <Link href="/gang-sheet" className="text-sm font-medium text-slate-700 hover:text-slate-900 inline-flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" />Sube tu diseño
@@ -49,15 +53,15 @@ export function PublicNav() {
           {link('/contacto', 'Contacto')}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <Button
             onClick={open}
             variant="outline"
             aria-label={`Carrito de compras (${count} artículos)`}
-            className="relative border-slate-200 hover:border-orange-300 hover:bg-orange-50"
+            className="relative shrink-0 border-slate-200 hover:border-orange-300 hover:bg-orange-50"
           >
-            <ShoppingBag className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Carrito</span>
+            <ShoppingBag className="h-4 w-4 sm:mr-2" />
+            <span className="hidden md:inline">Carrito</span>
             {count > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                 {count}
@@ -69,16 +73,67 @@ export function PublicNav() {
             <UserMenu />
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-slate-700">
-                <Link href="/login"><LogIn className="h-3.5 w-3.5 mr-1" />Ingresar</Link>
-              </Button>
               <Button asChild size="sm" className="bg-orange-500 hover:bg-orange-600 hidden md:inline-flex">
                 <Link href="/registro"><User className="h-3.5 w-3.5 mr-1" />Crear cuenta</Link>
               </Button>
             </>
           )}
+
+          {/* Menú hamburguesa móvil */}
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            onClick={() => setMenuOpen(v => !v)}
+            className="shrink-0 lg:hidden text-slate-700"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
         </div>
       </div>
+
+      {/* Menú móvil desplegable */}
+      {menuOpen && (
+        <div className="lg:hidden border-t border-slate-100 bg-white px-4 py-3 shadow-lg">
+          <nav className="flex flex-col gap-1">
+            {[
+              ['/tienda', 'Catálogo'],
+              ['/gang-sheet', 'Sube tu diseño'],
+              ['/contacto', 'Contacto'],
+            ].map(([href, label]) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  pathname?.startsWith(href) ? 'bg-orange-50 text-orange-600' : 'text-slate-700 hover:bg-slate-50'
+                )}
+              >
+                {label}
+              </Link>
+            ))}
+            {!user && (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <LogIn className="h-4 w-4" /> Ingresar
+                </Link>
+                <Link
+                  href="/registro"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-2.5 text-sm font-bold text-white hover:bg-orange-600"
+                >
+                  <User className="h-4 w-4" /> Crear cuenta
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
