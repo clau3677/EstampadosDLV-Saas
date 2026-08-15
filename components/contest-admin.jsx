@@ -38,12 +38,21 @@ export function ContestAdmin() {
 
   const fetchAll = async () => {
     try {
-      const r1 = await fetch('/api/marketing/contest/admin');
+      const r1 = await fetch('/api/marketing/contest/privileged', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin-summary' }),
+      });
       const d1 = await r1.json();
       if (!r1.ok) { setContest(null); setParticipantError('No se pudieron cargar los datos del sorteo'); setLoading(false); return; }
       setContest(d1.contest || null);
       if (d1.contest?.id) {
-        const r2b = await fetch('/api/marketing/contest/participants?contestId=' + encodeURIComponent(d1.contest.id));
+        const r2b = await fetch('/api/marketing/contest/privileged', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'participants', contestId: d1.contest.id }),
+          cache: 'no-store',
+        });
         const d2 = await r2b.json();
         if (r2b.ok) setParticipants(d2.participants || []);
       } else {
@@ -57,9 +66,10 @@ export function ContestAdmin() {
 
   const api = async (path, body) => {
     const r = await fetch(`/api/marketing${path}`, {
-      method: 'POST',
+      method: path.includes('privileged') ? 'POST' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
     });
     return r;
   };
@@ -83,7 +93,7 @@ export function ContestAdmin() {
   const handleStatus = async (status) => {
     setSending(true);
     try {
-      const r = await api('/contest/set-status', { status });
+      const r = await api('/contest/privileged', { action: 'set-status', status });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Error');
       toast.success(`Sorteo ${status === 'active' ? 'activado' : status === 'paused' ? 'pausado' : 'finalizado'}`);
@@ -98,7 +108,7 @@ export function ContestAdmin() {
     }
     setPicking(true);
     try {
-      const r = await api('/contest/pick-winners-auto', {});
+      const r = await api('/contest/privileged', { action: 'auto-pick' });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Error al sortear ganadores');
       toast.success('🏆 Ganadores elegidos y emails enviados');
