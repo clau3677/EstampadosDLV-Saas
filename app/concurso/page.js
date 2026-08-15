@@ -27,7 +27,7 @@ export const metadata = (() => {
     type: 'website',
     images: [
       {
-        url: `${metaUrl}/uploads/contest/og-concurso.jpg`,
+        url: `${metaUrl}/uploads/contest/og-concurso-v2.jpg`,
         width: 1200,
         height: 630,
         alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada',
@@ -38,7 +38,7 @@ export const metadata = (() => {
     card: 'summary_large_image',
     title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
     description: 'Participa gratis y gana un polerón, polera o gorra personalizada. ¡3 premios increíbles!',
-    images: [`${metaUrl}/uploads/contest/og-concurso.jpg`],
+    images: [`${metaUrl}/uploads/contest/og-concurso-v2.jpg`],
   },
 };
 })();
