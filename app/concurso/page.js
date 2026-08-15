@@ -21,7 +21,7 @@ export const metadata = (() => {
   openGraph: {
     title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
     description: 'Participa gratis y gana un polerón, polera o gorra personalizada. ¡3 premios increíbles!',
-    url: `${baseUrl}/concurso`,
+    url: `${metaUrl}/concurso`,
     siteName: BUSINESS.name,
     locale: 'es_CL',
     type: 'website',
