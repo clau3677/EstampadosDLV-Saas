@@ -108,13 +108,15 @@ export function ContestAdmin() {
   };
 
   const handlePrizeImage = (i, file) => {
-    prizeImageFiles.current[i] = file || null;
+    prizeImageFilesRef.current[i] = file || null;
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setEditPrizes(prev => prev.map((p, j) => (j === i ? { ...p, image: reader.result } : p)));
     reader.readAsDataURL(file);
   };
 
+  // useRef: se declara aquí antes de su primer uso en handlePrizeImage/handleEditSave
+  const prizeImageFilesRef = useRef([null, null, null]);
   const handleEditSave = async () => {
     if (editTitle.trim().length < 3) return toast.error('El título debe tener al menos 3 caracteres');
     if (!editEnd) return toast.error('La fecha de fin es obligatoria');
@@ -126,10 +128,11 @@ export function ContestAdmin() {
       form.append('endDate', editEnd);
       form.append('prizes', JSON.stringify(editPrizes.map(p => ({ label: p.label }))));
       // Adjuntar las imágenes nuevas de los premios (si el usuario eligió un archivo)
-      prizeImageFiles.current.forEach((f, i) => {
+      prizeImageFilesRef.current.forEach((f, i) => {
         if (f) form.append(`prizeImage${i}`, f);
       });
-      const r = await fetch('/api/marketing/contest/update', {
+      form.append('action', 'update');
+      const r = await fetch('/api/marketing/contest/privileged', {
         method: 'POST',
         body: form,
         cache: 'no-store',
@@ -142,10 +145,6 @@ export function ContestAdmin() {
     } catch (e) { toast.error(e.message); }
     finally { setEditSaving(false); }
   };
-  // Se declara antes del primer uso (handlePrizeImage);
-  // useRef retorna el mismo ref en todo el componente.
-  const prizeImageFiles = useRef([null, null, null]);
-
   const fetchAll = async () => {
     try {
       const r1 = await fetch('/api/marketing/contest/privileged', {
