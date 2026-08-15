@@ -11,6 +11,7 @@ const PRIZES = [
 export function SorteoLive() {
   const [drawnames, setDrawnames] = useState([]);
   const [contestTitle, setContestTitle] = useState('');
+  const [livePrizes, setLivePrizes] = useState(PRIZES);
   const [loading, setLoading] = useState(true);
   const [currentRank, setCurrentRank] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -28,6 +29,9 @@ export function SorteoLive() {
       if (!r.ok) throw new Error(d.error || 'Error');
       setDrawnames(d.drawnames || []);
       setContestTitle(d.contestTitle || '');
+      if (Array.isArray(d.prizes) && d.prizes.length === 3) {
+        setLivePrizes(d.prizes.map((p, i) => ({ rank: p.rank, prize: p.prize, emoji: ['🥇', '🥈', '🥉'][i], image: p.image, gradient: PRIZES[i].gradient })));
+      }
       setLoading(false);
     } catch {
       setDrawnames([]);
@@ -68,7 +72,7 @@ export function SorteoLive() {
         rollRef.current = null;
         setWinner(finalName);
         confettiBurst();
-        setWinners(ws => [...ws, { rank: PRIZES[currentRank], name: finalName }]);
+        setWinners(ws => [...ws, { rank: livePrizes[currentRank], name: finalName }]);
         const idx = drawnames.findIndex(d => d.label === finalName);
         if (idx >= 0) setUsedIndices(u => [...u, idx]);
         setSpinning(false);
@@ -138,7 +142,7 @@ export function SorteoLive() {
             className="rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white font-black text-xl md:text-2xl px-10 py-5 shadow-2xl shadow-orange-500/30 transition-all hover:scale-105 flex items-center gap-3"
           >
             {pickingApi ? <Loader2 className="h-6 w-6 animate-spin" /> : <RefreshCw className="h-6 w-6" />}
-            🎰 Sortear {PRIZES[currentRank].rank}
+            🎰 Sortear {livePrizes[currentRank].rank}
           </button>
         )}
         {spinning && (
@@ -158,7 +162,7 @@ export function SorteoLive() {
 
       {/* Prizes */}
       <div className="grid gap-3 w-full max-w-2xl mb-8">
-        {PRIZES.map((p, i) => {
+        {livePrizes.map((p, i) => {
           const won = winners.find(w => w.rank.rank === p.rank);
           return (
             <div

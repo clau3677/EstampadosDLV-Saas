@@ -4,7 +4,7 @@
 // Permite: crear sorteos, activar/pausar/desactivar, ver participantes
 // con capturas, y elegir ganadores manualmente.
 // =============================================================================
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   Trophy, Gift, Users, Camera, Play, Pause, Square, Plus,
-  Loader2, ExternalLink, Eye, MessageSquare, Download,
+  Loader2, ExternalLink, Eye, MessageSquare, Download, Pencil,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -78,6 +78,73 @@ export function ContestAdmin() {
   const [picking, setPicking] = useState(false);
   const [newTitle, setNewTitle] = useState('Concurso Estampados DLV');
   const [newDays, setNewDays] = useState('90');
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editPrizes, setEditPrizes] = useState([
+    { label: 'Polerón personalizado', image: '/uploads/contest/premio-poleron.png' },
+    { label: 'Polera personalizada', image: '/uploads/contest/premio-polera.png' },
+    { label: 'Gorra personalizada', image: '/uploads/contest/premio-gorra.png' },
+  ]);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Cargar datos del sorteo en el modal de edición
+  const openEdit = () => {
+    if (!contest) return;
+    setEditTitle(contest.title || '');
+    setEditStart(contest.startDate ? new Date(contest.startDate).toISOString().slice(0, 10) : '');
+    setEditEnd(contest.endDate ? new Date(contest.endDate).toISOString().slice(0, 10) : '');
+    if (Array.isArray(contest.prizes) && contest.prizes.length === 3) {
+      setEditPrizes(contest.prizes.map(p => ({ label: p.label, image: p.image })));
+    } else {
+      setEditPrizes([
+        { label: 'Polerón personalizado', image: '/uploads/contest/premio-poleron.png' },
+        { label: 'Polera personalizada', image: '/uploads/contest/premio-polera.png' },
+        { label: 'Gorra personalizada', image: '/uploads/contest/premio-gorra.png' },
+      ]);
+    }
+    setShowEdit(true);
+  };
+
+  const handlePrizeImage = (i, file) => {
+    prizeImageFiles.current[i] = file || null;
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditPrizes(prev => prev.map((p, j) => (j === i ? { ...p, image: reader.result } : p)));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditSave = async () => {
+    if (editTitle.trim().length < 3) return toast.error('El título debe tener al menos 3 caracteres');
+    if (!editEnd) return toast.error('La fecha de fin es obligatoria');
+    setEditSaving(true);
+    try {
+      const form = new FormData();
+      form.append('title', editTitle.trim());
+      if (editStart) form.append('startDate', editStart);
+      form.append('endDate', editEnd);
+      form.append('prizes', JSON.stringify(editPrizes.map(p => ({ label: p.label }))));
+      // Adjuntar las imágenes nuevas de los premios (si el usuario eligió un archivo)
+      prizeImageFiles.current.forEach((f, i) => {
+        if (f) form.append(`prizeImage${i}`, f);
+      });
+      const r = await fetch('/api/marketing/contest/update', {
+        method: 'POST',
+        body: form,
+        cache: 'no-store',
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Error al guardar');
+      toast.success('Sorteo actualizado ✅');
+      setShowEdit(false);
+      fetchAll();
+    } catch (e) { toast.error(e.message); }
+    finally { setEditSaving(false); }
+  };
+  // Se declara antes del primer uso (handlePrizeImage);
+  // useRef retorna el mismo ref en todo el componente.
+  const prizeImageFiles = useRef([null, null, null]);
 
   const fetchAll = async () => {
     try {
@@ -187,9 +254,14 @@ export function ContestAdmin() {
           <Link href="/sorteo" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm"><Trophy className="h-4 w-4 mr-1" /> Vista sorteo</Button>
           </Link>
-          {!contest && (
+              {!contest && (
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4 mr-1" /> Crear sorteo
+            </Button>
+          )}
+          {contest && (
+            <Button size="sm" variant="secondary" onClick={openEdit}>
+              <Pencil className="h-4 w-4 mr-1" /> Editar sorteo
             </Button>
           )}
         </div>
@@ -331,6 +403,76 @@ export function ContestAdmin() {
                 <Button className="flex-1" disabled={sending} onClick={handleCreate}>
                   {sending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Gift className="h-4 w-4 mr-1" />}
                   Crear y activar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Diálogo editar sorteo */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowEdit(false)}>
+          <Card className="w-full max-w-lg max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="text-lg">Editar sorteo</CardTitle>
+              <p className="text-xs text-zinc-500">Los cambios se aplican de inmediato a la página del concurso, los posts automáticos y el sorteo.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Título del sorteo</Label>
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Concurso Estampados DLV" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Fecha de inicio</Label>
+                  <Input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Fecha de fin</Label>
+                  <Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-3 pt-1">
+                <Label>Premios (3)</Label>
+                {editPrizes.map((p, i) => (
+                  <div key={i} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center rounded-lg border p-3">
+                    <div className="w-16 h-16 rounded-lg bg-zinc-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                      {p.image ? (
+                        <img src={p.image} alt={`Premio ${i + 1}`} className="w-full h-full object-contain" />
+                      ) : (
+                        <Gift className="h-6 w-6 text-zinc-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 w-full space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-zinc-600 w-16">{['🥇 1er', '🥈 2do', '🥉 3er'][i]}:</span>
+                        <Input
+                          value={p.label}
+                          onChange={(e) => setEditPrizes(prev => prev.map((pp, j) => (j === i ? { ...pp, label: e.target.value } : pp)))}
+                          placeholder="Nombre del premio"
+                        />
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-xs text-zinc-500 cursor-pointer hover:text-zinc-700">
+                        <Camera className="h-3.5 w-3.5" />
+                        Cambiar imagen del premio
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handlePrizeImage(i, e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs text-zinc-500">Al subir una imagen nueva, la página del concurso mostrará automáticamente la foto nueva de cada premio.</p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>Cancelar</Button>
+                <Button className="flex-1" disabled={editSaving} onClick={handleEditSave}>
+                  {editSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Pencil className="h-4 w-4 mr-1" />}
+                  Guardar cambios
                 </Button>
               </div>
             </CardContent>

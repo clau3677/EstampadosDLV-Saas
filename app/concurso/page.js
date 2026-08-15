@@ -43,7 +43,15 @@ export const metadata = (() => {
 };
 })();
 
+// Premios por defecto si el sorteo no tiene prizes editados
+const DEFAULT_PRIZES = [
+  { image: '/uploads/contest/premio-poleron.png', rank: '1er Lugar', prize: 'Polerón personalizado', desc: 'Un polerón estampado con tu diseño', gradient: 'from-yellow-400 to-amber-500', accent: 'ring-amber-400/50' },
+  { image: '/uploads/contest/premio-polera.png', rank: '2do Lugar', prize: 'Polera personalizada', desc: 'Una polera estampada con tu diseño', gradient: 'from-fuchsia-400 to-purple-500', accent: 'ring-fuchsia-400/50' },
+  { image: '/uploads/contest/premio-gorra.png', rank: '3er Lugar', prize: 'Gorra personalizada', desc: 'Una gorra estampada con tu diseño', gradient: 'from-orange-400 to-red-500', accent: 'ring-orange-400/50' },
+];
+
 export default async function ConcursoPage() {
+  let contest = null;
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, '') || 'https://estampadosdlv.com';
     const res = await fetch(`${baseUrl}/api/marketing/contest`, {
@@ -56,9 +64,13 @@ export default async function ConcursoPage() {
     if (!data.contest || data.contest.status !== 'active') {
       notFound();
     }
+    contest = data.contest;
   } catch {
     notFound();
   }
+  const prizes = Array.isArray(contest?.prizes) && contest.prizes.length === 3
+    ? contest.prizes.map((p, i) => ({ ...DEFAULT_PRIZES[i], image: p.image || DEFAULT_PRIZES[i].image, prize: p.label || DEFAULT_PRIZES[i].prize }))
+    : DEFAULT_PRIZES;
 
   return (
     <>
@@ -138,7 +150,7 @@ export default async function ConcursoPage() {
                 className="relative rounded-[2rem] w-full shadow-2xl border-4 border-white/15 rotate-1 hover:rotate-0 transition-transform duration-500 object-cover"
               />
               <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white text-zinc-900 font-extrabold px-6 py-2 rounded-full shadow-xl text-sm flex items-center gap-2 rotate-[-2deg]">
-                <CalendarDays className="h-4 w-4 text-orange-500" /> Sorteo hasta el 12 de noviembre
+                <CalendarDays className="h-4 w-4 text-orange-500" /> Sorteo hasta el {contest?.endDate ? fmtEnd(contest.endDate) : '12 de noviembre'}
               </div>
             </div>
           </div>
@@ -155,30 +167,9 @@ export default async function ConcursoPage() {
             </div>
 
             <div className="grid gap-8 md:grid-cols-3">
-              <PrizeCard
-                img="/uploads/contest/premio-poleron.png"
-                rank="1er Lugar"
-                prize="Polerón personalizado"
-                desc="Un polerón estampado con tu diseño"
-                gradient="from-yellow-400 to-amber-500"
-                accent="ring-amber-400/50"
-              />
-              <PrizeCard
-                img="/uploads/contest/premio-polera.png"
-                rank="2do Lugar"
-                prize="Polera personalizada"
-                desc="Una polera estampada con tu diseño"
-                gradient="from-fuchsia-400 to-purple-500"
-                accent="ring-fuchsia-400/50"
-              />
-              <PrizeCard
-                img="/uploads/contest/premio-gorra.png"
-                rank="3er Lugar"
-                prize="Gorra personalizada"
-                desc="Una gorra estampada con tu diseño"
-                gradient="from-orange-400 to-red-500"
-                accent="ring-orange-400/50"
-              />
+              {prizes.map((p, i) => (
+                <PrizeCard key={i} img={p.image} rank={p.rank} prize={p.prize} desc={p.desc} gradient={p.gradient} accent={p.accent} />
+              ))}
             </div>
           </div>
         </section>
@@ -266,6 +257,16 @@ export default async function ConcursoPage() {
       `}</style>
     </>
   );
+}
+
+/* ---------- Formatea la fecha de fin del sorteo ---------- */
+function fmtEnd(d) {
+  try {
+    const date = new Date(d);
+    return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' }).replace(' de ', ' de ');
+  } catch {
+    return '12 de noviembre';
+  }
 }
 
 /* ---------- Countdown grande ---------- */
