@@ -27,7 +27,7 @@ export const metadata = (() => {
     type: 'website',
     images: [
       {
-        url: `${baseUrl}/uploads/contest/og-concurso.jpg`,
+        url: `${metaUrl}/uploads/contest/og-concurso.jpg`,
         width: 1200,
         height: 630,
         alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada',
