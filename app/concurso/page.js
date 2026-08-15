@@ -22,7 +22,7 @@ export const metadata = {
   openGraph: {
     title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
     description: 'Participa gratis y gana un polerón, polera o gorra personalizada. ¡3 premios increíbles!',
-    images: [{ url: '/uploads/contest/og-concurso.png', width: 1200, height: 630, alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada' }],
+    images: [{ url: '/uploads/contest/og-concurso.jpg', width: 1200, height: 630, alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada' }],
     locale: 'es_CL',
     type: 'website',
   },
