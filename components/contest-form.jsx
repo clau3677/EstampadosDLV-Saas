@@ -20,21 +20,6 @@ const PRIZES = [
   { icon: Trophy, rank: '3er Lugar', prize: 'Gorra personalizada', desc: 'Una gorra estampada con tu diseño', color: 'from-orange-600 to-orange-700' },
 ];
 
-// Redes para compartir (red #1)
-const SHARE_NETWORKS_1 = [
-  { id: 'facebook', label: 'Facebook', icon: Facebook, color: 'from-blue-600 to-blue-700', hoverColor: 'hover:from-blue-700 hover:to-blue-800' },
-  { id: 'whatsapp', label: 'WhatsApp', icon: ({ className }) => <span className={`font-black ${className}`}>W</span>, color: 'from-green-600 to-green-700', hoverColor: 'hover:from-green-700 hover:to-green-800' },
-];
-
-// Redes para compartir (red #2)
-const SHARE_NETWORKS_2 = [
-  { id: 'instagram', label: 'Instagram', icon: Instagram, color: 'from-pink-600 to-purple-600', hoverColor: 'hover:from-pink-700 hover:to-purple-700' },
-  { id: 'tiktok', label: 'TikTok', icon: ({ className }) => <span className={`font-black ${className}`}>T</span>, color: 'from-zinc-800 to-black', hoverColor: 'hover:from-zinc-900 hover:to-black' },
-  { id: 'x', label: 'X / Twitter', icon: ({ className }) => <span className={`font-black ${className}`}>𝕏</span>, color: 'from-zinc-700 to-zinc-900', hoverColor: 'hover:from-zinc-800 hover:to-black' },
-  { id: 'whatsapp', label: 'WhatsApp', icon: ({ className }) => <span className={`font-black ${className}`}>W</span>, color: 'from-green-600 to-green-700', hoverColor: 'hover:from-green-700 hover:to-green-800' },
-  { id: 'facebook', label: 'Facebook', icon: Facebook, color: 'from-blue-600 to-blue-700', hoverColor: 'hover:from-blue-700 hover:to-blue-800' },
-];
-
 const FOLLOW_LINKS = [
   { id: 'facebook', label: 'Síguenos en Facebook', icon: Facebook, color: 'from-blue-600 to-blue-700', url: 'https://www.facebook.com/Estampadosdlv/' },
   { id: 'instagram', label: 'Síguenos en Instagram', icon: Instagram, color: 'from-pink-600 to-purple-600', url: 'https://www.instagram.com/estampadosdlv/' },
@@ -51,6 +36,19 @@ function shareUrl(network) {
   }
 }
 
+function openShare(network) {
+  const u = shareUrl(network);
+  if (!u) return false;
+  // En móvil abrir en la misma ventana (apps nativas capturan el enlace), en escritorio en nueva pestaña
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    window.location.href = u;
+  } else {
+    window.open(u, '_blank');
+  }
+  return true;
+}
+
 function festiveConfettiBurst() {
   try {
     if (typeof window !== 'undefined' && window.confetti) {
@@ -61,6 +59,19 @@ function festiveConfettiBurst() {
   } catch { /* noop */ }
 }
 
+// File picker helper (reusable per step)
+function pickProofFile(uploadHandler) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png,image/webp';
+  input.onchange = async (ev) => {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    await uploadHandler(file);
+  };
+  input.click();
+}
+
 export function ContestForm() {
   const [contest, setContest] = useState(null);
   const [participantCount, setParticipantCount] = useState(0);
@@ -69,18 +80,13 @@ export function ContestForm() {
   const [registered, setRegistered] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
 
-  // Flujo viral paso a paso
-  const [step, setStep] = useState(0); // 0=share1, 1=share2, 2=follow, 3=registro
+  // Flujo secuencial: 0=intro(email), 1=facebook+captura, 2=whatsapp+captura, 3=email+teléfono
+  const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');
-  const [selectedNetwork1, setSelectedNetwork1] = useState(null);
-  const [selectedNetwork2, setSelectedNetwork2] = useState(null);
+  const [phone, setPhone] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState({ hasShare1: false, hasShare2: false, hasFollow: false, viralComplete: false, registered: false });
-
-  const [form, setForm] = useState({
-    name: '', phone: '', city: '', designIdea: '',
-  });
-  const setF = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const [done1, setDone1] = useState(false); // captura facebook subida
+  const [done2, setDone2] = useState(false); // captura whatsapp subida
 
   useEffect(() => {
     fetch('/api/marketing/contest')
@@ -94,24 +100,24 @@ export function ContestForm() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Cuando se ingrese el email, verificar progreso existente
+  // Si ya estaba registrado con este email, saltar todo el flujo
   const checkProgress = async (em) => {
     if (!em || !em.includes('@')) return;
     try {
       const r = await fetch(`/api/marketing/contest/progress?email=${encodeURIComponent(em)}`);
       const d = await r.json();
-      setProgress(d);
-      // Saltar pasos ya completados
-      if (d.hasShare1 && d.hasShare2 && d.hasFollow && d.registered) setStep(3);
-      else if (d.hasShare1 && d.hasShare2 && d.hasFollow) setStep(3);
-      else if (d.hasShare1 && d.hasShare2) setStep(2);
-      else if (d.hasShare1) setStep(1);
+      if (d?.registered) {
+        setRegistered(true);
+      } else if (d?.hasShare1 && d?.hasShare2) {
+        setDone1(true);
+        setDone2(true);
+        setStep(3);
+      } else if (d?.hasShare1) {
+        setDone1(true);
+        setStep(2);
+      }
     } catch { /* noop */ }
   };
-
-  useEffect(() => {
-    if (step === 3) checkProgress(email);
-  }, [step]);
 
   useEffect(() => {
     if (!contest?.endDate) return;
@@ -133,18 +139,8 @@ export function ContestForm() {
   }, [contest?.endDate]);
 
   // Subir captura de pantalla como comprobante
-  const uploadProof = async (proofType, networkId) => {
-    if (!email || !email.includes('@')) {
-      toast.error('Ingresa tu email primero');
-      return;
-    }
-    // Mostrar selector de archivo
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/jpeg,image/png,image/webp';
-    input.onchange = async (ev) => {
-      const file = ev.target.files?.[0];
-      if (!file) return;
+  const uploadProof = async (proofType, em) => {
+    pickProofFile(async (file) => {
       if (file.size > 5 * 1024 * 1024) {
         toast.error('La captura es muy grande (máx 5 MB)');
         return;
@@ -152,54 +148,50 @@ export function ContestForm() {
       setUploading(true);
       try {
         const formData = new FormData();
-        formData.append('email', email.toLowerCase().trim());
+        formData.append('email', em.toLowerCase().trim());
         formData.append('proofType', proofType);
         formData.append('file', file);
-        if (proofType === 'share1' && selectedNetwork1) {
-          formData.append('sharedNetworks', JSON.stringify([selectedNetwork1]));
-        } else if (proofType === 'share2' && selectedNetwork2) {
-          formData.append('sharedNetworks', JSON.stringify([selectedNetwork2]));
-        }
+        if (proofType === 'share1') formData.append('sharedNetworks', JSON.stringify(['facebook']));
+        else if (proofType === 'share2') formData.append('sharedNetworks', JSON.stringify(['whatsapp']));
         const r = await fetch('/api/marketing/contest/upload-proof', {
           method: 'POST',
           body: formData,
         });
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Error al subir la captura');
-        setProgress(d);
-        toast.success('✅ Captura recibida');
-        // Avanzar al siguiente paso
-        if (proofType === 'share1') setStep(1);
-        else if (proofType === 'share2') setStep(2);
-        else if (proofType === 'follow') setStep(3);
+        if (proofType === 'share1') {
+          setDone1(true);
+          toast.success('✅ Captura de Facebook recibida');
+          setStep(2);
+        } else if (proofType === 'share2') {
+          setDone2(true);
+          toast.success('✅ Captura de WhatsApp recibida');
+          setStep(3);
+        }
       } catch (e) {
         toast.error(e.message || 'Error al subir la captura');
       } finally {
         setUploading(false);
       }
-    };
-    input.click();
+    });
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.name.length < 2) return toast.error('Ingresa tu nombre completo');
-    if (form.phone.length < 8) return toast.error('Ingresa un teléfono válido');
-    if (!form.city) return toast.error('Ingresa tu ciudad');
-    if (!progress.viralComplete && !progress.hasFollow) {
-      return toast.error('Completa todos los pasos antes de registrarte');
-    }
+    if (!email || !email.includes('@')) return toast.error('Ingresa tu email');
+    if (phone.replace(/\D/g, '').length < 8) return toast.error('Ingresa un teléfono válido');
+    if (!done1 || !done2) return toast.error('Completa las capturas antes de registrarte');
     setSending(true);
     try {
       const r = await fetch('/api/marketing/contest/participate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: form.name,
+          name: '',
           email: email.toLowerCase().trim(),
-          phone: form.phone,
-          city: form.city,
-          designIdea: form.designIdea,
+          phone,
+          city: '',
+          designIdea: '',
           contestId: contest?.id,
         }),
       });
@@ -295,9 +287,9 @@ export function ContestForm() {
           <span className="text-amber-200 text-sm font-bold">REGISTRO GRATIS · 3 PREMIOS</span>
         </div>
         <h3 className="text-3xl md:text-4xl font-black text-white">
-          ¡Participa en <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">4 pasos</span>! 🎉
+          ¡Participa en <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-orange-400">3 pasos</span>! 🎉
         </h3>
-        <p className="mt-2 text-white/70">Comparte, sigue nuestras redes y deja tus datos</p>
+        <p className="mt-2 text-white/70">Comparte en 2 redes y registra tu email para participar</p>
       </div>
 
       {/* Countdown */}
@@ -316,12 +308,12 @@ export function ContestForm() {
         <span className="rounded-full bg-white/10 px-4 py-1 border border-white/15">{participantCount} participantes ya se inscribieron</span>
       </div>
 
-      {/* Flujo viral paso a paso */}
+      {/* Flujo secuencial paso a paso */}
       {registered ? (
         <div className="text-center py-8">
           <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
           <h4 className="text-2xl font-bold text-white">¡Estás participando! 🎉</h4>
-          <p className="text-white/70 mt-2">Tus comprobantes quedaron registrados. Te contactaremos si resultas ganador/a.</p>
+          <p className="text-white/70 mt-2">Tus comprobantes quedaron registrados. Te contactaremos por email si resultas ganador/a.</p>
           <p className="text-white/50 text-sm mt-4">Los ganadores serán anunciados al terminar el concurso.</p>
         </div>
       ) : (
@@ -329,10 +321,9 @@ export function ContestForm() {
           {/* Indicador de pasos */}
           <div className="flex items-center justify-center gap-2 mb-2">
             {[
-              { label: 'Compartir 1', done: !!progress.hasShare1, active: step === 0 },
-              { label: 'Compartir 2', done: !!progress.hasShare2, active: step === 1 },
-              { label: 'Seguir redes', done: !!progress.hasFollow, active: step === 2 },
-              { label: 'Registrarse', done: !!progress.registered, active: step === 3 },
+              { label: 'Compartir en Facebook', done: done1, active: step === 1 },
+              { label: 'Compartir en WhatsApp', done: done2, active: step === 2 },
+              { label: 'Registrar email', done: !!registered, active: step === 3 },
             ].map((s, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className={`flex flex-col items-center gap-1 ${i > 0 ? 'ml-2' : ''}`}>
@@ -343,132 +334,98 @@ export function ContestForm() {
                   </div>
                   <span className="text-[10px] text-white/50 hidden sm:block">{s.label}</span>
                 </div>
-                {i < 3 && <div className={`w-6 h-px ${s.done ? 'bg-green-500' : 'bg-white/10'}`} />}
+                {i < 2 && <div className={`w-6 h-px ${s.done ? 'bg-green-500' : 'bg-white/10'}`} />}
               </div>
             ))}
           </div>
 
-          {/* Paso 0: Compartir en red #1 */}
+          {/* Paso 0: Ingresar email para comenzar */}
           {step === 0 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
               <div className="text-center mb-5">
                 <Share2 className="h-10 w-10 text-orange-400 mx-auto mb-3" />
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">1</div>
-              <h4 className="text-2xl font-black text-white">Paso 1: Comparte nuestra web</h4>
-                <p className="text-white/60 text-sm mt-1">Elige una red social y comparte la web de Estampados DLV</p>
+                <h4 className="text-2xl font-black text-white">Paso 1: Tu email</h4>
+                <p className="text-white/60 text-sm mt-1">Ingresa tu email para comenzar el concurso</p>
               </div>
-
-              {/* Email primero */}
-              <div className="space-y-2 mb-5">
-                <Label htmlFor="contest-email" className="text-white/80">Tu email (para guardarte como participante) *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="contest-email" className="text-white/80">Tu email *</Label>
                 <Input
                   id="contest-email"
                   type="email"
                   placeholder="tu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-12 text-base"
                 />
               </div>
-
-              <p className="text-white/50 text-xs mb-3">1) Toca una red para abrir el diálogo de compartir → 2) Publica → 3) Saca captura y súbela aquí</p>
-
-              <div className="grid gap-3 sm:grid-cols-2 mb-4">
-                {SHARE_NETWORKS_1.map((net) => (
-                  <div key={net.id} className={`rounded-xl border-2 transition-all p-4 ${
-                    selectedNetwork1 === net.id ? 'border-orange-500 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/30'
-                  }`}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedNetwork1(net.id)}
-                      className={`w-full rounded-lg bg-gradient-to-r ${net.color} ${net.hoverColor} text-white font-bold py-3 px-4 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]`}
-                    >
-                      <net.icon className="h-5 w-5" />
-                      Compartir en {net.label}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedNetwork1(net.id);
-                        const u = shareUrl(net.id);
-                        if (u) window.open(u, '_blank');
-                        else toast.info(`Abre ${net.label} y comparte el enlace manualmente`);
-                      }}
-                      className="w-full mt-2 text-xs text-white/50 hover:text-white/80 underline"
-                    >
-                      Abrir diálogo de compartir
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Subir captura */}
               <button
                 type="button"
-                disabled={uploading || !selectedNetwork1 || !email || !email.includes('@')}
-                onClick={() => uploadProof('share1', selectedNetwork1)}
+                disabled={!email || !email.includes('@')}
+                onClick={() => {
+                  checkProgress(email);
+                  if (!email.includes('@')) return toast.error('Ingresa un email válido');
+                  setStep(1);
+                }}
+                className={`w-full mt-5 rounded-xl py-4 font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+                  !email || !email.includes('@')
+                    ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-xl hover:scale-[1.02]'
+                }`}
+              >
+                Comenzar el concurso <ArrowRight className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Paso 1: Compartir en Facebook + captura */}
+          {step === 1 && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
+              <div className="text-center mb-5">
+                <Share2 className="h-10 w-10 text-orange-400 mx-auto mb-3" />
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">1</div>
+                <h4 className="text-2xl font-black text-white">Paso 1: Comparte en Facebook</h4>
+                <p className="text-white/60 text-sm mt-1">Publica el enlace de nuestra web y sube la captura</p>
+              </div>
+
+              {/* Botón compartir en Facebook: selecciona y abre el diálogo de inmediato */}
+              <div className="rounded-xl border-2 border-blue-500/40 bg-blue-500/10 p-4 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = openShare('facebook');
+                    if (ok) toast.info('Se abrió Facebook. Publica el enlace y vuelve aquí para subir tu captura 📸');
+                    else toast.info('Abre Facebook y comparte el enlace manualmente');
+                  }}
+                  className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-4 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] text-lg"
+                >
+                  <Facebook className="h-6 w-6" />
+                  Compartir en Facebook
+                </button>
+                <p className="text-xs text-white/50 text-center mt-2">
+                  Al tocar se abre Facebook para publicar el enlace de la web
+                </p>
+              </div>
+
+              {/* Botón subir captura AL LADO (en columna) */}
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => uploadProof('share1', email)}
                 className={`w-full rounded-xl py-4 font-bold text-lg flex items-center justify-center gap-2 transition-all ${
-                  uploading || !selectedNetwork1 || !email || !email.includes('@')
+                  uploading
                     ? 'bg-white/10 text-white/30 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl hover:scale-[1.02]'
                 }`}
               >
                 {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                {uploading ? 'Subiendo captura...' : 'Subir captura de pantalla 📸'}
+                {uploading ? 'Subiendo captura...' : '📸 Subir captura de pantalla'}
               </button>
-              {selectedNetwork1 && (
-                <p className="text-xs text-white/40 text-center mt-2">
-                  Seleccionaste: {SHARE_NETWORKS_1.find(n => n.id === selectedNetwork1)?.label}
-                </p>
-              )}
-            </div>
-          )}
+              <p className="text-xs text-white/40 text-center mt-2">
+                Después de publicar, saca una captura y súbela aquí
+              </p>
 
-          {/* Paso 1: Compartir en red #2 */}
-          {step === 1 && (
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
-              <div className="text-center mb-5">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <CheckCircle2 className="h-6 w-6 text-green-400" />
-                  <Share2 className="h-10 w-10 text-orange-400 mx-auto" />
-                </div>
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">2</div>
-              <h4 className="text-2xl font-black text-white">Paso 2: Comparte en otra red</h4>
-                <p className="text-white/60 text-sm mt-1">Ahora elige una red DIFERENTE para compartir</p>
-              </div>
-
-              <p className="text-white/50 text-xs mb-3">1) Toca una red diferente → 2) Publica → 3) Saca captura y súbela</p>
-
-              <div className="grid gap-3 sm:grid-cols-2 mb-4">
-                {SHARE_NETWORKS_2.map((net) => (
-                  <div key={net.id} className={`rounded-xl border-2 transition-all p-4 ${
-                    selectedNetwork2 === net.id ? 'border-orange-500 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-white/30'
-                  }`}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedNetwork2(net.id)}
-                      className={`w-full rounded-lg bg-gradient-to-r ${net.color} ${net.hoverColor} text-white font-bold py-3 px-4 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]`}
-                    >
-                      <net.icon className="h-5 w-5" />
-                      Compartir en {net.label}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedNetwork2(net.id);
-                        const u = shareUrl(net.id);
-                        if (u) window.open(u, '_blank');
-                        else toast.info(`Abre ${net.label} y comparte el enlace manualmente`);
-                      }}
-                      className="w-full mt-2 text-xs text-white/50 hover:text-white/80 underline"
-                    >
-                      Abrir diálogo de compartir
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-4">
                 <button
                   type="button"
                   onClick={() => setStep(0)}
@@ -476,57 +433,59 @@ export function ContestForm() {
                 >
                   <ArrowLeft className="h-4 w-4" />Volver
                 </button>
-                <button
-                  type="button"
-                  disabled={uploading || !selectedNetwork2}
-                  onClick={() => uploadProof('share2', selectedNetwork2)}
-                  className={`flex-1 rounded-xl py-3 font-bold text-lg flex items-center justify-center gap-2 transition-all ${
-                    uploading || !selectedNetwork2
-                      ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl hover:scale-[1.02]'
-                  }`}
-                >
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                  {uploading ? 'Subiendo...' : 'Subir captura 📸'}
-                </button>
               </div>
             </div>
           )}
 
-          {/* Paso 2: Seguir redes */}
+          {/* Paso 2: Compartir en WhatsApp + captura */}
           {step === 2 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
               <div className="text-center mb-5">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
-                  <CheckCircle2 className="h-6 w-6 text-green-400" />
                   <Share2 className="h-10 w-10 text-orange-400 mx-auto" />
                 </div>
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">3</div>
-              <h4 className="text-2xl font-black text-white">Paso 3: Síguenos en redes sociales</h4>
-                <p className="text-white/60 text-sm mt-1">Sigue a Estampados DLV en Facebook e Instagram</p>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">2</div>
+                <h4 className="text-2xl font-black text-white">Paso 2: Comparte en WhatsApp</h4>
+                <p className="text-white/60 text-sm mt-1">Envía el enlace por WhatsApp y sube la captura</p>
               </div>
 
-              <div className="space-y-3 mb-5">
-                {FOLLOW_LINKS.map((net) => (
-                  <a
-                    key={net.id}
-                    href={net.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block rounded-lg bg-gradient-to-r ${net.color} text-white font-bold py-3 px-4 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]`}
-                  >
-                    <net.icon className="h-5 w-5" />
-                    {net.label} ↗
-                  </a>
-                ))}
+              <div className="rounded-xl border-2 border-green-500/40 bg-green-500/10 p-4 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ok = openShare('whatsapp');
+                    if (ok) toast.info('Se abrió WhatsApp. Envía el mensaje y vuelve aquí para subir tu captura 📸');
+                    else toast.info('Abre WhatsApp y comparte el enlace manualmente');
+                  }}
+                  className="w-full rounded-lg bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 px-4 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] text-lg"
+                >
+                  <span className="font-black text-xl">W</span>
+                  Compartir en WhatsApp
+                </button>
+                <p className="text-xs text-white/50 text-center mt-2">
+                  Al tocar se abre WhatsApp con el mensaje y enlace listos
+                </p>
               </div>
 
-              <p className="text-white/50 text-xs mb-4 text-center">
-                Después de seguirnos, saca una captura de tu perfil mostrando que sigues las redes y súbela aquí:
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => uploadProof('share2', email)}
+                className={`w-full rounded-xl py-4 font-bold text-lg flex items-center justify-center gap-2 transition-all ${
+                  uploading
+                    ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl hover:scale-[1.02]'
+                }`}
+              >
+                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                {uploading ? 'Subiendo captura...' : '📸 Subir captura de pantalla'}
+              </button>
+              <p className="text-xs text-white/40 text-center mt-2">
+                Después de enviar, saca una captura del mensaje enviado y súbela aquí
               </p>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-4">
                 <button
                   type="button"
                   onClick={() => setStep(1)}
@@ -534,35 +493,21 @@ export function ContestForm() {
                 >
                   <ArrowLeft className="h-4 w-4" />Volver
                 </button>
-                <button
-                  type="button"
-                  disabled={uploading}
-                  onClick={() => uploadProof('follow', null)}
-                  className={`flex-1 rounded-xl py-3 font-bold text-lg flex items-center justify-center gap-2 transition-all ${
-                    uploading
-                      ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-xl hover:scale-[1.02]'
-                  }`}
-                >
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-                  {uploading ? 'Subiendo...' : 'Subir captura de seguimiento 📸'}
-                </button>
               </div>
             </div>
           )}
 
-          {/* Paso 3: Formulario de registro */}
+          {/* Paso 3: Email + teléfono y registrar */}
           {step === 3 && (
             <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
               <div className="text-center mb-5">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
                   <CheckCircle2 className="h-6 w-6 text-green-400" />
-                  <CheckCircle2 className="h-6 w-6 text-green-400" />
                 </div>
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">4</div>
-              <h4 className="text-2xl font-black text-white">¡Casi listo! Completa tus datos</h4>
-                <p className="text-white/60 text-sm mt-1">Todos tus comprobantes fueron recibidos ✅</p>
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-black text-xl shadow-lg mb-3">3</div>
+                <h4 className="text-2xl font-black text-white">¡Casi listo! Regístrate</h4>
+                <p className="text-white/60 text-sm mt-1">Tus comprobantes fueron recibidos ✅</p>
               </div>
 
               <form onSubmit={submit} className="space-y-4">
@@ -574,26 +519,19 @@ export function ContestForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-12 text-base"
                   />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="contest-name" className="text-white/80">Nombre completo *</Label>
-                    <Input id="contest-name" placeholder="Tu nombre" value={form.name} onChange={setF('name')} required className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contest-phone" className="text-white/80">Teléfono / WhatsApp *</Label>
-                    <Input id="contest-phone" placeholder="+56 9 XXXX XXXX" value={form.phone} onChange={setF('phone')} required className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
-                  </div>
-                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contest-city" className="text-white/80">Ciudad *</Label>
-                  <Input id="contest-city" placeholder="Quilpué, Viña del Mar..." value={form.city} onChange={setF('city')} required className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contest-design" className="text-white/80">¿Qué diseño te gustaría estampar? (opcional)</Label>
-                  <Textarea id="contest-design" placeholder="Cuéntanos tu idea: un logo, un nombre, un personaje..." value={form.designIdea} onChange={setF('designIdea')} rows={3} className="bg-white/10 border-white/20 text-white placeholder:text-white/40" />
+                  <Label htmlFor="contest-phone" className="text-white/80">Teléfono / WhatsApp *</Label>
+                  <Input
+                    id="contest-phone"
+                    placeholder="+56 9 XXXX XXXX"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-12 text-base"
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -613,7 +551,7 @@ export function ContestForm() {
                   </Button>
                 </div>
                 <p className="text-xs text-white/40 text-center">
-                  Al participar aceptas las bases del concurso. Los ganadores serán contactados por email/teléfono.
+                  Al participar aceptas las bases del concurso. Los ganadores serán contactados por email.
                 </p>
               </form>
             </div>
@@ -632,7 +570,7 @@ export function ContestForm() {
           <li>• El premio incluye estampado con un diseño de tu elección</li>
           <li>• Envío a todo Chile (costo de envío a cargo del ganador)</li>
           <li>• Los ganadores serán contactados por email/teléfono</li>
-          <li className="text-orange-300">• Para participar: comparte la web en 2 redes sociales distintas + sigue nuestras redes (con captura de pantalla)</li>
+          <li className="text-orange-300">• Para participar: comparte la web en Facebook + WhatsApp (con captura de pantalla) y registra tu email</li>
           <li>• Estampados DLV se reserva el derecho de validar la participación</li>
         </ul>
       </div>
