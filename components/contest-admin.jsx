@@ -24,6 +24,48 @@ const STATUS_BADGE = {
   future: { label: 'PROGRAMADO', cls: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
 };
 
+function ProofPreview({ proof, index, onOpen }) {
+  const [status, setStatus] = useState('loading'); // loading | ok | error
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => { if (!cancelled) setStatus('ok'); };
+    img.onerror = () => { if (!cancelled) setStatus('error'); };
+    img.src = proof.url;
+    return () => { cancelled = true; };
+  }, [proof.url]);
+
+  return (
+    <div className="space-y-1">
+      {status === 'loading' && (
+        <div className="rounded-lg border bg-zinc-100 h-40 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+        </div>
+      )}
+      {status === 'error' && (
+        <a href={proof.url} target="_blank" rel="noopener noreferrer" className="block rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-500">
+          No se puede ver la imagen. <span className="underline">Abrir en otra pestaña</span>
+        </a>
+      )}
+      {status === 'ok' && (
+        <>
+          <img
+            src={proof.url}
+            alt={`Comprobante ${index + 1}`}
+            className="rounded-lg border max-h-72 w-full object-contain bg-white cursor-zoom-in"
+            loading="lazy"
+            onClick={() => onOpen({ url: proof.url, label: proof.label })}
+          />
+          <p className="text-xs text-center text-zinc-500 flex items-center justify-center gap-1">
+            <Camera className="h-3 w-3" /> {proof.label} — tocar para ampliar
+            <Download className="h-3 w-3" />
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ContestAdmin() {
   const [contest, setContest] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -32,6 +74,7 @@ export function ContestAdmin() {
   const [showCreate, setShowCreate] = useState(false);
   const [showDetail, setShowDetail] = useState(null);
   const [participantError, setParticipantError] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
   const [picking, setPicking] = useState(false);
   const [newTitle, setNewTitle] = useState('Concurso Estampados DLV');
   const [newDays, setNewDays] = useState('90');
@@ -295,6 +338,19 @@ export function ContestAdmin() {
         </div>
       )}
 
+      {/* Lightbox para ver la captura en grande */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightbox(null)}>
+          <div className="relative max-w-3xl w-full max-h-[92vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.label} className="max-h-[82vh] max-w-full rounded-lg object-contain" />
+            <p className="text-white text-sm mt-2 flex items-center gap-2">
+              <Camera className="h-4 w-4" /> {lightbox.label}
+              <a href={lightbox.url} target="_blank" rel="noopener noreferrer" className="underline">Abrir en pestaña nueva</a>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Diálogo detalle participante con capturas */}
       {showDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowDetail(null)}>
@@ -324,13 +380,7 @@ export function ContestAdmin() {
                 return proofs.length > 0 ? (
                   <div className="grid gap-2">
                     {proofs.map((pr, i) => (
-                      <a key={i} href={pr.url} target="_blank" rel="noopener noreferrer" className="block">
-                        <img src={pr.url} alt={`Comprobante ${i + 1}`} className="rounded-lg border max-h-64 w-auto mx-auto" loading="lazy" />
-                        <p className="text-xs text-center text-zinc-500 mt-1 flex items-center justify-center gap-1">
-                          <Camera className="h-3 w-3" /> {pr.label}
-                          <Download className="h-3 w-3" />
-                        </p>
-                      </a>
+                      <ProofPreview key={i} proof={pr} index={i} onOpen={setLightbox} />
                     ))}
                   </div>
                 ) : (
