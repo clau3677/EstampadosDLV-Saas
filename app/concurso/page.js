@@ -13,27 +13,44 @@ import { Sparkles, ArrowRight, Gift, CalendarDays } from 'lucide-react';
 import { BUSINESS } from '@/lib/constants/business';
 import { notFound } from 'next/navigation';
 
-export const metadata = {
+export const metadata = (() => {
+  const metaUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, '') || 'https://estampadosdlv.com';
+  return {
   title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
   description: `Participa y gana un polerón, polera o gorra personalizada estampada. ¡3 premios increíbles! Registro gratis, envío a todo Chile.`,
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/concurso`.replace(/\/+/g, '/').replace(':/', '://'),
-  },
   openGraph: {
     title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
     description: 'Participa gratis y gana un polerón, polera o gorra personalizada. ¡3 premios increíbles!',
-    images: [{ url: '/uploads/contest/og-concurso.jpg', width: 1200, height: 630, alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada' }],
+    url: `${baseUrl}/concurso`,
+    siteName: BUSINESS.name,
     locale: 'es_CL',
     type: 'website',
+    images: [
+      {
+        url: `${baseUrl}/uploads/contest/og-concurso.jpg`,
+        width: 1200,
+        height: 630,
+        alt: 'Concurso Estampados DLV: gana un polerón, polera o gorra personalizada',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `Concurso: Gana premios con tu diseño · ${BUSINESS.name}`,
+    description: 'Participa gratis y gana un polerón, polera o gorra personalizada. ¡3 premios increíbles!',
+    images: [`${metaUrl}/uploads/contest/og-concurso.jpg`],
   },
 };
+})();
 
 export default async function ConcursoPage() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://estampadosdlv.com';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, '') || 'https://estampadosdlv.com';
     const res = await fetch(`${baseUrl}/api/marketing/contest`, {
-      cache: 'no-store',
-      next: { revalidate: 0 },
+      // Revalidate cada 60s: mantiene la página casi en tiempo real pero permite
+      // que Next emita las metadata del page en el <head> estático del HTML
+      // (los scrapers de WhatsApp/Facebook solo leen HTML estático).
+      next: { revalidate: 60 },
     });
     const data = await res.json();
     if (!data.contest || data.contest.status !== 'active') {
