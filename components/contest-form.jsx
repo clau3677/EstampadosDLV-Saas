@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 
-const SITE_URL = 'https://estampadosdlv.com';
+const SITE_URL = 'https://estampadosdlv.com/concurso';
 const SHARE_MESSAGE = encodeURIComponent('¡Mira esta tienda de estampados personalizados en Quilpué! 👕 Poleras, polerones y gorras con tus diseños. Participa en el concurso y gana premios 🎁 ');
 
 const PRIZES = [
