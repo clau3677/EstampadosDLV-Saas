@@ -10,7 +10,7 @@ const AUTH_COOKIE = process.env.AUTH_COOKIE || 'dlv_token';
 const PUBLIC_PATHS = [
   '/',
   '/tienda', '/producto', '/checkout', '/servicios', '/contacto',
-  '/login', '/registro', '/api', '/uploads', '/mockup', '/mockups',
+  '/login', '/registro', '/api', '/uploads', '/mockup', '/mockups', '/blog', '/concurso', '/sorteo',
   '/_next', '/favicon', '/robots', '/sitemap', '/manifest', '/og-image', '/llms',
   '/concurso', '/sorteo',
 ];
