@@ -2,7 +2,7 @@
 // Permite indexación de páginas públicas, bloquea rutas admin y privadas.
 // IMPORTANTE: Googlebot y Googlebot-Image deben acceder a /uploads/ para ver las imágenes de productos
 export default function robots() {
-  const base = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const base = 'https://estampadosdlv.com';
   return {
     rules: [
       // Regla para todos los bots en general
