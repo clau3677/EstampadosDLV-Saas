@@ -29,6 +29,9 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       );
       // El modelo se descarga desde staticimgly.com (CDN oficial, sin API key)
       const blob = await removeBackground(imageUrl, {
+        // CDN oficial del modelo ONNX (mitiga bloqueos de proxies)
+        model_loading_by_ioloop: true,
+        public_path: 'https://staticimgly.com/1.4.5/',
         progress: (key, current, total) => {
           const p = Math.round((current / total) * 100);
           setProgress(p);
@@ -36,8 +39,11 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       });
 
       // Subir el resultado transparente al servidor
+      // El resultado de imgly es un Blob de Canvas con formato PNG RGBA
+      // (el constructor File puede no retener tipo en algunos navegadores):
+      const file = new File([blob], 'bg-removed.png', { type: blob.type || 'image/png' });
       const fd = new FormData();
-      fd.append('file', blob, 'bg-removed.png');
+      fd.append('file', file);
       const r = await fetch('/api/uploads/design', { method: 'POST', body: fd });
       if (!r.ok) throw new Error('upload falló');
       const data = await r.json();

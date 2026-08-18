@@ -257,7 +257,8 @@ export default function GangSheetPage() {
       const data = await r.json();
 
       const img = new window.Image();
-      img.crossOrigin = 'anonymous';
+      // Sin crossOrigin: mismo origen, no taintea el canvas y evita fallos de
+      // carga por headers CORS del servidor proxy (nginx/Next).
       img.onload = () => {
         addDesign({
           imageUrl: data.url,
@@ -273,7 +274,28 @@ export default function GangSheetPage() {
             : `${data.widthPx}×${data.heightPx}px · 300 DPI`,
         });
       };
-      img.onerror = () => toast.error('No se pudo cargar la imagen');
+      // Reintento simple: si falla una vez, esperar y recargar (protege contra
+      // replicación del archivo en el servidor / caché de red).
+      img.onerror = () => {
+        setTimeout(() => {
+          const retry = new window.Image();
+          retry.onload = () => {
+            addDesign({
+              imageUrl: data.url,
+              name: data.originalName,
+              srcWidthPx: data.widthPx,
+              srcHeightPx: data.heightPx,
+              dpiOriginal: data.dpi,
+              image: retry,
+            });
+            toast.success(`${data.originalName} agregado`, {
+              description: `${data.widthPx}×${data.heightPx}px · 300 DPI`,
+            });
+          };
+          retry.onerror = () => toast.error('No se pudo cargar la imagen', { description: 'Verifica tu conexión e intenta de nuevo.' });
+          retry.src = data.url + (data.url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+        }, 1500);
+      };
       img.src = data.url;
     } catch (e) {
       toast.error('Error al subir imagen', { description: e.message });
@@ -623,7 +645,7 @@ export default function GangSheetPage() {
                       imageUrl={selected.imageUrl}
                       onDone={(data) => {
                         const img = new window.Image();
-                        img.crossOrigin = 'anonymous';
+                        // Sin crossOrigin (mismo origen; evita fallos de carga)
                         img.onload = () => {
                           useGangSheet.getState().updateDesign(selected.id, {
                             imageUrl: data.url,
@@ -631,7 +653,9 @@ export default function GangSheetPage() {
                             srcHeightPx: data.heightPx,
                             image: img,
                           });
+                          toast.success('Diseño actualizado con fondo eliminado');
                         };
+                        img.onerror = () => toast.error('No se pudo cargar la imagen sin fondo');
                         img.src = data.url;
                       }}
                     />
