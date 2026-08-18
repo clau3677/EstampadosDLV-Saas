@@ -157,6 +157,28 @@ export default function CatalogCanvas() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileTab, setMobileTab] = useState('productos'); // productos | biblioteca | capas
   const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasDisplaySize, setCanvasDisplaySize] = useState(CANVAS_SIZE);
+
+  // Dimensionar el canvas al espacio disponible sin estirarlo:
+  // el wrapper es cuadrado y su lado = min(tamaño con zoom, ancho disponible).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const avail = Math.floor(
+        (isMobile ? window.innerWidth * 0.95 : el.parentElement?.clientWidth || window.innerWidth) - 32
+      );
+      const cs = CANVAS_SIZE * zoom;
+      // En móvil escalar además si el zoom*canvas excede la pantalla
+      const target = Math.min(cs, isMobile ? Math.min(avail, 500) : Math.max(avail, 320));
+      setCanvasDisplaySize(Math.max(200, target));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener('resize', update);
+    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
+  }, [isMobile, zoom]);
 
   // Productos del catálogo
   const [catalogProducts, setCatalogProducts] = useState([]);
@@ -820,11 +842,11 @@ export default function CatalogCanvas() {
       {/* ============ LAYOUT PRINCIPAL ============ */}
       <div className={`gap-4 ${isMobile ? 'flex flex-col' : 'flex lg:flex-row'}`}>
         {/* Canvas */}
-        <div className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-center'}`}>
+        <div ref={containerRef} className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-center'}`}>
           <div className="relative rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-white"
             style={{
-              width: isMobile ? `${Math.min(window.innerWidth * 0.95, 500)}px` : `${CANVAS_SIZE * zoom}px`,
-              height: isMobile ? `${Math.min(window.innerWidth * 0.95, 500)}px` : `${CANVAS_SIZE * zoom}px`,
+              width: `${canvasDisplaySize}px`,
+              height: `${canvasDisplaySize}px`,
             }}
           >
             <canvas

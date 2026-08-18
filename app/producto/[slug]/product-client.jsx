@@ -165,6 +165,44 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
     })();
   }, [selectedVariantId, product?.id]);
 
+  // Cuando cambia la variante (color/talla), actualizar la imagen principal
+  // buscando la foto del color de la variante en la galería del producto.
+  useEffect(() => {
+    const v = product?.variants?.find(x => x.id === selectedVariantId);
+    if (!v || !product?.images?.length) return;
+    const color = v.attributes?.color || null;
+    const size = v.attributes?.size || null;
+    // 1) Buscar por la imagen propia de la variante
+    if (v.image && product.images.includes(v.image)) {
+      setSelectedImage(product.images.indexOf(v.image));
+      return;
+    }
+    // 2) Buscar otra variante del MISMO color y misma talla que sí tenga imagen en la galería
+    const sameAttr = product.variants?.find(x =>
+      x.id !== v.id &&
+      x.image &&
+      product.images.includes(x.image) &&
+      (color == null || (x.attributes?.color || null) === color) &&
+      (size == null || (x.attributes?.size || null) === size)
+    );
+    if (sameAttr?.image) {
+      setSelectedImage(product.images.indexOf(sameAttr.image));
+      return;
+    }
+    // 3) Buscar cualquier variante del mismo color con imagen
+    if (color != null) {
+      const sameColor = product.variants?.find(x =>
+        x.image &&
+        product.images.includes(x.image) &&
+        (x.attributes?.color || null) === color
+      );
+      if (sameColor?.image) {
+        setSelectedImage(product.images.indexOf(sameColor.image));
+        return;
+      }
+    }
+  }, [selectedVariantId, product]);
+
   if (loading) return (
     <div className="container py-20 flex items-center justify-center text-slate-500">
       <Loader2 className="h-5 w-5 mr-2 animate-spin" />Cargando producto…
@@ -201,6 +239,15 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
   const sizes = [...new Set(product.variants?.map(v => v.attributes?.size).filter(Boolean))];
   const colors = [...new Set(product.variants?.map(v => v.attributes?.color).filter(Boolean))];
+
+  // Índice de la imagen de cada color (para pintar el borde de la miniatura correcta)
+  const colorImageIndex = {};
+  (product.variants || []).forEach(v => {
+    const c = v.attributes?.color;
+    if (c && v.image && product.images?.includes(v.image) && colorImageIndex[c] === undefined) {
+      colorImageIndex[c] = product.images.indexOf(v.image);
+    }
+  });
 
   // Detectar si el producto tiene variantes de dimensiones (DTF)
   // Usa attributes (productos nuevos) o category code (productos antiguos sin attributes)
@@ -323,14 +370,16 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
             </div>
 
             {/* Thumbnails */}
-            {product.images?.length > 1 && (
+              {product.images?.length > 1 && (
               <div className="mt-4 grid grid-cols-5 gap-3">
-                {product.images.map((img, i) => (
+                {product.images.map((img, i) => {
+                  const isThumbColorMatch = currentColor && colorImageIndex[currentColor] === i;
+                  return (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
                     className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                      selectedImage === i
+                      selectedImage === i || isThumbColorMatch
                         ? 'border-orange-500 ring-2 ring-orange-200 shadow-md'
                         : 'border-slate-200 hover:border-slate-300'
                     }`}
@@ -343,7 +392,8 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                       className="h-full w-full object-cover"
                     />
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
