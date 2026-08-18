@@ -145,10 +145,22 @@ function buildPrompt(data) {
     colorClause = `Color: ${targets} ${targets.includes(" and ") ? "are" : "is"} ${brandColorPhrase}${data.primaryColor === "auto" ? "" : ", even where this style is conventionally drawn in other colors"}. ${depthAllowance}, with no unrelated colors introduced. Place it on ${bgPhrase}, keeping every part clearly legible against that background.`;
   }
 
+  // Restricciones negativas explícitas (reduce los errores típicos de IA en logos)
+  const negativePrompt =
+    "Avoid: mockups, wall signs, business cards, 3D renders, background textures, tiny details, fake or unreadable letters, distorted typography, random symbols replacing letters, extra words, taglines, watermarks, copied famous brand styles, photographic scenes, complex gradients, realistic shadows.";
+
   const parts = [
-    `${mediumClause}: ${typeDesc} for "${name}". ${style} ${detail}`,
+    `Create a professional logo concept for a brand called "${name}". ${style} ${detail}`,
     "",
-    `${textClause} ${colorClause} Centered, balanced composition: the name text and symbol together occupy roughly 60% of the frame, well inside the canvas with generous even margins on all sides. Crisp, clean edges on a solid, uncluttered background. Professional, high-end brand identity, instantly recognizable, scalable from favicon to signage. Absolutely no watermark, no extra text, no decorative letter-like symbols.`,
+    `${typeDesc} for "${name}".`,
+    "",
+    `${textClause}`,
+    "",
+    `Layout: centered, balanced composition — the symbol and the name together occupy roughly 60% of the frame, with generous even margins on all sides. The name text sits directly next to or under the symbol, clearly connected as one single lockup. Crisp, clean edges on a solid, uncluttered background. Scalable from favicon to signage, and must remain legible at small size.`,
+    "",
+    `${colorClause}`,
+    "",
+    `${negativePrompt}`,
   ];
   if (data.additionalInfo) parts.push(`Additional direction: ${data.additionalInfo}.`);
   return parts.join("\n");
