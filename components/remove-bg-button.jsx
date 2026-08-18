@@ -41,12 +41,26 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       const absoluteImage = imageUrl.startsWith('http')
         ? imageUrl
         : `${typeof window !== 'undefined' ? window.location.origin : ''}${imageUrl}`;
+      // fetchOptions.timeout: imgly usa 60s por defecto y aborta el fetch del
+      // modelo (44MB) en redes lentas → "IA 0%" perpetuo con reintentos. Se
+      // amplía a 5 min para dar tiempo a la descarga; el modelo queda cacheado
+      // en el navegador después del primer uso (IndexedDB + storage), así que
+      // las siguientes veces es casi instantáneo.
       const blob = await removeBackground(absoluteImage, {
         publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/imgly-assets/`,
         model: 'small',
         proxyToWorker: false,
+        // v1.4.5 usa fetchArgs (RequestInit) para los fetches de modelos.
+        // Se inyecta un AbortController con timeout de 5 min para que la
+        // descarga del modelo (44MB) no se aborte en redes lentas (el
+        // default de la librería corta a los 60s → "IA 0%" perpetuo).
+        fetchArgs: (() => {
+          const ctrl = new AbortController();
+          setTimeout(() => ctrl.abort(), 300000);
+          return { signal: ctrl.signal };
+        })(),
         progress: (key, current, total) => {
-          const p = Math.round((current / total) * 100);
+          const p = total ? Math.round((current / total) * 100) : 0;
           setProgress(p);
         },
       });
