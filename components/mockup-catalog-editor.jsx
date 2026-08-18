@@ -165,12 +165,14 @@ export default function CatalogCanvas() {
     const el = containerRef.current;
     if (!el) return;
     const update = () => {
-      const avail = Math.floor(
-        (isMobile ? window.innerWidth * 0.95 : el.parentElement?.clientWidth || window.innerWidth) - 32
-      );
+      // En desktop, el canvas NUNCA debe comerse el sidebar: restamos el ancho
+      // reservado para el panel derecho (400px) + el gap (16px), con un tope máximo.
+      const parentW = el.parentElement?.clientWidth || window.innerWidth;
+      const sidebarW = isMobile ? 0 : 416; // sidebar 400px + gap 16px
+      const avail = Math.floor((isMobile ? window.innerWidth * 0.95 : parentW) - 32 - sidebarW);
       const cs = CANVAS_SIZE * zoom;
       // En móvil escalar además si el zoom*canvas excede la pantalla
-      const target = Math.min(cs, isMobile ? Math.min(avail, 500) : Math.max(avail, 320));
+      const target = Math.min(cs, isMobile ? Math.min(avail, 500) : Math.min(avail, 560));
       setCanvasDisplaySize(Math.max(200, target));
     };
     update();
@@ -958,8 +960,8 @@ export default function CatalogCanvas() {
           </div>
         ) : (
           <div className="w-full lg:w-96 xl:w-[420px] shrink-0">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-4">
-              <div className="p-4 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-20">
+              <div className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                 <ProductSelector
                   catalogProducts={catalogProducts}
                   filteredProducts={filteredProducts}
