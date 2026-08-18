@@ -27,11 +27,14 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
         /* webpackChunkName: "imgly-bg-removal" */
         '@imgly/background-removal'
       );
-      // El modelo se descarga desde staticimgly.com (CDN oficial, sin API key)
+      // Modelos auto-alojados en el propio dominio (public/assets/imgly).
+      // El CDN oficial (staticimgly.com) dejaba de servir los modelos → la
+      // librería recibía HTML y fallaba con "invalid format: text/html".
+      // La opción correcta es publicPath (camelCase). Modelo "small" (~44MB).
       const blob = await removeBackground(imageUrl, {
-        // CDN oficial del modelo ONNX (mitiga bloqueos de proxies)
-        model_loading_by_ioloop: true,
-        public_path: 'https://staticimgly.com/1.4.5/',
+        publicPath: '/assets/imgly/',
+        model: 'small',
+        proxyToWorker: false,
         progress: (key, current, total) => {
           const p = Math.round((current / total) * 100);
           setProgress(p);
