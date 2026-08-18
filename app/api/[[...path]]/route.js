@@ -33,6 +33,7 @@ import handleContact      from '@/lib/api/contact';
 import handleImport       from '@/lib/api/import';
 import handleSettings     from '@/lib/api/settings';
 import handleMarketing    from '@/lib/api/marketing';
+import handleProspection  from '@/lib/api/prospeccion';
 import handlePayments     from '@/lib/api/payments';
 import handleDesignLib    from '@/lib/api/design-library';
 import handleDrive        from '@/lib/api/drive';
@@ -66,6 +67,7 @@ const HANDLERS = [
   handleWhatsapp,
   handleEmail,
   handleMarketing,    // módulo Marketing: posts IA, Meta Ads, feed catálogo, métricas, reseñas
+  handleProspection,  // módulo Prospección B2B: campañas, descubrimiento, leads, mensajes (Quinta Región)
   handlePrePress,
   handleAgent,
   handleReports,

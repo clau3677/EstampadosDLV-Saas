@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
-  Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X,
+  Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X, UserPlus,
   Library, Megaphone, Box,
 } from 'lucide-react';
 
@@ -63,6 +63,7 @@ const ADMIN_SECTIONS = [
       { href: '/admin/whatsapp',  label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
       { href: '/admin/emails',    label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
       { href: '/admin/marketing', label: 'Marketing',   icon: Megaphone,     badge: 'Meta' },
+      { href: '/prospeccion', label: 'Prospección B2B', icon: UserPlus, badge: 'V5' },
     ],
   },
   {

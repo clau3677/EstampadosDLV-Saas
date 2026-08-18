@@ -16,7 +16,7 @@ const MobileActionBar = lazy(() => import('@/components/mobile-action-bar').then
 const BARE_PREFIXES = ['/login', '/registro', '/mockup'];
 
 // Rutas de admin con sidebar (verificar ANTES que las públicas).
-const ADMIN_PREFIXES = ['/admin', '/gang-sheet'];
+const ADMIN_PREFIXES = ['/admin', '/gang-sheet', '/prospeccion'];
 
 // Rutas públicas con PublicNav + Footer.
 const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta', '/concurso', '/logo-creator'];
