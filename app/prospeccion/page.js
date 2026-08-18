@@ -360,7 +360,7 @@ function CampaignDetailDialog({ campaign, onClose }) {
 
   const previewMsg = async (leadId) => {
     try {
-      setPreview(await api(`/messages?preview=1&leadId=${leadId}`));
+      setPreview(await api(`/messages?preview=1&leadId=${encodeURIComponent(leadId)}`));
     } catch (e) {
       toast.error(e.message);
     }
@@ -415,7 +415,7 @@ function CampaignDetailDialog({ campaign, onClose }) {
                     {scoreBadge(l.score)}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => previewMsg(l.leadId)}>
+                <Button size="sm" variant="outline" onClick={() => previewMsg(l.id)}>
                   <FileText className="h-3.5 w-3.5 mr-1" /> Preview
                 </Button>
               </CardContent>
