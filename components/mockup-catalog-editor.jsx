@@ -167,14 +167,15 @@ export default function CatalogCanvas() {
     if (!el) return;
     const update = () => {
       // En desktop, el canvas NUNCA debe comerse el sidebar: restamos el ancho
-      // reservado para el panel derecho (400px) + el gap (16px), con un tope máximo.
+      // reservado para el panel derecho (400px) + el gap (16px). Sin tope inferior
+      // artificial: el lienzo usa TODO el espacio sobrante (grande en pantallas anchas).
       const parentW = el.parentElement?.clientWidth || window.innerWidth;
       const sidebarW = isMobile ? 0 : 416; // sidebar 400px + gap 16px
-      const avail = Math.floor((isMobile ? window.innerWidth * 0.95 : parentW) - 32 - sidebarW);
+      const avail = Math.floor((isMobile ? window.innerWidth * 0.96 : parentW) - 24 - sidebarW);
       const cs = CANVAS_SIZE * zoom;
-      // En móvil escalar además si el zoom*canvas excede la pantalla
-      const target = Math.min(cs, isMobile ? Math.min(avail, 500) : Math.min(avail, 560));
-      setCanvasDisplaySize(Math.max(200, target));
+      // En móvil usa casi todo el ancho; en desktop usa todo lo que quede libre
+      const target = Math.min(cs, isMobile ? Math.min(avail, 560) : avail);
+      setCanvasDisplaySize(Math.max(240, target));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -829,7 +830,7 @@ export default function CatalogCanvas() {
       </div>
 
       {/* ============ TOOLBAR ============ */}
-      <div className={`flex items-center gap-1 mb-3 ${isMobile ? 'px-1 flex-wrap' : ''}`}>
+      <div className={`flex items-center gap-1 mb-2 ${isMobile ? 'px-1 flex-wrap' : ''}`}>
         <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0} title="Deshacer">
           <Undo2 className="h-3.5 w-3.5" />
         </Button>
@@ -857,9 +858,9 @@ export default function CatalogCanvas() {
       </div>
 
       {/* ============ LAYOUT PRINCIPAL ============ */}
-      <div className={`gap-4 ${isMobile ? 'flex flex-col' : 'flex lg:flex-row'}`}>
+      <div className={`gap-3 ${isMobile ? 'flex flex-col' : 'flex lg:flex-row'}`}>
         {/* Canvas */}
-        <div ref={containerRef} className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-start pl-4 lg:pl-8'}`}>
+        <div ref={containerRef} className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-center min-w-0'}`}>
           <div className="flex flex-col items-center w-full">
           <div className="relative rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-white"
             style={{
@@ -886,7 +887,7 @@ export default function CatalogCanvas() {
           </div>
           {/* Selector de color de la prenda */}
           {colorImages.length > 1 && (
-            <div className="mt-3 w-full max-w-[80vw]">
+            <div className="mt-3 w-full" style={{ maxWidth: `${canvasDisplaySize}px` }}>
               <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto pb-1">
                 {colorImages.map((src, idx) => (
                   <button
@@ -1003,8 +1004,8 @@ export default function CatalogCanvas() {
           </div>
         ) : (
           <div className="w-full lg:w-96 xl:w-[420px] shrink-0">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-20">
-              <div className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-16">
+              <div className="p-4 space-y-4 max-h-[calc(100vh-96px)] overflow-y-auto">
                 <ProductSelector
                   catalogProducts={catalogProducts}
                   filteredProducts={filteredProducts}
