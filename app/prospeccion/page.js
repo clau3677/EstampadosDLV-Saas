@@ -949,9 +949,9 @@ function ConfigTab({ config }) {
           )}
           <div className="text-xs space-y-1">
             {config?.providerConfigured ? (
-              <Badge className="bg-emerald-100 text-emerald-700">Proveedor de email configurado (Resend)</Badge>
+              <Badge className="bg-emerald-100 text-emerald-700">Proveedor de email configurado (SMTP Gmail)</Badge>
             ) : (
-              <Badge className="bg-amber-100 text-amber-700">Sin proveedor de email — falta RESEND_API_KEY</Badge>
+              <Badge className="bg-amber-100 text-amber-700">Sin proveedor de email — falta SMTP_APP_PASSWORD o RESEND_API_KEY</Badge>
             )}
             <p className="text-muted-foreground text-xs">Remitente: {config?.from}</p>
           </div>
