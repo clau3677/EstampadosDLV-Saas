@@ -210,8 +210,10 @@ async function generateImages(prompt, count = 1) {
     throw new Error(`MiniMax image-01 HTTP ${res.status}: ${txt.slice(0, 300)}`);
   }
   const json = await res.json();
+  // DEBUG temporal: registrar la respuesta cruda de MiniMax
+  console.log("[LOGO-DBG] MiniMax resp keys:", Object.keys(json || {}).join(","), "data keys:", Object.keys(json?.data || {}).join(","), "meta:", JSON.stringify(json?.metadata || {}));
   const urls = json?.data?.image_urls || [];
-  if (urls.length === 0) throw new Error("MiniMax no devolvió imágenes");
+  if (urls.length === 0) throw new Error("MiniMax no devolvió imágenes (resp: " + JSON.stringify(json).slice(0, 500) + ")");
 
   const base64s = [];
   for (const url of urls) {
