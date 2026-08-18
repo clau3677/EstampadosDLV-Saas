@@ -78,8 +78,14 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       onDone?.(data);
       toast.success('Fondo eliminado ✨', { description: `${data.widthPx}×${data.heightPx}px, transparente` });
     } catch (e) {
-      console.error(e);
-      toast.error('No se pudo quitar el fondo', { description: e.message });
+      const detail =
+        e instanceof Error
+          ? `${e.name}: ${e.message}`
+          : typeof e === 'object'
+            ? JSON.stringify(e).slice(0, 300)
+            : String(e);
+      console.error('[remove-bg] fallo:', detail);
+      toast.error('No se pudo quitar el fondo', { description: detail, duration: 12000 });
     } finally {
       setRunning(false);
     }
