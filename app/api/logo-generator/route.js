@@ -211,10 +211,8 @@ async function generateImages(prompt, count = 1) {
     throw new Error(`MiniMax image-01 HTTP ${res.status}: ${txt.slice(0, 300)}`);
   }
   const json = await res.json();
-  // DEBUG temporal: registrar la respuesta cruda de MiniMax
-  console.log("[LOGO-DBG] MiniMax resp keys:", Object.keys(json || {}).join(","), "data keys:", Object.keys(json?.data || {}).join(","), "meta:", JSON.stringify(json?.metadata || {}));
   const urls = json?.data?.image_urls || [];
-  if (urls.length === 0) throw new Error("MiniMax no devolvió imágenes (resp: " + JSON.stringify(json).slice(0, 500) + ")");
+  if (urls.length === 0) throw new Error("MiniMax no devolvió imágenes");
 
   const base64s = [];
   for (const url of urls) {
@@ -345,25 +343,32 @@ export async function POST(req) {
     .toUpperCase();
 
   const images = [];
-  let attempts = 0;
-  const maxAttempts = 2; // máximo 2 rondas de 4 imágenes (cuida la cuota)
-  while (images.length < 2 && attempts < maxAttempts) {
-    attempts += 1;
-    const batch = await generateImages(prompt, 4);
+  const batch = await generateImages(prompt, 4);
 
-    // Verificar ortografía de cada variante
-    const checks = await Promise.all(
-      batch.map((img) => verifyLogoText(img, name, initials)),
+  // Verificar ortografía de cada variante
+  const checks = await Promise.all(
+    batch.map((img) => verifyLogoText(img, name, initials)),
+  );
+  const failed = [];
+  for (let i = 0; i < batch.length; i++) {
+    if (checks[i].ok) images.push({ base64: batch[i], written: checks[i].written || name });
+    else failed.push(i);
+  }
+
+  // Reintentar SOLO las variantes con mala ortografía (1 regeneración cada una, cuida la cuota)
+  if (failed.length > 0) {
+    const regen = await Promise.all(
+      failed.map(async (idx) => {
+        try {
+          const retryBatch = await generateImages(prompt, 1);
+          const c = await verifyLogoText(retryBatch[0], name, initials);
+          return c.ok ? { base64: retryBatch[0], written: c.written || name } : null;
+        } catch {
+          return null;
+        }
+      }),
     );
-    for (let i = 0; i < batch.length; i++) {
-      if (checks[i].ok) images.push({ base64: batch[i], written: checks[i].written || name });
-    }
-
-    // Si ninguna pasó la verificación, reintentar una sola vez
-    if (images.length === 0 && attempts >= maxAttempts) {
-      // Última ronda: devolver las 4 con advertencia (no bloquear)
-      batch.forEach((img, i) => images.push({ base64: img, written: checks[i].written || name, warned: true }));
-    }
+    for (const img of regen) if (img) images.push(img);
   }
 
   return NextResponse.json({ images, remaining: rate.remaining });
