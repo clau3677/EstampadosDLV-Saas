@@ -46,6 +46,7 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       // amplía a 5 min para dar tiempo a la descarga; el modelo queda cacheado
       // en el navegador después del primer uso (IndexedDB + storage), así que
       // las siguientes veces es casi instantáneo.
+      console.log('[remove-bg] etapa 1: removeBackground iniciado', absoluteImage.slice(0, 80));
       const blob = await removeBackground(absoluteImage, {
         publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/imgly-assets/`,
         model: 'small',
@@ -68,12 +69,18 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       // Subir el resultado transparente al servidor
       // El resultado de imgly es un Blob de Canvas con formato PNG RGBA
       // (el constructor File puede no retener tipo en algunos navegadores):
+      console.log('[remove-bg] etapa 2: resultado recibido', blob?.type, blob?.size);
       const file = new File([blob], 'bg-removed.png', { type: blob.type || 'image/png' });
       const fd = new FormData();
       fd.append('file', file);
       const r = await fetch('/api/uploads/design', { method: 'POST', body: fd });
-      if (!r.ok) throw new Error('upload falló');
+      console.log('[remove-bg] etapa 3: respuesta upload', r.status);
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        throw new Error(`upload falló (${r.status}): ${txt.slice(0, 200)}`);
+      }
       const data = await r.json();
+      console.log('[remove-bg] etapa 4: upload ok', JSON.stringify(data).slice(0, 200));
 
       onDone?.(data);
       toast.success('Fondo eliminado ✨', { description: `${data.widthPx}×${data.heightPx}px, transparente` });
