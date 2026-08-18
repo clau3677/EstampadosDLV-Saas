@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Printer, ShoppingBag, Layers, User, LogIn, Menu, X } from 'lucide-react';
+import { Printer, ShoppingBag, Layers, User, LogIn, Menu, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart, cartCount } from '@/lib/cart-store';
 import { useAuth } from '@/hooks/use-auth';
@@ -52,6 +52,9 @@ export function PublicNav() {
           </Link>
           {link('/blog', 'Blog')}
           {link('/contacto', 'Contacto')}
+          <Link href="/logo-creator" className={cn("text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-rose-600 px-3 py-1.5 rounded-lg hover:opacity-90 transition inline-flex items-center gap-1.5", pathname?.startsWith('/logo-creator') && 'ring-2 ring-orange-300')}>
+            <Sparkles className="h-3.5 w-3.5" />Crea tu logo gratis
+          </Link>
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
@@ -100,6 +103,7 @@ export function PublicNav() {
             {[
               ['/tienda', 'Catálogo'],
               ['/gang-sheet', 'Sube tu diseño'],
+              ['/logo-creator', '✨ Crea tu logo gratis'],
               ['/blog', 'Blog'],
               ['/contacto', 'Contacto'],
             ].map(([href, label]) => (

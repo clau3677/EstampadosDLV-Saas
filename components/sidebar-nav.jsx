@@ -33,6 +33,7 @@ const ADMIN_SECTIONS = [
       { href: '/gang-sheet', label: 'Gang Sheet Builder', icon: Layers, badge: 'AI' },
       { href: '/admin/design-library', label: 'Biblioteca GSB', icon: Library },
       { href: '/mockup', label: 'Mockup 3D', icon: Box, badge: '3D' },
+      { href: '/logo-creator', label: 'Creador de Logos', icon: Sparkles, badge: 'Gratis' },
     ],
   },
   {
