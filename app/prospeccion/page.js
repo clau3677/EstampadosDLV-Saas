@@ -554,9 +554,9 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
 // ---------------------------------------------------------------------------
 function LeadsTab({ leads, config, onLoad }) {
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('');
-  const [com, setCom] = useState('');
-  const [state, setState] = useState('');
+  const [cat, setCat] = useState('Todas');
+  const [com, setCom] = useState('Todas');
+  const [state, setState] = useState('Todos');
   const [detail, setDetail] = useState(null);
   const [running, setRunning] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState('');
@@ -565,7 +565,7 @@ function LeadsTab({ leads, config, onLoad }) {
   useEffect(() => { onLoad({}); }, [onLoad]);
   useEffect(() => { api('/campaigns').then(c => setCampaigns(c.items || [])).catch(() => {}); }, []);
 
-  const applyFilters = () => onLoad({ q: q || undefined, category: cat || undefined, commune: com || undefined, state: state || undefined });
+  const applyFilters = () => onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state });
 
   const runDiscovery = async () => {
     if (!selectedCampaign) return toast.error('Selecciona una campaña primero (créala en la pestaña Campañas)');
@@ -617,17 +617,23 @@ function LeadsTab({ leads, config, onLoad }) {
         <Input placeholder="Buscar por nombre..." value={q} onChange={e => setQ(e.target.value)} className="max-w-xs" />
         <Select value={cat} onValueChange={setCat}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Rubro" /></SelectTrigger>
-          <SelectContent>{Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          <SelectContent>
+            <SelectItem value="Todas">Todos los rubros</SelectItem>
+            {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+          </SelectContent>
         </Select>
         <Select value={com} onValueChange={setCom}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Comuna" /></SelectTrigger>
           <SelectContent>
-            {['', 'Valparaíso', 'Viña del Mar', 'Concón', 'Quilpué', 'Villa Alemana', 'Limache', 'Quillota', 'San Antonio', 'San Felipe', 'Los Andes'].map(c => <SelectItem key={c} value={c}>{c || 'Todas'}</SelectItem>)}
+            {['Todas', 'Valparaíso', 'Viña del Mar', 'Concón', 'Quilpué', 'Villa Alemana', 'Limache', 'Quillota', 'San Antonio', 'San Felipe', 'Los Andes'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={state} onValueChange={setState}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Estado" /></SelectTrigger>
-          <SelectContent>{Object.entries(STATE_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent>
+          <SelectContent>
+            <SelectItem value="Todos">Todos los estados</SelectItem>
+            {Object.entries(STATE_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+          </SelectContent>
         </Select>
         <Button variant="outline" onClick={applyFilters}><ListFilter className="h-4 w-4 mr-1" /> Filtrar</Button>
       </div>
