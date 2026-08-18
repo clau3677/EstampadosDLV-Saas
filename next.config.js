@@ -71,6 +71,27 @@ const nextConfig = {
     maxInactiveAge: 10000,
     pagesBufferLength: 2,
   },
+  // Consolidación SEO (ago-2026): una sola URL canónica para DTF textil.
+  // Las otras dos variantes débiles redirigen 301 para no dividir señales.
+  async redirects() {
+    return [
+      {
+        source: '/servicios/impresion-dtf-textil-chile',
+        destination: '/servicios/dtf-textil',
+        permanent: true,
+      },
+      {
+        source: '/servicios/dtf-textil-impresion-poleras-chile',
+        destination: '/servicios/dtf-textil',
+        permanent: true,
+      },
+      {
+        source: '/servicios/servicio-estampado-dtf-textil',
+        destination: '/servicios/dtf-textil',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     // Seguridad endurecida (auditoría jul-2026):
     //  - SAMEORIGIN / frame-ancestors 'self' → bloquea clickjacking sobre POS y admin.
