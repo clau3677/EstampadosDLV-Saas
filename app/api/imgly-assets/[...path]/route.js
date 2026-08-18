@@ -24,6 +24,15 @@ const ALLOWED = [
   'latest',
   '1x_model.json',
   '1x_model.bin',
+  // Archivos WASM de onnxruntime-web (vienen con sufijos .jsep y threaded)
+  'ort-wasm.wasm',
+  'ort-wasm-threaded.wasm',
+  'ort-wasm-simd.wasm',
+  'ort-wasm-simd.jsep.wasm',
+  'ort-wasm-simd-threaded.wasm',
+  'ort-wasm-simd-threaded.jsep.wasm',
+  'ort-training-wasm-simd.wasm',
+  'ort-wasm-simd.mjs',
 ];
 
 export async function GET(_req, { params }) {
@@ -39,6 +48,12 @@ export async function GET(_req, { params }) {
     const MODEL_KEY = { 'small': 'models/small', 'medium': 'models/medium' };
     const m = rel.match(/^models\/(small|medium)(?:\/.*)?$/);
     if (m) rel = MODEL_KEY[m[1]];
+
+    // imgly también puede pedir onnxruntime-web con subpaths de versión
+    // (onnxruntime-web/1.17.x/ort-wasm-simd.wasm o con sufijos mjs).
+    // Los WASM reales viven planos en onnxruntime-web/.
+    const wm = rel.match(/^onnxruntime-web\/(?:.*\/)?(ort-[^/]+)$/);
+    if (wm) rel = `onnxruntime-web/${wm[1]}`;
 
     const full = path.resolve(IMG_ROOT, rel);
     if (!full.startsWith(IMG_ROOT)) {
