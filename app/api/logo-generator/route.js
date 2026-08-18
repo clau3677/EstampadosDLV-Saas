@@ -107,11 +107,11 @@ function buildPrompt(data) {
   let textClause;
   if (!hasText) {
     textClause =
-      "Render it as a purely graphic symbol with no lettering: use clean shapes and open negative space where text would otherwise sit.";
+      "Render it as a purely graphic symbol with no lettering: use clean shapes and open negative space where text would otherwise sit. Absolutely no letters, glyphs or fake characters anywhere in the image.";
   } else if (logoType === "monogram") {
-    textClause = `Build it from only the initials "${initials}", each letter clean, complete and correctly formed.`;
+    textClause = `Build it from ONLY the initials "${initials}" — exactly these ${initials.length} letters, nothing more. Each letter clean, complete and correctly formed. Do not add any extra words, letters or brand name text.`;
   } else {
-    textClause = `Set the company name "${name}" as clean, evenly-spaced lettering with every letter clear, complete and correctly spelled.`;
+    textClause = `Set the company name "${name}" in the logo. This name must appear EXACTLY as written, letter by letter: "${name}" — do not omit, add, repeat or distort any letter. Every letter must be clear, complete, correctly spelled and highly legible at small size. Write the name only once. Do not include any other words, taglines or invented text.`;
   }
 
   const colorTargets = {
@@ -148,7 +148,7 @@ function buildPrompt(data) {
   const parts = [
     `${mediumClause}: ${typeDesc} for "${name}". ${style} ${detail}`,
     "",
-    `${textClause} ${colorClause} Centered, balanced composition with crisp, clean edges on a solid, uncluttered background. Professional and instantly recognizable, scalable from favicon to signage.`,
+    `${textClause} ${colorClause} Centered, balanced composition: the name text and symbol together occupy roughly 60% of the frame, well inside the canvas with generous even margins on all sides. Crisp, clean edges on a solid, uncluttered background. Professional, high-end brand identity, instantly recognizable, scalable from favicon to signage. Absolutely no watermark, no extra text, no decorative letter-like symbols.`,
   ];
   if (data.additionalInfo) parts.push(`Additional direction: ${data.additionalInfo}.`);
   return parts.join("\n");
