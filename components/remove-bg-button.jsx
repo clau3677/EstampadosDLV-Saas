@@ -31,8 +31,15 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       // El CDN oficial (staticimgly.com) dejaba de servir los modelos → la
       // librería recibía HTML y fallaba con "invalid format: text/html".
       // La opción correcta es publicPath (camelCase). Modelo "small" (~44MB).
-      const blob = await removeBackground(imageUrl, {
-        publicPath: '/assets/imgly/',
+      // IMPORTANTE: si imageUrl es una ruta relativa ("/uploads/designs/...")
+      // y publicPath no llega, la librería hace new URL(url, undefined) que
+      // tira "Failed to construct 'URL': Invalid base URL". Por eso se
+      // convierte a URL absoluta de antemano y se pasa publicPath absoluto.
+      const absoluteImage = imageUrl.startsWith('http')
+        ? imageUrl
+        : `${typeof window !== 'undefined' ? window.location.origin : ''}${imageUrl}`;
+      const blob = await removeBackground(absoluteImage, {
+        publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/assets/imgly/`,
         model: 'small',
         proxyToWorker: false,
         progress: (key, current, total) => {
