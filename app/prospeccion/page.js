@@ -752,6 +752,20 @@ function LeadDetailDialog({ lead, onClose, onChangeState }) {
 // Mensajes
 // ---------------------------------------------------------------------------
 function MessagesTab({ messages, config }) {
+  const [runningJobs, setRunningJobs] = useState(false);
+
+  const runJobQueue = async () => {
+    setRunningJobs(true);
+    try {
+      const r = await api('/jobs/run', { method: 'POST' });
+      toast.success(`Cola procesada: ${r.sent} enviados, ${r.errors} errores${r.skipped?.length ? ', ' + r.skipped.map(s => `${s.count} ${s.reason}`).join(', ') : ''}`);
+      await window.dispatchEvent(new Event('prospeccion-refresh'));
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setRunningJobs(false);
+    }
+  };
   return (
     <div className="space-y-4">
       <Card>
@@ -763,9 +777,15 @@ function MessagesTab({ messages, config }) {
           <CardDescription>
             {config?.simulationMode
               ? 'Los mensajes aprobados se registran como "simulados" y NUNCA se envían. Esto protege tu reputación hasta confirmar el proveedor de email.'
-              : 'Los mensajes aprobados se ponen en cola de envío real.'}
+              : 'Los mensajes aprobados se ponen en cola de envío real. Envío máximo: 25/día, entre 10:00 y 19:00 (hora Chile).'}
           </CardDescription>
         </CardHeader>
+        <CardContent className="pt-0">
+          <Button variant="outline" size="sm" onClick={runJobQueue} disabled={runningJobs}>
+            {runningJobs ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+            {config?.simulationMode ? 'Procesar cola (solo registrará en BD)' : 'Procesar cola de envío real'}
+          </Button>
+        </CardContent>
       </Card>
       <div className="text-sm text-muted-foreground">{messages.total} mensajes registrados</div>
       <div className="space-y-2">
@@ -896,6 +916,25 @@ function AuditTab({ audit, onLoad }) {
 // Configuración
 // ---------------------------------------------------------------------------
 function ConfigTab({ config }) {
+  const [testEmail, setTestEmail] = useState('');
+  const [testing, setTesting] = useState(false);
+
+  const sendRealTest = async () => {
+    if (!testEmail.includes('@')) return toast.error('Ingresa un email válido');
+    setTesting(true);
+    try {
+      const r = await api('/messages/test', { method: 'POST', body: JSON.stringify({ toEmail: testEmail }) });
+      if (r.status === 'simulado' || config?.simulationMode) {
+        toast.info('Correo de prueba guardado (modo simulación: aún no hay proveedor de email configurado)');
+      } else {
+        toast.success(`Correo de prueba ${r.delivery?.sent ? 'enviado en real a ' + testEmail : 'encolado'}`);
+      }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setTesting(false);
+    }
+  };
   return (
     <div className="grid md:grid-cols-2 gap-4">
       <Card>
@@ -908,9 +947,24 @@ function ConfigTab({ config }) {
           ) : (
             <div className="flex items-center gap-2 text-rose-600 font-medium"><AlertTriangle className="h-4 w-4" /> Envío real activo</div>
           )}
-          <p className="text-muted-foreground text-xs">
-            Para activar envíos reales se necesita: proveedor de email transaccional (Resend/Brevo), dominio con SPF/DKIM/DMARC y confirmación de Sandra.
-          </p>
+          <div className="text-xs space-y-1">
+            {config?.providerConfigured ? (
+              <Badge className="bg-emerald-100 text-emerald-700">Proveedor de email configurado (Resend)</Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-700">Sin proveedor de email — falta RESEND_API_KEY</Badge>
+            )}
+            <p className="text-muted-foreground text-xs">Remitente: {config?.from}</p>
+          </div>
+          <div className="border-t pt-3">
+            <Label className="text-xs">Enviar correo de prueba (se envía en real si el proveedor está configurado)</Label>
+            <div className="flex gap-2 mt-1">
+              <Input placeholder="tu-correo@ejemplo.com" value={testEmail} onChange={e => setTestEmail(e.target.value)} className="max-w-sm" />
+              <Button variant="outline" size="sm" onClick={sendRealTest} disabled={testing}>
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailPlus className="h-4 w-4 mr-1" />}
+                {testing ? 'Enviando...' : 'Enviar prueba'}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
       <Card>
