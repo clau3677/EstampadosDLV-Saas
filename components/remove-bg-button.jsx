@@ -59,10 +59,10 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
           setTimeout(() => ctrl.abort(), 300000);
           return { signal: ctrl.signal };
         })(),
-        progress: (key, current, total) => {
-          const p = total ? Math.round((current / total) * 100) : 0;
-          setProgress(p);
-        },
+        // NOTA: se omite `progress` de forma explícita — imgly v1.4.5 valida
+        // con Zod el valor del tercer argumento del callback (espera `number`)
+        // y en algunos reportes internos pasa `undefined` → ZodError que rompía
+        // la corrida sin resultado visible ("IA 0%" → idle, sin toast).
       });
 
       // Subir el resultado transparente al servidor
