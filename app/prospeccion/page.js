@@ -24,7 +24,7 @@ import {
   UserPlus, RefreshCw, Play, Pause, Search, Loader2, Plus,
   CheckCircle2, XCircle, AlertTriangle, ShieldAlert, FileText,
   MapPin, Star, Mail, Phone, Globe, Instagram, Building2,
-  BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge,
+  BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge, Download,
 } from 'lucide-react';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -567,6 +567,18 @@ function LeadsTab({ leads, config, onLoad }) {
 
   const applyFilters = () => onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state });
 
+  const exportCsv = () => {
+    const qs = new URLSearchParams();
+    if (q) qs.set('q', q);
+    if (cat !== 'Todas') qs.set('category', cat);
+    if (com !== 'Todas') qs.set('commune', com);
+    if (state !== 'Todos') qs.set('state', state);
+    const path = `/api/prospeccion/leads/csv?${qs.toString()}`;
+    // Abrir la descarga directamente (la sesión admin via cookies se envía automáticamente)
+    window.open(path, '_self');
+    toast.success('Descargando prospectos en CSV');
+  };
+
   const runDiscovery = async () => {
     if (!selectedCampaign) return toast.error('Selecciona una campaña primero (créala en la pestaña Campañas)');
     setRunning(true);
@@ -636,6 +648,9 @@ function LeadsTab({ leads, config, onLoad }) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={applyFilters}><ListFilter className="h-4 w-4 mr-1" /> Filtrar</Button>
+        <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={exportCsv}>
+          <Download className="h-4 w-4 mr-1" /> Exportar CSV
+        </Button>
       </div>
 
       <div className="text-sm text-muted-foreground">{leads.total} prospectos</div>
