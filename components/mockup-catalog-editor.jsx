@@ -84,9 +84,10 @@ function isGarmentDark(imgData) {
   return (darkCount / totalSampled) > 0.3;
 }
 
-// Detectar si el diseño tiene fondo blanco o transparente
-function getDesignBlendMode(designImgData, garmentIsDark) {
-  if (!designImgData) return 'multiply';
+// Analizar el diseño: ¿tiene fondo transparente, fondo blanco sólido o es una foto?
+// Devuelve: { mode: 'transparent' | 'white-bg' | 'photo', whiteRatio, transparentRatio }
+function analyzeDesignBg(designImgData) {
+  if (!designImgData) return { mode: 'photo', whiteRatio: 0, transparentRatio: 0 };
   const data = designImgData.data;
   let whiteCount = 0;
   let transparentCount = 0;
@@ -97,29 +98,54 @@ function getDesignBlendMode(designImgData, garmentIsDark) {
     const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
     if (a < 128) {
       transparentCount++;
-    } else if (r > 240 && g > 240 && b > 240) {
+    } else if (r > 235 && g > 235 && b > 235) {
       whiteCount++;
     }
     totalSampled++;
   }
 
-  if (totalSampled === 0) return 'multiply';
+  if (totalSampled === 0) return { mode: 'photo', whiteRatio: 0, transparentRatio: 0 };
 
   const whiteRatio = whiteCount / totalSampled;
   const transparentRatio = transparentCount / totalSampled;
 
-  // If design has mostly transparent background → use garment-dependent mode
-  if (transparentRatio > 0.3) {
-    return garmentIsDark ? 'screen' : 'multiply';
-  }
+  if (transparentRatio > 0.15) return { mode: 'transparent', whiteRatio, transparentRatio };
+  if (whiteRatio > 0.25) return { mode: 'white-bg', whiteRatio, transparentRatio };
+  return { mode: 'photo', whiteRatio, transparentRatio };
+}
 
-  // If design has mostly white background → always multiply (white becomes transparent)
-  if (whiteRatio > 0.3) {
-    return 'multiply';
+// Renderizar el diseño CON SUS COLORES REALES sobre la prenda.
+// - Fondo transparente: se dibuja directo (source-over).
+// - Fondo blanco sólido: el blanco se convierte en transparente (sin afectar los
+//   colores del diseño) y se dibuja directo → los colores se mantienen reales.
+// - Foto: se dibuja directo sobre la prenda (source-over con su alpha).
+function drawDesignRealColors(blendCtx, designCanvas, bgInfo) {
+  blendCtx.globalCompositeOperation = 'source-over';
+  if (bgInfo.mode === 'white-bg') {
+    // Clonar el diseño y volver transparente el fondo blanco con falloff suave
+    const w = designCanvas.width, h = designCanvas.height;
+    const clone = document.createElement('canvas');
+    clone.width = w; clone.height = h;
+    const cctx = clone.getContext('2d');
+    cctx.drawImage(designCanvas, 0, 0);
+    const pixels = cctx.getImageData(0, 0, w, h);
+    const d = pixels.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = Math.min(r, g, b); // luminancia del canal más oscuro
+      if (lum > 200) {
+        // Blanco puro → totalmente transparente
+        d[i + 3] = 0;
+      } else if (lum > 150) {
+        // Grises claros (anti-aliasing del fondo) → transparencia parcial
+        d[i + 3] = Math.round(((200 - lum) / 50) * 255);
+      }
+    }
+    cctx.putImageData(pixels, 0, 0);
+    blendCtx.drawImage(clone, 0, 0);
+  } else {
+    blendCtx.drawImage(designCanvas, 0, 0);
   }
-
-  // Otherwise use garment-dependent mode
-  return garmentIsDark ? 'screen' : 'multiply';
 }
 
 // Historial
@@ -463,15 +489,11 @@ export default function CatalogCanvas() {
       blendCanvas.height = dh2;
       const blendCtx = blendCanvas.getContext('2d');
 
-      // Extraer la región del fondo que está debajo del diseño
-      blendCtx.drawImage(canvas, design.x, design.y, dw2, dh2, 0, 0, dw2, dh2);
-
-      // BLEND AUTOMÁTICO: elegir modo según tipo de diseño y prenda
-      const blendMode = getDesignBlendMode(cached.imgData, garmentIsDark);
+      // Renderizar el diseño CON SUS COLORES REALES sobre la prenda
+      // (sin modes de mezcla que oscurecen o cambian los colores)
+      const bgInfo = analyzeDesignBg(cached.imgData);
       blendCtx.globalAlpha = design.opacity || 1;
-      blendCtx.globalCompositeOperation = blendMode;
-      blendCtx.drawImage(designCanvas, 0, 0, dw2, dh2);
-      blendCtx.globalCompositeOperation = 'source-over';
+      drawDesignRealColors(blendCtx, designCanvas, bgInfo);
       blendCtx.globalAlpha = 1;
 
       // Paso 3: Dibujar resultado blend sobre el canvas principal
@@ -775,12 +797,10 @@ export default function CatalogCanvas() {
 
       bCtx.drawImage(exportCanvas, design.x * scale, design.y * scale, dw, dh, 0, 0, dw, dh);
 
-      // BLEND AUTOMÁTICO en exportación también
-      const blendMode = getDesignBlendMode(cached.imgData, garmentIsDark);
+      // Renderizado con COLORES REALES en exportación también
+      const bgInfo = analyzeDesignBg(cached.imgData);
       bCtx.globalAlpha = design.opacity || 1;
-      bCtx.globalCompositeOperation = blendMode;
-      bCtx.drawImage(designCanvas, 0, 0, dw, dh);
-      bCtx.globalCompositeOperation = 'source-over';
+      drawDesignRealColors(bCtx, designCanvas, bgInfo);
       bCtx.globalAlpha = 1;
 
       ctx.drawImage(blendCanvas, design.x * scale, design.y * scale, dw, dh);
