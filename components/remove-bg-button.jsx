@@ -27,7 +27,7 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
         /* webpackChunkName: "imgly-bg-removal" */
         '@imgly/background-removal'
       );
-      // Modelos auto-alojados en el propio dominio (public/assets/imgly).
+      // Modelos auto-alojados en el propio dominio.
       // El CDN oficial (staticimgly.com) dejaba de servir los modelos → la
       // librería recibía HTML y fallaba con "invalid format: text/html".
       // La opción correcta es publicPath (camelCase). Modelo "small" (~44MB).
@@ -35,11 +35,14 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
       // y publicPath no llega, la librería hace new URL(url, undefined) que
       // tira "Failed to construct 'URL': Invalid base URL". Por eso se
       // convierte a URL absoluta de antemano y se pasa publicPath absoluto.
+      // NOTA: los archivos se sirven por la ruta dinámica /api/imgly-assets
+      // porque Next standalone solo sirve estáticos presentes en el build;
+      // resources.json y el resto viven en public/ y no se registran.
       const absoluteImage = imageUrl.startsWith('http')
         ? imageUrl
         : `${typeof window !== 'undefined' ? window.location.origin : ''}${imageUrl}`;
       const blob = await removeBackground(absoluteImage, {
-        publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/assets/imgly/`,
+        publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/imgly-assets/`,
         model: 'small',
         proxyToWorker: false,
         progress: (key, current, total) => {
