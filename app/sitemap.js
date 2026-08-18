@@ -4,6 +4,10 @@
 import { getDb } from '@/lib/mongo';
 import { COLLECTIONS } from '@/lib/models';
 
+// Forzar ejecución dinámica en cada petición (ISR de 1h) para que
+// productos y landings se incluyan siempre actualizados.
+export const revalidate = 3600;
+
 export default async function sitemap() {
   const base = 'https://estampadosdlv.com';
 
