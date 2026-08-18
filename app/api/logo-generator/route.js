@@ -111,7 +111,7 @@ function buildPrompt(data) {
   } else if (logoType === "monogram") {
     textClause = `Build it from ONLY the initials "${initials}" — exactly these ${initials.length} letters, nothing more. Each letter clean, complete and correctly formed. Do not add any extra words, letters or brand name text.`;
   } else {
-    textClause = `Set the company name "${name}" in the logo. This name must appear EXACTLY as written, letter by letter: "${name}" — do not omit, add, repeat or distort any letter. Every letter must be clear, complete, correctly spelled and highly legible at small size. Write the name only once. Do not include any other words, taglines or invented text.`;
+    textClause = `Set the company name "${name}" EXACTLY, letter by letter — do not omit, add or distort any letter. Highly legible, written only once. No other words or taglines.`;
   }
 
   const colorTargets = {
@@ -147,7 +147,7 @@ function buildPrompt(data) {
 
   // Restricciones negativas explícitas (reduce los errores típicos de IA en logos)
   const negativePrompt =
-    "Avoid: mockups, wall signs, business cards, 3D renders, background textures, tiny details, fake or unreadable letters, distorted typography, random symbols replacing letters, extra words, taglines, watermarks, copied famous brand styles, photographic scenes, complex gradients, realistic shadows.";
+    "Avoid: mockups, signs, business cards, 3D renders, textures, fake letters, distorted typography, symbols replacing letters, extra words, watermarks, photo scenes, realistic shadows.";
 
   const parts = [
     `Create a professional logo concept for a brand called "${name}". ${style} ${detail}`,
@@ -156,14 +156,15 @@ function buildPrompt(data) {
     "",
     `${textClause}`,
     "",
-    `Layout: centered, balanced composition — the symbol and the name together occupy roughly 60% of the frame, with generous even margins on all sides. The name text sits directly next to or under the symbol, clearly connected as one single lockup. Crisp, clean edges on a solid, uncluttered background. Scalable from favicon to signage, and must remain legible at small size.`,
+    `Layout: centered, balanced — symbol and name together occupy ~60% of the frame with even margins, connected as one single lockup. Solid, uncluttered background, legible at small size.`,
     "",
     `${colorClause}`,
     "",
     `${negativePrompt}`,
   ];
-  if (data.additionalInfo) parts.push(`Additional direction: ${data.additionalInfo}.`);
-  return parts.join("\n");
+  if (data.additionalInfo) parts.push(`Additional: ${data.additionalInfo}.`);
+  const full = parts.join("\n");
+  return full.length > 1400 ? full.slice(0, 1390) + " (keep the brand name exact)." : full;
 }
 
 // --- LLM para verificar ortografía del nombre en el logo (MiniMax M2) ---
