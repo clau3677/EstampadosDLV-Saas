@@ -52,6 +52,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   const [allProducts, setAllProducts] = useState(Array.isArray(initialProducts) ? initialProducts : []);
   const [stockMap, setStockMap] = useState({});
   const [stockLoaded, setStockLoaded] = useState(false);
+  const [inventoryHasStock, setInventoryHasStock] = useState(false);
   const [stockInfo, setStockInfo] = useState(null); // { onDemand, supplierInStock, supplier } para la variante seleccionada
   const [loading, setLoading] = useState(!initialProduct);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -101,7 +102,36 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
             location: s.location || null,
           };
         });
+        // Fallback: si alguna variante no tiene fila de inventario por id,
+        // buscar coincidencia por talla/color con una fila con stock > 0.
+        const variantList = p.variants || [];
+        variantList.forEach(v => {
+          if (map[v.id] !== undefined) return;
+          const size = v.attributes?.size;
+          const color = v.attributes?.color;
+          // Solo considerar filas de inventario que aún no mapean una variante conocida
+          const mappedIds = new Set(Object.keys(map));
+          const match = stockForProduct.find(s =>
+            !mappedIds.has(s.variantId) &&
+            (!size || s.attributes?.size === size || s.size === size) &&
+            (!color || s.attributes?.color === color || s.color === color) &&
+            ((s.quantity || 0) - (s.reservedQuantity || 0)) > 0
+          );
+          if (match) {
+            map[v.id] = match.quantity - (match.reservedQuantity || 0);
+            infoMap[v.id] = {
+              onDemand: !!match.onDemand,
+              supplierInStock: match.supplierInStock !== false,
+              supplier: match.supplier || null,
+              location: match.location || null,
+            };
+          }
+        });
         setStockMap(map);
+        // Red de seguridad: si el inventario tiene stock real de este producto,
+        // nunca mostrar un "Sin stock" duro aunque el mapeo por variante falle.
+        const hasStock = stockForProduct.some(s => ((s.quantity || 0) - (s.reservedQuantity || 0)) > 0);
+        setInventoryHasStock(hasStock);
         setStockLoaded(true);
         // Inicializar info para la variante seleccionada
         const firstVariantId = p.variants?.[0]?.id || null;
@@ -153,9 +183,11 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   );
 
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId) || product.variants?.[0];
-  // Mientras el stock no ha cargado, no mostrar "Sin stock" (evita flash de agotado)
-  const stockAvailable = stockLoaded ? (stockMap[selectedVariant?.id] ?? 0) : 1; // 1 = no agotado durante carga
-  const outOfStock = stockLoaded && stockAvailable <= 0;
+  // Mientras el stock no ha cargado, no mostrar "Sin stock" (evita flash de agotado).
+  // Red de seguridad: si el inventario confirma stock para el producto, la variante
+  // sin fila propia no puede quedar marcada como agotada.
+  const stockAvailable = stockLoaded ? (stockMap[selectedVariant?.id] ?? (inventoryHasStock ? 1 : 0)) : 1; // 1 = no agotado durante carga
+  const outOfStock = stockLoaded && stockAvailable <= 0 && !inventoryHasStock;
   const price = selectedVariant?.price || product.basePrice;
 
   // Indicadores de proveedor (bajo pedido)
