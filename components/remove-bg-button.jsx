@@ -51,15 +51,6 @@ export function RemoveBgButton({ imageUrl, onDone, disabled }) {
         publicPath: `${typeof window !== 'undefined' ? window.location.origin : ''}/api/imgly-assets/`,
         model: 'small',
         proxyToWorker: false,
-        // v1.4.5 usa fetchArgs (RequestInit) para los fetches de modelos.
-        // Se inyecta un AbortController con timeout de 5 min para que la
-        // descarga del modelo (44MB) no se aborte en redes lentas (el
-        // default de la librería corta a los 60s → "IA 0%" perpetuo).
-        fetchArgs: (() => {
-          const ctrl = new AbortController();
-          setTimeout(() => ctrl.abort(), 300000);
-          return { signal: ctrl.signal };
-        })(),
         // NOTA: se omite `progress` de forma explícita — imgly v1.4.5 valida
         // con Zod el valor del tercer argumento del callback (espera `number`)
         // y en algunos reportes internos pasa `undefined` → ZodError que rompía
