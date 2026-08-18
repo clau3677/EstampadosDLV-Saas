@@ -146,6 +146,7 @@ export default function CatalogCanvas() {
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [colorImageIndex, setColorImageIndex] = useState(0); // índice de la imagen de color seleccionada del producto
   const [showPrintArea, setShowPrintArea] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [resizeState, setResizeState] = useState(null);
@@ -290,7 +291,21 @@ export default function CatalogCanvas() {
     return Array.from(cats.values()).sort((a, b) => b.count - a.count);
   }, [catalogProducts]);
 
-  // Cargar imagen de fondo cuando cambia el producto
+  // Productos con fotos por color: se muestran las primeras MAX_COLOR_CHIPS imágenes
+  // (la primera es la base; el resto son los colores reales del catálogo)
+  const MAX_COLOR_CHIPS = 14;
+  const colorImages = useMemo(() => {
+    if (!selectedProduct) return [];
+    const imgs = selectedProduct.images || [];
+    return imgs.slice(0, MAX_COLOR_CHIPS);
+  }, [selectedProduct]);
+
+  // Resetear el color al cambiar de producto
+  useEffect(() => {
+    setColorImageIndex(0);
+  }, [selectedProduct?.id]);
+
+  // Cargar imagen de fondo cuando cambia el producto o el color seleccionado
   useEffect(() => {
     if (!selectedProduct) return;
     const img = new Image();
@@ -313,7 +328,7 @@ export default function CatalogCanvas() {
       toast.error('Error al cargar imagen del producto');
     };
     // Para gorras, usar la imagen frontal generada con IA si existe
-    let imgSrc = selectedProduct.images[0];
+    let imgSrc = colorImages[colorImageIndex] || colorImages[0] || selectedProduct.images[0];
     const isCap = selectedProduct.category === 'caps_hats';
     if (isCap && selectedProduct.sku) {
       const frontalUrl = `/uploads/caps-frontal/${selectedProduct.sku}.png`;
@@ -348,7 +363,7 @@ export default function CatalogCanvas() {
     } else {
       img.src = imgSrc;
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, colorImageIndex]);
 
   // Cache de imágenes de diseño
   useEffect(() => {
@@ -844,7 +859,8 @@ export default function CatalogCanvas() {
       {/* ============ LAYOUT PRINCIPAL ============ */}
       <div className={`gap-4 ${isMobile ? 'flex flex-col' : 'flex lg:flex-row'}`}>
         {/* Canvas */}
-        <div ref={containerRef} className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-center'}`}>
+        <div ref={containerRef} className={`${isMobile ? 'w-full flex flex-col items-center' : 'flex-1 flex flex-col items-start pl-4 lg:pl-8'}`}>
+          <div className="flex flex-col items-center w-full">
           <div className="relative rounded-xl overflow-hidden shadow-xl border border-slate-200 bg-white"
             style={{
               width: `${canvasDisplaySize}px`,
@@ -868,8 +884,35 @@ export default function CatalogCanvas() {
               </div>
             )}
           </div>
+          {/* Selector de color de la prenda */}
+          {colorImages.length > 1 && (
+            <div className="mt-3 w-full max-w-[80vw]">
+              <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto pb-1">
+                {colorImages.map((src, idx) => (
+                  <button
+                    key={src}
+                    onClick={() => setColorImageIndex(idx)}
+                    title={`Color ${idx + 1}`}
+                    className={`shrink-0 rounded-lg border-2 overflow-hidden transition-all ${
+                      colorImageIndex === idx
+                        ? 'border-orange-500 ring-2 ring-orange-200 scale-105'
+                        : 'border-slate-200 hover:border-slate-400'
+                    }`}
+                  >
+                    <img
+                      src={src}
+                      alt={`Color ${idx + 1}`}
+                      className="w-9 h-9 sm:w-10 sm:h-10 object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="mt-2 text-center text-[10px] text-slate-500 max-w-[90vw]">
             Arrastra diseños para posicionarlos. El blend se aplica automáticamente según el color de la prenda.
+          </div>
           </div>
         </div>
 
