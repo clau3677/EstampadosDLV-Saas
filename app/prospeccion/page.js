@@ -660,16 +660,39 @@ function LeadsTab({ leads, config, onLoad }) {
     if (!ok) return;
     setEnriching(true);
     try {
-      const r = await api('/leads/enrich-emails', {
-        method: 'POST',
-        body: JSON.stringify({
-          category: cat === 'Todas' ? undefined : cat,
-          commune: com === 'Todas' ? undefined : com,
-          sortBy: 'website',
-          limit: 200,
-        }),
-      });
-      toast.success(`Búsqueda de correos lista: ${r.found} correos encontrados de ${r.total} prospectos revisados (${r.missing} sin correo publicado)`);
+      // Rondas continuas: cada ronda revisa 25 prospectos (~4-5 min).
+      // Se detiene al encontrar correos, tras 6 rondas vacías seguidas o
+      // al llegar a 10 rondas (máx. 250 prospectos por clic).
+      let totalFound = 0;
+      let totalProcessed = 0;
+      let totalMissing = 0;
+      let emptyStreak = 0;
+      let round = 0;
+      const MAX_ROUNDS = 10;
+      while (round < MAX_ROUNDS && emptyStreak < 6) {
+        round += 1;
+        toast.loading(`Buscando correos… ronda ${round} (${totalFound} encontrados hasta ahora)`, { id: 'enrich-toast' });
+        try {
+          const r = await api('/leads/enrich-emails', {
+            method: 'POST',
+            body: JSON.stringify({
+              category: cat === 'Todas' ? undefined : cat,
+              commune: com === 'Todas' ? undefined : com,
+              sortBy: 'website',
+              limit: 25,
+            }),
+          });
+          totalFound += r.found || 0;
+          totalProcessed += r.total || 0;
+          totalMissing += r.missing || 0;
+          if (r.found > 0) emptyStreak = 0;
+          else emptyStreak += 1;
+        } catch (e) {
+          toast.error(`Ronda ${round} con error: ${e.message}. El sistema continúa con la siguiente ronda.`, { id: 'enrich-toast' });
+          emptyStreak = 0; // un error no detiene la búsqueda
+        }
+      }
+      toast.success(`Búsqueda de correos lista: ${totalFound} correos encontrados de ${totalProcessed} prospectos revisados (${totalMissing} sin correo publicado en su sitio). Puedes volver a hacer clic para continuar con más prospectos.`, { id: 'enrich-toast' });
       onLoad({});
     } catch (e) {
       toast.error(e.message);
