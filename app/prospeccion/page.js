@@ -25,6 +25,7 @@ import {
   CheckCircle2, X, XCircle, AlertTriangle, ShieldAlert, FileText, MessageCircle,
   MapPin, Star, Mail, Phone, Globe, Instagram, Building2,
   BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge, Download,
+  ChevronDown,
 } from 'lucide-react';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -904,6 +905,7 @@ function LeadDetailDialog({ lead, onClose, onChangeState }) {
 // ---------------------------------------------------------------------------
 function MessagesTab({ messages, config }) {
   const [runningJobs, setRunningJobs] = useState(false);
+  const [openMsgId, setOpenMsgId] = useState(null);
 
   const runJobQueue = async () => {
     setRunningJobs(true);
@@ -941,19 +943,58 @@ function MessagesTab({ messages, config }) {
       <div className="text-sm text-muted-foreground">{messages.total} mensajes registrados</div>
       <div className="space-y-2">
         {(messages.items || []).map(m => (
-          <Card key={m.id}>
-            <CardContent className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">{m.subject || 'WhatsApp / Guión'}</div>
-                <div className="text-xs text-muted-foreground">
-                  {m.recipient || '—'} · {m.channel === 'whatsapp' ? 'WhatsApp' : m.channel} · {fmtDate(m.createdAt)}
+          <div key={m.id}>
+            <Card className="cursor-pointer transition-colors hover:border-orange-300">
+              <CardContent className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between" onClick={() => setOpenMsgId(openMsgId === m.id ? null : m.id)}>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{m.subject || 'WhatsApp / Guión'}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {m.recipient || '—'} · {m.channel === 'whatsapp' ? 'WhatsApp' : m.channel} · {fmtDate(m.createdAt)}{m.test ? ' · PRUEBA' : ''}
+                  </div>
                 </div>
-              </div>
-              <Badge className={m.status === 'enviado' ? 'bg-sky-100 text-sky-700' : m.status === 'fallido' ? 'bg-rose-100 text-rose-700' : m.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
-                {m.status === 'aprobado' ? (m.channel === 'whatsapp' ? 'Aprobado (WhatsApp)' : 'Aprobado') : m.status}
-              </Badge>
-            </CardContent>
-          </Card>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className={m.status === 'enviado' ? 'bg-sky-100 text-sky-700' : m.status === 'fallido' ? 'bg-rose-100 text-rose-700' : m.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                    {m.status === 'aprobado' ? (m.channel === 'whatsapp' ? 'Aprobado (WhatsApp)' : 'Aprobado') : m.status}
+                  </Badge>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${openMsgId === m.id ? 'rotate-180' : ''}`} />
+                </div>
+              </CardContent>
+            </Card>
+            {openMsgId === m.id && (
+              <Card className="border-orange-200 bg-orange-50/40 -mt-1 border-t-0 rounded-t-none">
+                <CardContent className="py-4 space-y-3">
+                  {m.subject && (
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">Asunto</div>
+                      <div className="text-sm font-medium">{m.subject}</div>
+                    </div>
+                  )}
+                  {m.leadName && (
+                    <div className="text-xs text-muted-foreground">
+                      Negocio: <span className="font-medium text-foreground">{m.leadName}</span>{m.leadCommune ? ` · ${m.leadCommune}` : ''}{m.leadCategory ? ` · ${m.leadCategory}` : ''}
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground mb-1">{m.channel === 'whatsapp' ? 'Mensaje de WhatsApp' : 'Contenido del correo'}</div>
+                    {m.channel === 'email' ? (
+                      <iframe
+                        srcDoc={m.body || '<div style="font-family:sans-serif">Sin contenido</div>'}
+                        className="w-full border rounded-md bg-white"
+                        style={{ minHeight: 380, height: Math.min(800, 380 + ((m.body?.length || 0) / 4)) }}
+                        title="Contenido del correo"
+                        sandbox=""
+                      />
+                    ) : (
+                      <pre className="whitespace-pre-wrap text-sm bg-white border rounded-md p-4">{m.body || 'Sin contenido'}</pre>
+                    )}
+                  </div>
+                  {m.sentAt && (
+                    <div className="text-xs text-muted-foreground">Enviado: {fmtDate(m.sentAt)}</div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         ))}
         {(!messages.items || messages.items.length === 0) && (
           <Card><CardContent className="py-10 text-center text-muted-foreground">Aún no hay mensajes. Aprueba prospectos desde una campaña para generarlos.</CardContent></Card>
