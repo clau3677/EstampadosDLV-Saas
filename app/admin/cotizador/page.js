@@ -248,7 +248,7 @@ export default function CotizadorPage() {
             </div>
           </DialogContent>
         </Dialog>
-        <Dialog open={historyOpen} onOpenChange={open => { setHistoryOpen(open); if (!open) setViewQuote(null); }}}>
+        <Dialog open={historyOpen} onOpenChange={(open) => { setHistoryOpen(open); if (!open) setViewQuote(null); }}>
           <DialogTrigger asChild>
             <Button variant="outline" className="gap-2"><FileText className="h-4 w-4" />Historial ({history.length})</Button>
           </DialogTrigger>
