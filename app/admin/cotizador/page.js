@@ -63,6 +63,7 @@ export default function CotizadorPage() {
   const [waText, setWaText] = useState('');
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -228,6 +229,23 @@ export default function CotizadorPage() {
           <h1 className="text-2xl font-bold text-slate-900">Cotizador de productos y servicios</h1>
           <p className="text-sm text-slate-500">Crea cotizaciones profesionales con precios editables y envíalas por correo o WhatsApp</p>
         </div>
+        <Dialog open={!!selectedProduct} onOpenChange={open => { if (!open) setSelectedProduct(null); }}>
+          <DialogContent className="max-h-[70vh] overflow-y-auto" onPointerDownOutside={e => { if (e.target.closest('[data-trigger-variants]')) e.preventDefault(); }}>
+            <DialogHeader><DialogTitle>Variantes de {selectedProduct?.name || ''}</DialogTitle></DialogHeader>
+            <div className="space-y-2">
+              {selectedProduct?.variants?.map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => { addVariantProduct(selectedProduct, v); setSelectedProduct(null); }}
+                  className="flex w-full items-center justify-between rounded-lg border p-3 text-left hover:border-orange-300 hover:bg-orange-50"
+                >
+                  <span className="text-sm font-medium">{v.name}</span>
+                  <span className="text-sm font-bold text-orange-600">{formatCLP(v.price)}</span>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="gap-2"><FileText className="h-4 w-4" />Historial ({history.length})</Button>
@@ -302,26 +320,9 @@ export default function CotizadorPage() {
                       </div>
                     </div>
                     {Array.isArray(p.variants) && p.variants.length > 1 ? (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button size="sm" variant="outline" className="shrink-0"><Plus className="h-4 w-4" /></Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-h-[70vh] overflow-y-auto">
-                          <DialogHeader><DialogTitle>Variantes de {p.name}</DialogTitle></DialogHeader>
-                          <div className="space-y-2">
-                            {p.variants.map(v => (
-                              <button
-                                key={v.id}
-                                onClick={() => { addVariantProduct(p, v); }}
-                                className="flex w-full items-center justify-between rounded-lg border p-3 text-left hover:border-orange-300 hover:bg-orange-50"
-                              >
-                                <span className="text-sm font-medium">{v.name}</span>
-                                <span className="text-sm font-bold text-orange-600">{formatCLP(v.price)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button size="sm" variant="outline" className="shrink-0" onClick={() => setSelectedProduct(p)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     ) : (
                       <Button size="sm" variant="outline" className="shrink-0" onClick={() => addProduct(p)}>
                         <Plus className="h-4 w-4" />
