@@ -590,7 +590,7 @@ function LeadsTab({ leads, config, onLoad }) {
         body: JSON.stringify({
           categories: dCat !== 'Todas' ? [dCat] : undefined,
           communes: dCom !== 'Todas' ? [dCom] : undefined,
-          limit: 50,
+          limit: 500,
         }),
       });
       toast.success(`Descubrimiento: ${r.saved} prospectos guardados (${r.skipped?.duplicate || 0} duplicados, ${r.skipped?.suppressed || 0} suprimidos)`);
