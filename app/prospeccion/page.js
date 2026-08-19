@@ -556,10 +556,11 @@ function LeadsTab({ leads, config, onLoad }) {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('Todas');
   const [com, setCom] = useState('Todas');
+  const [dCat, setDCat] = useState('Todas');
+  const [dCom, setDCom] = useState('Todas');
   const [state, setState] = useState('Todos');
   const [detail, setDetail] = useState(null);
   const [running, setRunning] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
   const [campaigns, setCampaigns] = useState([]);
 
   useEffect(() => { onLoad({}); }, [onLoad]);
@@ -579,11 +580,19 @@ function LeadsTab({ leads, config, onLoad }) {
     toast.success('Descargando prospectos en CSV');
   };
 
-  const runDiscovery = async () => {
-    if (!selectedCampaign) return toast.error('Selecciona una campaña primero (créala en la pestaña Campañas)');
+  // Descubrimiento directo: sin campaña, solo por rubro y comuna
+  const runDirectDiscovery = async () => {
+    if (dCat === 'Todas' && dCom === 'Todas') return toast.error('Elige al menos un rubro o una comuna');
     setRunning(true);
     try {
-      const r = await api('/discovery', { method: 'POST', body: JSON.stringify({ campaignId: selectedCampaign }) });
+      const r = await api('/discovery-direct', {
+        method: 'POST',
+        body: JSON.stringify({
+          categories: dCat !== 'Todas' ? [dCat] : undefined,
+          communes: dCom !== 'Todas' ? [dCom] : undefined,
+          limit: 50,
+        }),
+      });
       toast.success(`Descubrimiento: ${r.saved} prospectos guardados (${r.skipped?.duplicate || 0} duplicados, ${r.skipped?.suppressed || 0} suprimidos)`);
       onLoad({});
     } catch (e) {
@@ -609,16 +618,24 @@ function LeadsTab({ leads, config, onLoad }) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4 text-orange-500" /> Descubrimiento de negocios</CardTitle>
-          <CardDescription>Ejecuta el descubrimiento para agregar nuevos prospectos a una campaña.</CardDescription>
+          <CardDescription>Elige un tipo de negocio y una comuna para encontrar prospectos. Guárdalos, revísalos y después crea la campaña de correos con los que apruebes.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row gap-3">
-          <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-            <SelectTrigger className="flex-1"><SelectValue placeholder="Selecciona una campaña" /></SelectTrigger>
+          <Select value={dCat} onValueChange={setDCat}>
+            <SelectTrigger className="flex-1"><SelectValue placeholder="Tipo de negocio" /></SelectTrigger>
             <SelectContent>
-              {campaigns.map(c => <SelectItem key={c.id} value={c.id}>{c.name} ({STATUS_META[c.status]?.label || c.status})</SelectItem>)}
+              <SelectItem value="Todas">Todos los rubros</SelectItem>
+              {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={runDiscovery} disabled={running || !selectedCampaign}>
+          <Select value={dCom} onValueChange={setDCom}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Comuna" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todas">Todas las comunas</SelectItem>
+              {['Valparaíso', 'Viña del Mar', 'Concón', 'Quilpué', 'Villa Alemana', 'Limache', 'Quillota', 'San Antonio', 'San Felipe', 'Los Andes'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={runDirectDiscovery} disabled={running}>
             {running ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Search className="h-4 w-4 mr-1" />}
             Descubrir negocios
           </Button>
