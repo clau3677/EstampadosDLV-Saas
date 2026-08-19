@@ -559,6 +559,7 @@ function LeadsTab({ leads, config, onLoad }) {
   const [dCat, setDCat] = useState('Todas');
   const [dCom, setDCom] = useState('Todas');
   const [state, setState] = useState('Todos');
+  const [sortBy, setSortBy] = useState('score');
   const [detail, setDetail] = useState(null);
   const [running, setRunning] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
@@ -566,7 +567,7 @@ function LeadsTab({ leads, config, onLoad }) {
   useEffect(() => { onLoad({}); }, [onLoad]);
   useEffect(() => { api('/campaigns').then(c => setCampaigns(c.items || [])).catch(() => {}); }, []);
 
-  const applyFilters = () => onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state });
+  const applyFilters = () => onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state, sortBy: sortBy || undefined });
 
   const exportCsv = () => {
     const qs = new URLSearchParams();
@@ -574,6 +575,7 @@ function LeadsTab({ leads, config, onLoad }) {
     if (cat !== 'Todas') qs.set('category', cat);
     if (com !== 'Todas') qs.set('commune', com);
     if (state !== 'Todos') qs.set('state', state);
+    if (sortBy) qs.set('sortBy', sortBy);
     const path = `/api/prospeccion/leads/csv?${qs.toString()}`;
     // Abrir la descarga directamente (la sesión admin via cookies se envía automáticamente)
     window.open(path, '_self');
@@ -662,6 +664,16 @@ function LeadsTab({ leads, config, onLoad }) {
           <SelectContent>
             <SelectItem value="Todos">Todos los estados</SelectItem>
             {Object.entries(STATE_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="score">Mayor puntaje</SelectItem>
+            <SelectItem value="nombre">Nombre (A-Z)</SelectItem>
+            <SelectItem value="comuna">Comuna (A-Z)</SelectItem>
+            <SelectItem value="reciente">Más recientes</SelectItem>
+            <SelectItem value="antiguo">Más antiguos</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={applyFilters}><ListFilter className="h-4 w-4 mr-1" /> Filtrar</Button>
