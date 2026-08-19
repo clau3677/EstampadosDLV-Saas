@@ -622,14 +622,55 @@ function LeadsTab({ leads, config, onLoad }) {
   const [dCom, setDCom] = useState('Todas');
   const [state, setState] = useState('Todos');
   const [sortBy, setSortBy] = useState('score');
+  const [contact, setContact] = useState('Todos');
+  const [page, setPage] = useState(1);
   const [detail, setDetail] = useState(null);
   const [running, setRunning] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
 
   useEffect(() => { onLoad({}); }, [onLoad]);
   useEffect(() => { api('/campaigns').then(c => setCampaigns(c.items || [])).catch(() => {}); }, []);
 
-  const applyFilters = () => onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state, sortBy: sortBy || undefined });
+  const phoneTypeQs = () => {
+    if (contact === 'celular') return 'celular';
+    if (contact === 'fijo') return 'fijo';
+    if (contact === 'correo') return 'correo';
+    return undefined;
+  };
+
+  const applyFilters = () => {
+    setPage(1);
+    onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state, sortBy: sortBy || undefined, phoneType: phoneTypeQs(), page: '1' });
+  };
+
+  const goPage = (p) => {
+    setPage(p);
+    onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state, sortBy: sortBy || undefined, phoneType: phoneTypeQs(), page: String(p) });
+  };
+
+  const approveAll = async () => {
+    const total = leads?.total || 0;
+    const ok = window.confirm(`¿Aprobar TODOS los prospectos (${total}) del filtro actual para que queden listos para campañas?`);
+    if (!ok) return;
+    setApproving(true);
+    try {
+      const r = await api('/leads/approve-all', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: cat === 'Todas' ? undefined : cat,
+          commune: com === 'Todas' ? undefined : com,
+          phoneType: phoneTypeQs(),
+        }),
+      });
+      toast.success(`Aprobados: ${r.approved} prospectos listos para contacto (${r.skipped || 0} omitidos)`);
+      onLoad({});
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setApproving(false);
+    }
+  };
 
   const exportCsv = () => {
     const qs = new URLSearchParams();
@@ -728,6 +769,15 @@ function LeadsTab({ leads, config, onLoad }) {
             {Object.entries(STATE_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={contact} onValueChange={setContact}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Contacto" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Todos">Todo contacto</SelectItem>
+            <SelectItem value="celular">Solo celular</SelectItem>
+            <SelectItem value="fijo">Solo fijo</SelectItem>
+            <SelectItem value="correo">Solo con correo</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
           <SelectContent>
@@ -739,12 +789,22 @@ function LeadsTab({ leads, config, onLoad }) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={applyFilters}><ListFilter className="h-4 w-4 mr-1" /> Filtrar</Button>
+        <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={approveAll} disabled={approving}>
+          {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+          Aprobar todos
+        </Button>
         <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={exportCsv}>
           <Download className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
       </div>
 
-      <div className="text-sm text-muted-foreground">{leads.total} prospectos</div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-sm text-muted-foreground">
+        <div>{leads.total} prospectos · Página {page} de {Math.max(1, Math.ceil(leads.total / 50))}</div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => goPage(page - 1)}>← Anterior</Button>
+          <Button size="sm" variant="outline" disabled={page >= Math.ceil(leads.total / 50)} onClick={() => goPage(page + 1)}>Siguiente →</Button>
+        </div>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-3">
         {(leads.items || []).map(lead => (
