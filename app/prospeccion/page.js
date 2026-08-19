@@ -665,6 +665,7 @@ function LeadsTab({ leads, config, onLoad }) {
         body: JSON.stringify({
           category: cat === 'Todas' ? undefined : cat,
           commune: com === 'Todas' ? undefined : com,
+          sortBy: 'website',
           limit: 200,
         }),
       });
