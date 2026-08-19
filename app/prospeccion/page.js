@@ -653,9 +653,8 @@ function LeadsTab({ leads, config, onLoad }) {
 
   const enrichEmails = async () => {
     const total = leads?.total || 0;
-    const maxShow = Math.min(total, 200);
     const ok = window.confirm(
-      `El sistema visitará los sitios web OFICIALES de hasta ${maxShow} prospectos del filtro actual (solo los que aún no tienen correo) y buscará el correo empresarial publicado en su sitio (solo del mismo dominio, sin correos personales como Gmail/Hotmail). Esto puede tardar varios minutos. ¿Continuar?`,
+      `El sistema visitará los sitios web OFICIALES de los prospectos aprobados (solo los que aún no tienen correo y que aún no fueron revisados) y buscará el correo empresarial publicado en su sitio (solo del mismo dominio, sin correos personales como Gmail/Hotmail). Cada clic revisa hasta 10 rondas y recuerda los ya revisados para no repetirlos. ¿Continuar?`,
     );
     if (!ok) return;
     setEnriching(true);
@@ -678,8 +677,9 @@ function LeadsTab({ leads, config, onLoad }) {
             body: JSON.stringify({
               category: cat === 'Todas' ? undefined : cat,
               commune: com === 'Todas' ? undefined : com,
-              sortBy: 'website',
-              limit: 25,
+              phoneType: 'sin_correo',
+              sortBy: 'score',
+              limit: 50,
             }),
           });
           totalFound += r.found || 0;
