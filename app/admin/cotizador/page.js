@@ -337,7 +337,7 @@ export default function CotizadorPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">2 · Datos del cliente</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-h-[200px]" style={{ overflow: 'visible' }}>
               <div className="sm:col-span-2">
                 <div className="mb-1 text-sm font-medium text-slate-700">Nombre del cliente *</div>
                 <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Ej: Juan Pérez / Restaurante El Rincón" />
