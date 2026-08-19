@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import {
-  LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare,
+  LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare, FileText,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X, UserPlus,
   Library, Megaphone, Box,
@@ -23,6 +23,7 @@ const ADMIN_SECTIONS = [
     label: 'Ventas',
     items: [
       { href: '/admin/pos',    label: 'POS · Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
+      { href: '/admin/cotizador', label: 'Cotizador',        icon: FileText, badge: 'PDF' },
       { href: '/admin/pedidos',label: 'Pedidos',              icon: ClipboardList },
       { href: '/tienda', label: 'Ver tienda pública',          icon: Store },
     ],

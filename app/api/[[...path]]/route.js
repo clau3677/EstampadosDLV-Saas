@@ -38,6 +38,7 @@ import handlePayments     from '@/lib/api/payments';
 import handleDesignLib    from '@/lib/api/design-library';
 import handleDrive        from '@/lib/api/drive';
 import handlePricing      from '@/lib/api/pricing';
+import handleQuotes       from '@/lib/api/quotes';
 import handleThumbnails     from '@/lib/api/thumbnails';
 
 // Orden importa poco (cada handler filtra por su(s) ruta(s)), pero ponemos primero los más
@@ -74,6 +75,7 @@ const HANDLERS = [
   handleMaintenance,
   handleSeed,         // pesado, poco frecuente
   handlePricing,      // ajuste masivo de margen de ganancia por proveedor
+  handleQuotes,       // cotizador de productos y servicios (módulo Ventas, build124)
   handleThumbnails,   // thumbnails on-demand para la biblioteca
 ];
 
