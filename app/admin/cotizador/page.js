@@ -3,7 +3,7 @@
 // Búsqueda de productos, precios editables, PDF profesional, envío por correo/WhatsApp.
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Search, Plus, Trash2, FileText, Download, Mail, MessageCircle, X, Loader2, ShoppingBag, Pencil, Check } from 'lucide-react';
+import { Search, Plus, Trash2, FileText, Download, Mail, MessageCircle, X, Loader2, ShoppingBag, Pencil, Check, ArrowLeft } from 'lucide-react';
 import { formatCLP } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +63,8 @@ export default function CotizadorPage() {
   const [waText, setWaText] = useState('');
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [viewQuote, setViewQuote] = useState(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
@@ -246,7 +248,7 @@ export default function CotizadorPage() {
             </div>
           </DialogContent>
         </Dialog>
-        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <Dialog open={historyOpen} onOpenChange={open => { setHistoryOpen(open); if (!open) setViewQuote(null); }>
           <DialogTrigger asChild>
             <Button variant="outline" className="gap-2"><FileText className="h-4 w-4" />Historial ({history.length})</Button>
           </DialogTrigger>
@@ -254,16 +256,151 @@ export default function CotizadorPage() {
             <DialogHeader><DialogTitle>Historial de cotizaciones</DialogTitle></DialogHeader>
             {history.length === 0 ? (
               <p className="text-sm text-slate-500">Aún no hay cotizaciones creadas.</p>
+            ) : viewQuote ? (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setViewQuote(null)}
+                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Volver al listado
+                </button>
+                <div className="rounded-lg border bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-lg font-bold text-slate-900">{viewQuote.code}</div>
+                      <Badge variant="secondary" className="mt-1">{viewQuote.status || 'borrador'}</Badge>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-1 text-sm">
+                    <div><span className="text-slate-500">Cliente: </span><b>{viewQuote.clientName}</b></div>
+                    {viewQuote.clientCompany ? <div><span className="text-slate-500">Empresa: </span>{viewQuote.clientCompany}</div> : null}
+                    {viewQuote.clientEmail ? <div><span className="text-slate-500">Correo: </span>{viewQuote.clientEmail}</div> : null}
+                    {viewQuote.clientPhone ? <div><span className="text-slate-500">Teléfono: </span>{viewQuote.clientPhone}</div> : null}
+                    <div><span className="text-slate-500">Válida hasta: </span>{new Date(viewQuote.validUntil).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                  </div>
+                  <div className="mt-3 rounded-lg border bg-slate-50">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-white text-left text-xs text-slate-500">
+                          <th className="px-3 py-2">Producto</th>
+                          <th className="px-2 py-2 text-center">Cant.</th>
+                          <th className="px-2 py-2 text-right">Unitario</th>
+                          <th className="px-3 py-2 text-right">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewQuote.items.map((it, i) => (
+                          <tr key={i} className="border-b last:border-0">
+                            <td className="px-3 py-2">
+                              {it.name}
+                              {it.variantName ? <div className="text-xs text-slate-500">{it.variantName}</div> : null}
+                            </td>
+                            <td className="px-2 py-2 text-center">{it.quantity}</td>
+                            <td className="px-2 py-2 text-right">{formatCLP(it.unitPrice)}</td>
+                            <td className="px-3 py-2 text-right font-semibold">{formatCLP(it.subtotal)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-2 flex flex-col gap-1 text-sm">
+                    <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCLP(viewQuote.subtotal)}</span></div>
+                    {viewQuote.discount ? <div className="flex justify-between text-orange-600"><span>Descuento ({viewQuote.discount}%)</span><span>-{formatCLP(Math.round(viewQuote.subtotal * viewQuote.discount / 100))}</span></div> : null}
+                    <div className="flex justify-between text-slate-600"><span>IVA estimado (19%)</span><span>{formatCLP(Math.round(viewQuote.subtotal * 0.19))}</span></div>
+                    <div className="flex justify-between border-t pt-1 text-lg font-bold text-slate-900"><span>TOTAL</span><span>{formatCLP(viewQuote.total)}</span></div>
+                  </div>
+                  {viewQuote.notes ? <p className="mt-2 text-sm text-slate-500">Notas: {viewQuote.notes}</p> : null}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      disabled={downloadingPdf}
+                      onClick={async () => {
+                        setDownloadingPdf(true);
+                        try {
+                          const pdf = await generateQuotePDFBase64(viewQuote);
+                          const bin = atob(pdf);
+                          const bytes = new Uint8Array(bin.length);
+                          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                          const blob = new Blob([bytes], { type: 'application/pdf' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Cotizacion_${viewQuote.code}_EstampadosDLV.pdf`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        } finally {
+                          setDownloadingPdf(false);
+                        }
+                      }}
+                    >
+                      {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                      Ver / Descargar PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        if (!viewQuote.clientEmail) {
+                          alert('Esta cotización no tiene correo de cliente.');
+                          return;
+                        }
+                        const pdf = await generateQuotePDFBase64(viewQuote);
+                        const res = await fetch('/api/quotes/send', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ quoteId: viewQuote.id, clientEmail: viewQuote.clientEmail, pdfBase64: pdf }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok) {
+                          alert('Correo reenviado correctamente.');
+                          setHistory(prev => prev.map(h => (h.id === viewQuote.id ? { ...h, status: 'enviada' } : h)));
+                        } else {
+                          alert(data.error || 'No se pudo enviar el correo.');
+                        }
+                      }}
+                    >
+                      <Mail className="h-4 w-4" /> Reenviar correo
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const res = await fetch('/api/quotes/send-whatsapp', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ quoteId: viewQuote.id }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data?.result) {
+                          alert('Mensaje de WhatsApp enviado.');
+                        } else if (res.ok && data?.waLink) {
+                          window.open(data.waLink, '_blank');
+                        } else {
+                          alert(data.error || 'No se pudo enviar el WhatsApp.');
+                        }
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4" /> Reenviar WhatsApp
+                    </Button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
                 {history.map(q => (
-                  <div key={q.id || q.code} className="flex items-center justify-between rounded-lg border bg-white p-3 text-sm">
+                  <button
+                    key={q.id || q.code}
+                    type="button"
+                    onClick={() => setViewQuote(q)}
+                    className="flex w-full items-center justify-between rounded-lg border bg-white p-3 text-left text-sm transition hover:border-slate-400"
+                  >
                     <div>
                       <div className="font-semibold">{q.code}</div>
                       <div className="text-slate-500">{q.clientName} · {formatCLP(q.total)}</div>
                     </div>
                     <Badge variant="secondary">{q.status}</Badge>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
