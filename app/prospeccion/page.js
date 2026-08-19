@@ -22,7 +22,7 @@ import {
 import { toast } from 'sonner';
 import {
   UserPlus, RefreshCw, Play, Pause, Search, Loader2, Plus,
-  CheckCircle2, XCircle, AlertTriangle, ShieldAlert, FileText,
+  CheckCircle2, XCircle, AlertTriangle, ShieldAlert, FileText, MessageCircle,
   MapPin, Star, Mail, Phone, Globe, Instagram, Building2,
   BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge, Download,
 } from 'lucide-react';
@@ -311,7 +311,7 @@ function CampaignsTab({ campaigns, onRefresh }) {
                     {c.provider === 'simulated' && <Badge variant="outline" className="gap-1"><Zap className="h-3 w-3" /> Simulado</Badge>}
                     {c.provider === 'scraper' && <Badge variant="outline" className="gap-1 text-rose-600">Scraper (deshabilitado)</Badge>}
                     {c.provider === 'manual' && <Badge variant="outline" className="gap-1"><UserPlus className="h-3 w-3" /> Manual</Badge>}
-                    <Badge variant="outline" className="gap-1"><Mail className="h-3 w-3" /> {c.outreach?.channel === 'whatsapp_manual' ? 'WhatsApp manual' : 'Email'}</Badge>
+                    <Badge variant="outline" className="gap-1"><Mail className="h-3 w-3" /> {c.outreach?.channel === 'whatsapp' ? 'WhatsApp automático' : c.outreach?.channel === 'whatsapp_manual' ? 'WhatsApp manual' : 'Email'}</Badge>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -342,25 +342,26 @@ function CampaignsTab({ campaigns, onRefresh }) {
       )}
 
       <CreateCampaignDialog open={showCreate} onClose={() => setShowCreate(false)} onCreate={createCampaign} loading={creating} />
-      <CampaignDetailDialog campaign={detail} onClose={() => { setDetail(null); onRefresh(); }} />
+      <CampaignDetailDialog campaign={detail} config={config} onClose={() => { setDetail(null); onRefresh(); }} />
     </div>
   );
 }
 
 /** Detalle de campaña: prospectos asignados y flujo de aprobación de mensajes. */
-function CampaignDetailDialog({ campaign, onClose }) {
+function CampaignDetailDialog({ campaign, config, onClose }) {
   const [leads, setLeads] = useState([]);
   const [preview, setPreview] = useState(null);
   const [approving, setApproving] = useState(false);
+  const waEnabled = campaign?.outreach?.channel === 'whatsapp' || Boolean(config?.whatsapp?.connected);
 
   useEffect(() => {
     if (!campaign?.id) return;
     api(`/campaigns/${campaign.id}/leads`).then(rows => setLeads(rows || [])).catch(() => setLeads([]));
   }, [campaign?.id]);
 
-  const previewMsg = async (leadId) => {
+  const previewMsg = async (leadId, channel = 'email') => {
     try {
-      setPreview(await api(`/messages?preview=1&leadId=${encodeURIComponent(leadId)}`));
+      setPreview(await api(`/messages?preview=1&channel=${channel}&leadId=${encodeURIComponent(leadId)}`));
     } catch (e) {
       toast.error(e.message);
     }
@@ -415,9 +416,16 @@ function CampaignDetailDialog({ campaign, onClose }) {
                     {scoreBadge(l.score)}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => previewMsg(l.id)}>
-                  <FileText className="h-3.5 w-3.5 mr-1" /> Preview
-                </Button>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => previewMsg(l.id, 'email')}>
+                    <FileText className="h-3.5 w-3.5 mr-1" /> Preview email
+                  </Button>
+                  {waEnabled && (
+                    <Button size="sm" variant="outline" onClick={() => previewMsg(l.id, 'whatsapp')}>
+                      <MessageCircle className="h-3.5 w-3.5 mr-1" /> Preview WSP
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -526,6 +534,7 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp automático (sesión vinculada)</SelectItem>
                   <SelectItem value="whatsapp_manual">WhatsApp manual (guión)</SelectItem>
                 </SelectContent>
               </Select>
@@ -806,7 +815,7 @@ function MessagesTab({ messages, config }) {
           <CardDescription>
             {config?.simulationMode
               ? 'Los mensajes aprobados se registran como "simulados" y NUNCA se envían. Esto protege tu reputación hasta confirmar el proveedor de email.'
-              : 'Los mensajes aprobados se ponen en cola de envío real. Envío máximo: 25/día, entre 10:00 y 19:00 (hora Chile).'}
+              : `Los mensajes aprobados se ponen en cola de envío real. Correo: máximo ${config?.limits?.dailyMax || 100}/día, entre ${config?.limits?.startHour || 10}:00 y ${config?.limits?.endHour || 19}:00 (hora Chile). WhatsApp: envío automático cuando la sesión está conectada.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
@@ -824,7 +833,7 @@ function MessagesTab({ messages, config }) {
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">{m.subject || 'WhatsApp / Guión'}</div>
                 <div className="text-xs text-muted-foreground">
-                  {m.recipient || '—'} · {m.channel} · {fmtDate(m.createdAt)}
+                  {m.recipient || '—'} · {m.channel === 'whatsapp' ? 'WhatsApp' : m.channel} · {fmtDate(m.createdAt)}
                 </div>
               </div>
               <Badge className={m.status === 'simulado' ? 'bg-emerald-100 text-emerald-700' : m.status === 'enviado' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}>
@@ -946,7 +955,9 @@ function AuditTab({ audit, onLoad }) {
 // ---------------------------------------------------------------------------
 function ConfigTab({ config }) {
   const [testEmail, setTestEmail] = useState('');
+  const [testPhone, setTestPhone] = useState('');
   const [testing, setTesting] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
 
   const sendRealTest = async () => {
     if (!testEmail.includes('@')) return toast.error('Ingresa un email válido');
@@ -962,6 +973,20 @@ function ConfigTab({ config }) {
       toast.error(e.message);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const sendWaTest = async () => {
+    const digits = testPhone.replace(/\D/g, '');
+    if (digits.length < 11) return toast.error('Ingresa un teléfono válido, ej: +56 9 1234 5678');
+    setTestingWa(true);
+    try {
+      const r = await api('/messages/test', { method: 'POST', body: JSON.stringify({ toPhone: '+' + digits }) });
+      toast.success(r?.delivery?.sent ? 'Mensaje de prueba enviado por WhatsApp' : 'Mensaje encolado');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setTestingWa(false);
     }
   };
   return (
@@ -993,6 +1018,33 @@ function ConfigTab({ config }) {
                 {testing ? 'Enviando...' : 'Enviar prueba'}
               </Button>
             </div>
+            {config?.limits && (
+              <p className="text-xs text-muted-foreground pt-2">Límite de envío: {config.limits.dailyMax} correos/día · ventana {config.limits.startHour}:00–{config.limits.endHour}:00 (hora Chile)</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><MessageCircle className="h-4 w-4 text-emerald-600" /> Canal WhatsApp (Baileys)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {config?.whatsapp?.connected ? (
+            <div className="flex items-center gap-2 text-emerald-700 font-medium"><CheckCircle2 className="h-4 w-4" /> Sesión WhatsApp conectada — envío automático activo</div>
+          ) : (
+            <div className="flex items-center gap-2 text-amber-700 font-medium"><AlertTriangle className="h-4 w-4" /> Sesión WhatsApp no conectada — ve a <a className="underline" href="/admin/whatsapp">WhatsApp</a> para vincular tu teléfono con QR</div>
+          )}
+          <p className="text-xs text-muted-foreground">Canal gratuito (Baileys), sin costos por mensaje. Al crear una campaña elige «WhatsApp automático» para enviar los mensajes de prospección por este canal.</p>
+          <div className="border-t pt-3">
+            <Label className="text-xs">Enviar mensaje de prueba por WhatsApp</Label>
+            <div className="flex gap-2 mt-1">
+              <Input placeholder="+56 9 1234 5678" value={testPhone} onChange={e => setTestPhone(e.target.value)} className="max-w-xs" />
+              <Button variant="outline" size="sm" onClick={sendWaTest} disabled={testingWa || !config?.whatsapp?.connected}>
+                {testingWa ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-1" />}
+                {testingWa ? 'Enviando...' : 'Enviar prueba'}
+              </Button>
+            </div>
+            {!config?.whatsapp?.connected && <p className="text-xs text-muted-foreground pt-1">Conecta la sesión primero para habilitar el envío.</p>}
           </div>
         </CardContent>
       </Card>
