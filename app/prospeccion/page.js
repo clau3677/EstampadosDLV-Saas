@@ -22,7 +22,7 @@ import {
 import { toast } from 'sonner';
 import {
   UserPlus, RefreshCw, Play, Pause, Search, Loader2, Plus,
-  CheckCircle2, XCircle, AlertTriangle, ShieldAlert, FileText, MessageCircle,
+  CheckCircle2, X, XCircle, AlertTriangle, ShieldAlert, FileText, MessageCircle,
   MapPin, Star, Mail, Phone, Globe, Instagram, Building2,
   BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge, Download,
 } from 'lucide-react';
@@ -45,8 +45,7 @@ const STATE_META = {
 
 const STATUS_META = {
   borrador: { label: 'Borrador', cls: 'bg-slate-100 text-slate-600' },
-  programada: { label: 'Programada', cls: 'bg-blue-100 text-blue-700' },
-  en_curso: { label: 'En curso', cls: 'bg-emerald-100 text-emerald-700' },
+  activa: { label: 'Activa', cls: 'bg-emerald-100 text-emerald-700' },
   pausada: { label: 'Pausada', cls: 'bg-amber-100 text-amber-700' },
   completada: { label: 'Completada', cls: 'bg-violet-100 text-violet-700' },
   cancelada: { label: 'Cancelada', cls: 'bg-rose-100 text-rose-600' },
@@ -152,13 +151,13 @@ export default function ProspeccionPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="campanas">Campañas</TabsTrigger>
-          <TabsTrigger value="prospectos">Prospectos</TabsTrigger>
-          <TabsTrigger value="mensajes">Mensajes</TabsTrigger>
-          <TabsTrigger value="bajas">Bajas</TabsTrigger>
-          <TabsTrigger value="auditoria">Auditoría</TabsTrigger>
-          <TabsTrigger value="config">Configuración</TabsTrigger>
+          <TabsTrigger value="dashboard">1 · Dashboard</TabsTrigger>
+          <TabsTrigger value="prospectos">2 · Prospectos</TabsTrigger>
+          <TabsTrigger value="mensajes">3 · Mensajes</TabsTrigger>
+          <TabsTrigger value="campanas">4 · Campañas</TabsTrigger>
+          <TabsTrigger value="bajas">5 · Bajas</TabsTrigger>
+          <TabsTrigger value="auditoria">6 · Auditoría</TabsTrigger>
+          <TabsTrigger value="config">7 · Configuración</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6 pt-4">
@@ -308,10 +307,12 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
                     {c.name} <Badge className={st.cls}>{st.label}</Badge>
                   </CardTitle>
                   <CardDescription className="flex flex-wrap gap-2 pt-1">
-                    {c.provider === 'simulated' && <Badge variant="outline" className="gap-1"><Zap className="h-3 w-3" /> Simulado</Badge>}
-                    {c.provider === 'scraper' && <Badge variant="outline" className="gap-1 text-rose-600">Scraper (deshabilitado)</Badge>}
-                    {c.provider === 'manual' && <Badge variant="outline" className="gap-1"><UserPlus className="h-3 w-3" /> Manual</Badge>}
-                    <Badge variant="outline" className="gap-1"><Mail className="h-3 w-3" /> {c.outreach?.channel === 'whatsapp' ? 'WhatsApp automático' : c.outreach?.channel === 'whatsapp_manual' ? 'WhatsApp manual' : 'Email'}</Badge>
+                    {(c.channels || []).map(ch => (
+                      <Badge key={ch} variant="outline" className="gap-1">
+                        {ch === 'whatsapp' ? <MessageCircle className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
+                        {ch === 'whatsapp' ? 'WhatsApp' : ch === 'email' ? 'Email' : ch}
+                      </Badge>
+                    ))}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -319,17 +320,33 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
                     {(c.categories || []).map(cat => <Badge key={cat} variant="secondary">{CAT_LABELS[cat] || cat}</Badge>)}
                     {(c.communes || []).map(cm => <Badge key={cm} variant="secondary" className="gap-1"><MapPin className="h-2.5 w-2.5" />{cm}</Badge>)}
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Score mínimo: {c.outreach?.minScore}</span>
-                    <span>Máx/día: {c.outreach?.maxPerDay}</span>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>Canales: {c.channels ? c.channels.map(ch => ch === 'email' ? 'Email' : 'WhatsApp').join(' + ') : 'Email'}</span>
+                    <span>{c.frequency === 'semanal' ? 'Semanal' : c.frequency === 'solo_vez' ? 'Una vez' : 'Diaria'}</span>
+                    <span>Email máx/día: {c.maxPerDayEmail ?? 25}</span>
+                    <span>WhatsApp máx/día: {c.maxPerDayWhatsapp ?? 50}</span>
+                    <span>Ventana: {c.windowStart ?? 10}:00–{c.windowEnd ?? 19}:00h</span>
+                    <span>Máx contactos: {c.maxContacts ?? '—'}</span>
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    {['borrador', 'programada', 'en_curso'].includes(c.status) ? (
-                      <Button size="sm" variant="outline" onClick={() => toggleCampaign(c.id, 'pause')}>
-                        <Pause className="h-3.5 w-3.5 mr-1" /> Pausar
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {c.status === 'borrador' ? (
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); toggleCampaign(c.id, 'activate'); }}>
+                        <Play className="h-3.5 w-3.5 mr-1" /> Activar
                       </Button>
+                    ) : c.status === 'activa' ? (
+                      <>
+                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); toggleCampaign(c.id, 'pause'); }}>
+                          <Pause className="h-3.5 w-3.5 mr-1" /> Pausar
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); toggleCampaign(c.id, 'complete'); }}>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Completar
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); toggleCampaign(c.id, 'cancel'); }}>
+                          <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                        </Button>
+                      </>
                     ) : c.status === 'pausada' ? (
-                      <Button size="sm" variant="outline" onClick={() => toggleCampaign(c.id, 'resume')}>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); toggleCampaign(c.id, 'activate'); }}>
                         <Play className="h-3.5 w-3.5 mr-1" /> Reanudar
                       </Button>
                     ) : null}
@@ -352,7 +369,7 @@ function CampaignDetailDialog({ campaign, config, onClose }) {
   const [leads, setLeads] = useState([]);
   const [preview, setPreview] = useState(null);
   const [approving, setApproving] = useState(false);
-  const waEnabled = campaign?.outreach?.channel === 'whatsapp' || Boolean(config?.whatsapp?.connected);
+  const waEnabled = (campaign?.channels || []).includes('whatsapp') || Boolean(config?.whatsapp?.connected);
 
   useEffect(() => {
     if (!campaign?.id) return;
@@ -447,9 +464,11 @@ function CampaignDetailDialog({ campaign, config, onClose }) {
 
 function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
   const [form, setForm] = useState({
-    name: '', description: '', provider: 'simulated',
-    categories: [], communes: [], limitPerRun: 50,
-    channel: 'email', minScore: 60, maxPerDay: 10,
+    name: '', description: '',
+    categories: [], communes: [], minScore: 0, maxContacts: 50,
+    channels: ['email'], frequency: 'diaria',
+    maxPerDayEmail: 25, maxPerDayWhatsapp: 50,
+    windowStart: 10, windowEnd: 19,
   });
 
   const toggleCat = (cat) => setForm(f => ({
@@ -462,21 +481,28 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
     communes: f.communes.includes(com) ? f.communes.filter(c => c !== com) : [...f.communes, com],
   }));
 
+  const setCh = (ch, on) => setForm(f => ({
+    ...f,
+    channels: on ? [...f.channels, ch] : f.channels.filter(c => c !== ch),
+  }));
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return toast.error('Nombre requerido');
+    if (form.channels.length === 0) return toast.error('Elige al menos un canal');
     await onCreate({
       name: form.name,
       description: form.description,
-      provider: form.provider,
       categories: form.categories,
       communes: form.communes,
-      limitPerRun: Number(form.limitPerRun) || 50,
-      outreach: {
-        channel: form.channel,
-        minScore: Number(form.minScore) || 60,
-        maxPerDay: Number(form.maxPerDay) || 10,
-      },
+      minScore: Number(form.minScore) || 0,
+      maxContacts: Number(form.maxContacts) || 50,
+      channels: form.channels,
+      frequency: form.frequency,
+      maxPerDayEmail: Number(form.maxPerDayEmail) || 25,
+      maxPerDayWhatsapp: Number(form.maxPerDayWhatsapp) || 50,
+      windowStart: Number(form.windowStart) || 10,
+      windowEnd: Number(form.windowEnd) || 19,
     });
   };
 
@@ -488,7 +514,7 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva campaña de prospección</DialogTitle>
-          <DialogDescription>Define qué negocios descubrir y cómo contactarlos. Por defecto se usa el proveedor simulado (seguro).</DialogDescription>
+          <DialogDescription>Elige el canal (email, WhatsApp o ambos), la cadencia diaria, la frecuencia, el límite de contactos y a quién va dirigida (rubros, comunas, score mínimo).</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
@@ -525,17 +551,26 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Máx prospectos por ejecución</Label>
-              <Input type="number" min={1} max={200} value={form.limitPerRun} onChange={e => setForm(f => ({ ...f, limitPerRun: e.target.value }))} />
+              <Label>Canales de envío (elige uno o ambos)</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {['email', 'whatsapp'].map(ch => (
+                  <Badge key={ch} variant={form.channels.includes(ch) ? 'default' : 'outline'}
+                    className="cursor-pointer py-1.5 gap-1"
+                    onClick={() => setCh(ch, !form.channels.includes(ch))}>
+                    {ch === 'whatsapp' ? <MessageCircle className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
+                    {ch === 'email' ? 'Email (Gmail)' : 'WhatsApp (Baileys)'}
+                  </Badge>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Canal de contacto</Label>
-              <Select value={form.channel} onValueChange={v => setForm(f => ({ ...f, channel: v }))}>
+              <Label>Frecuencia</Label>
+              <Select value={form.frequency} onValueChange={v => setForm(f => ({ ...f, frequency: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp automático (sesión vinculada)</SelectItem>
-                  <SelectItem value="whatsapp_manual">WhatsApp manual (guión)</SelectItem>
+                  <SelectItem value="diaria">Diaria (todos los días, dentro de la ventana horaria)</SelectItem>
+                  <SelectItem value="semanal">Semanal</SelectItem>
+                  <SelectItem value="solo_vez">Una sola vez</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -544,8 +579,26 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
               <Input type="number" min={0} max={100} value={form.minScore} onChange={e => setForm(f => ({ ...f, minScore: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>Máx mensajes por día</Label>
-              <Input type="number" min={1} max={100} value={form.maxPerDay} onChange={e => setForm(f => ({ ...f, maxPerDay: e.target.value }))} />
+              <Label>Máx contactos (0 = sin límite)</Label>
+              <Input type="number" min={0} max={10000} value={form.maxContacts} onChange={e => setForm(f => ({ ...f, maxContacts: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-2">
+              <Label>Email máx por día</Label>
+              <Input type="number" min={1} max={100} value={form.maxPerDayEmail} onChange={e => setForm(f => ({ ...f, maxPerDayEmail: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>WhatsApp máx por día</Label>
+              <Input type="number" min={1} max={200} value={form.maxPerDayWhatsapp} onChange={e => setForm(f => ({ ...f, maxPerDayWhatsapp: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Hora inicio</Label>
+              <Input type="number" min={0} max={23} value={form.windowStart} onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Hora fin</Label>
+              <Input type="number" min={0} max={23} value={form.windowEnd} onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))} />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -836,8 +889,8 @@ function MessagesTab({ messages, config }) {
                   {m.recipient || '—'} · {m.channel === 'whatsapp' ? 'WhatsApp' : m.channel} · {fmtDate(m.createdAt)}
                 </div>
               </div>
-              <Badge className={m.status === 'simulado' ? 'bg-emerald-100 text-emerald-700' : m.status === 'enviado' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}>
-                {m.status}
+              <Badge className={m.status === 'enviado' ? 'bg-sky-100 text-sky-700' : m.status === 'fallido' ? 'bg-rose-100 text-rose-700' : m.channel === 'whatsapp' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                {m.status === 'aprobado' ? (m.channel === 'whatsapp' ? 'Aprobado (WhatsApp)' : 'Aprobado') : m.status}
               </Badge>
             </CardContent>
           </Card>
@@ -1053,7 +1106,7 @@ function ConfigTab({ config }) {
           <CardTitle className="text-base flex items-center gap-2"><Search className="h-4 w-4" /> Fuentes de descubrimiento</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="flex items-center justify-between"><span>Simulado (datos de ejemplo realistas)</span><Badge className="bg-emerald-100 text-emerald-700">Activo</Badge></div>
+          <div className="flex items-center justify-between"><span>Google Maps (Google Places API — datos reales)</span><Badge className="bg-emerald-100 text-emerald-700">Activo</Badge></div>
           <div className="flex items-center justify-between"><span>Manual (ingreso del operador)</span><Badge className="bg-blue-100 text-blue-700">Activo</Badge></div>
         </CardContent>
       </Card>
