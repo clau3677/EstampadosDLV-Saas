@@ -166,7 +166,7 @@ export default function ProspeccionPage() {
         </TabsContent>
 
         <TabsContent value="campanas" className="pt-4">
-          <CampaignsTab campaigns={campaigns} onRefresh={loadAll} />
+          <CampaignsTab campaigns={campaigns} onRefresh={loadAll} config={config} />
         </TabsContent>
 
         <TabsContent value="prospectos" className="pt-4">
@@ -252,7 +252,7 @@ function DashboardCards({ leadStats, config, campaigns, messages, onRefresh }) {
 // ---------------------------------------------------------------------------
 // Campañas
 // ---------------------------------------------------------------------------
-function CampaignsTab({ campaigns, onRefresh }) {
+function CampaignsTab({ campaigns, onRefresh, config }) {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [detail, setDetail] = useState(null);
