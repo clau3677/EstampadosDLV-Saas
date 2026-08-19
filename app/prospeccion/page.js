@@ -819,13 +819,13 @@ function LeadsTab({ leads, config, onLoad }) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={applyFilters}><ListFilter className="h-4 w-4 mr-1" /> Filtrar</Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={approveAll} disabled={approving}>
-          {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
-          Aprobar todos
+          {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />} Aprobar todos
         </Button>
         <Button variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-100" onClick={enrichEmails} disabled={enriching}>
-          {enriching ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}
-          {enriching ? 'Buscando correos...' : 'Buscar correos (sitios oficiales)'}
+          {enriching ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />} {enriching ? 'Buscando correos...' : 'Buscar correos (sitios oficiales)'}
         </Button>
         <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={exportCsv}>
           <Download className="h-4 w-4 mr-1" /> Exportar CSV
