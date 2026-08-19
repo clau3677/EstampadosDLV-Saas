@@ -628,6 +628,7 @@ function LeadsTab({ leads, config, onLoad }) {
   const [detail, setDetail] = useState(null);
   const [running, setRunning] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [campaigns, setCampaigns] = useState([]);
 
   useEffect(() => { onLoad({}); }, [onLoad]);
@@ -648,6 +649,32 @@ function LeadsTab({ leads, config, onLoad }) {
   const goPage = (p) => {
     setPage(p);
     onLoad({ q: q || undefined, category: cat === 'Todas' ? undefined : cat, commune: com === 'Todas' ? undefined : com, state: state === 'Todos' ? undefined : state, sortBy: sortBy || undefined, phoneType: phoneTypeQs(), page: String(p) });
+  };
+
+  const enrichEmails = async () => {
+    const total = leads?.total || 0;
+    const maxShow = Math.min(total, 200);
+    const ok = window.confirm(
+      `El sistema visitará los sitios web OFICIALES de hasta ${maxShow} prospectos del filtro actual (solo los que aún no tienen correo) y buscará el correo empresarial publicado en su sitio (solo del mismo dominio, sin correos personales como Gmail/Hotmail). Esto puede tardar varios minutos. ¿Continuar?`,
+    );
+    if (!ok) return;
+    setEnriching(true);
+    try {
+      const r = await api('/leads/enrich-emails', {
+        method: 'POST',
+        body: JSON.stringify({
+          category: cat === 'Todas' ? undefined : cat,
+          commune: com === 'Todas' ? undefined : com,
+          limit: 200,
+        }),
+      });
+      toast.success(`Búsqueda de correos lista: ${r.found} correos encontrados de ${r.total} prospectos revisados (${r.missing} sin correo publicado)`);
+      onLoad({});
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setEnriching(false);
+    }
   };
 
   const approveAll = async () => {
@@ -777,6 +804,7 @@ function LeadsTab({ leads, config, onLoad }) {
             <SelectItem value="celular">Solo celular</SelectItem>
             <SelectItem value="fijo">Solo fijo</SelectItem>
             <SelectItem value="correo">Solo con correo</SelectItem>
+            <SelectItem value="sin_correo">Sin correo</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
@@ -793,6 +821,10 @@ function LeadsTab({ leads, config, onLoad }) {
         <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={approveAll} disabled={approving}>
           {approving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
           Aprobar todos
+        </Button>
+        <Button variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-100" onClick={enrichEmails} disabled={enriching}>
+          {enriching ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}
+          {enriching ? 'Buscando correos...' : 'Buscar correos (sitios oficiales)'}
         </Button>
         <Button variant="outline" className="bg-green-50 text-green-700 hover:bg-green-100" onClick={exportCsv}>
           <Download className="h-4 w-4 mr-1" /> Exportar CSV
