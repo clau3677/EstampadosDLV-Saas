@@ -990,11 +990,7 @@ function ConfigTab({ config }) {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex items-center justify-between"><span>Simulado (datos de ejemplo realistas)</span><Badge className="bg-emerald-100 text-emerald-700">Activo</Badge></div>
-          <div className="flex items-center justify-between"><span>Scraper de Google Maps</span><Badge className="bg-rose-100 text-rose-600">Deshabilitado</Badge></div>
           <div className="flex items-center justify-between"><span>Manual (ingreso del operador)</span><Badge className="bg-blue-100 text-blue-700">Activo</Badge></div>
-          <p className="text-muted-foreground text-xs pt-2">
-            El scraper está deshabilitado por seguridad legal (Términos de Google). Úsalo solo con autorización expresa.
-          </p>
         </CardContent>
       </Card>
       <Card className="md:col-span-2">
