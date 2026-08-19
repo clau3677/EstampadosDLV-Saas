@@ -1,4 +1,4 @@
-// Cotizador — generador de PDF profesional (build130: diseño de Sandra)
+// Cotizador — generador de PDF profesional (build131: encuadre, firma completa y nombre bien formateado)
 // Renderiza la cotización en A4 con la paleta verde de Estampados DLV usando jsPDF.
 import { jsPDF } from 'jspdf';
 
@@ -15,10 +15,25 @@ function money(n) {
   return `$${Math.round(Number(n) || 0).toLocaleString('es-CL')}`;
 }
 
+// Formatea el nombre del cliente respetando separación y capitalización correcta:
+// "claudio delimacuevas" / "CLAUDIO DELIMACUEVAS" → "Claudio Delimacuevas"
+export function formatClientName(raw) {
+  if (!raw) return '';
+  return String(raw)
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export function generateQuotePDF(quote) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const MH = 297;
+  const ML = 20; // margen izquierdo
+  const MR = 20; // margen derecho
+  const IW = W - ML - MR; // ancho de trabajo 170mm
   let y = 0;
 
   // ---------- Encabezado ----------
@@ -27,21 +42,21 @@ export function generateQuotePDF(quote) {
 
   // Marca en píldora blanca para contraste
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(16, 11, 46, 15, 4, 4, 'F');
+  doc.roundedRect(ML, 11, 46, 15, 4, 4, 'F');
   doc.setTextColor(...C_PRIMARY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('ESTAMPADOS DLV', 39, 21, { align: 'center' });
+  doc.text('ESTAMPADOS DLV', ML + 23, 21, { align: 'center' });
 
   // Datos de contacto a la derecha del encabezado
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text('DTF TEXTIL  ·  DTF UV  ·  ROPA PERSONALIZADA  ·  CHILE', 194, 16, { align: 'right' });
+  doc.text('DTF TEXTIL  ·  DTF UV  ·  ROPA PERSONALIZADA  ·  CHILE', MR + IW, 16, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
-  doc.text('+56 9 5416 9052  ·  estampadosdlv@gmail.com  ·  estampadosdlv.com', 194, 21.5, { align: 'right' });
-  doc.text('Galleguillos 1870, Casa 1 · Quilpué, Valparaíso', 194, 27, { align: 'right' });
+  doc.text('+56 9 5416 9052  ·  estampadosdlv@gmail.com  ·  estampadosdlv.com', MR + IW, 21.5, { align: 'right' });
+  doc.text('Galleguillos 1870, Casa 1 · Quilpué, Valparaíso', MR + IW, 27, { align: 'right' });
 
   y = 50;
 
@@ -62,20 +77,20 @@ export function generateQuotePDF(quote) {
   doc.setTextColor(...C_GRAY);
   const fecha = new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
   const valida = new Date(quote.validUntil).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
-  doc.text(`Fecha de emisión: ${fecha}`, 16, y);
-  doc.text(`Válida hasta: ${valida}`, W - 16, y, { align: 'right' });
+  doc.text(`Fecha de emisión: ${fecha}`, ML, y);
+  doc.text(`Válida hasta: ${valida}`, MR + IW, y, { align: 'right' });
   y += 9;
 
   // ---------- Datos del cliente ----------
   doc.setFillColor(...C_LIGHT);
-  doc.roundedRect(16, y, W - 32, 28, 4, 4, 'F');
+  doc.roundedRect(ML, y, IW, 28, 4, 4, 'F');
   doc.setTextColor(...C_PRIMARY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text('PREPARADA PARA', 22, y + 7);
+  doc.text('PREPARADA PARA', ML + 6, y + 7);
   doc.setTextColor(...C_DARK);
   doc.setFontSize(11.5);
-  doc.text(quote.clientName, 22, y + 13.5);
+  doc.text(formatClientName(quote.clientName), ML + 6, y + 13.5);
   doc.setFontSize(9);
   doc.setTextColor(...C_GRAY);
   const clienteLine2 = [
@@ -83,42 +98,45 @@ export function generateQuotePDF(quote) {
     quote.clientEmail ? `Correo: ${quote.clientEmail}` : null,
     quote.clientPhone ? `Teléfono: ${quote.clientPhone}` : null,
   ].filter(Boolean).join('   ');
-  if (clienteLine2) doc.text(clienteLine2, 22, y + 20.5);
+  if (clienteLine2) doc.text(clienteLine2, ML + 6, y + 20.5);
   y += 37;
 
   // ---------- Tabla de items ----------
   const rowH = 9;
+  // Columnas: producto inicia en ML+4, numéricas alineadas a la derecha y bien separadas
+  const colQtyX = ML + 104;   // columna CANT (3 chars)
+  const colPriceX = ML + 148; // columna P. UNITARIO (hasta 9 chars: $999.990)
+  const colSubX = MR + IW;    // subtotal alineado a la derecha del margen (nunca se corta)
 
   // Header de tabla
   doc.setFillColor(...C_PRIMARY);
-  doc.rect(16, y, W - 32, rowH, 'F');
+  doc.rect(ML, y, IW, rowH, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
-  doc.text('PRODUCTO / SERVICIO', 20, y + 6);
-  doc.text('CANT.', 126, y + 6);
-  doc.text('P. UNITARIO', 146, y + 6);
-  doc.text('SUBTOTAL', 178, y + 6);
+  doc.text('PRODUCTO / SERVICIO', ML + 4, y + 6);
+  doc.text('CANT.', colQtyX + 8, y + 6);
+  doc.text('P. UNITARIO', colPriceX - 2, y + 6, { align: 'right' });
+  doc.text('SUBTOTAL', colSubX - 6, y + 6, { align: 'right' });
   y += rowH;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   quote.items.forEach((it, i) => {
     const bg = i % 2 === 1;
-    if (bg) { doc.setFillColor(245, 250, 248); doc.rect(16, y, W - 32, rowH, 'F'); }
+    if (bg) { doc.setFillColor(245, 250, 248); doc.rect(ML, y, IW, rowH, 'F'); }
     doc.setTextColor(...C_TEXT);
-    const name = String(it.name).slice(0, 52);
-    doc.text(name, 20, y + 6);
-    doc.setTextColor(...C_GRAY);
-    doc.setFontSize(8);
-    if (it.variantName) doc.text(String(it.variantName).slice(0, 16), 100, y + 6);
+    const name = it.variantName
+      ? `${String(it.name).slice(0, 40)} (${String(it.variantName).slice(0, 18)})`
+      : String(it.name).slice(0, 58);
+    doc.text(name, ML + 4, y + 6);
     doc.setFontSize(9);
     doc.setTextColor(...C_TEXT);
-    doc.text(String(it.quantity), 132, y + 6);
-    doc.text(money(it.unitPrice), 156, y + 6);
+    doc.text(String(it.quantity), colQtyX + 8, y + 6, { align: 'right' });
+    doc.text(money(it.unitPrice), colPriceX - 2, y + 6, { align: 'right' });
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...C_DARK);
-    doc.text(money(it.subtotal), 194, y + 6);
+    doc.text(money(it.subtotal), colSubX - 4, y + 6, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     y += rowH;
   });
@@ -126,7 +144,7 @@ export function generateQuotePDF(quote) {
 
   // ---------- Totales ----------
   const totalsW = 78;
-  const tx = W - 16 - totalsW;
+  const tx = MR + IW - totalsW;
   const lineH = 8.5;
   const totalRows = [
     { label: 'Subtotal', value: money(quote.subtotal), bold: false, color: C_GRAY },
@@ -134,7 +152,6 @@ export function generateQuotePDF(quote) {
   if (quote.discount) {
     totalRows.push({ label: `Descuento (${quote.discount}%)`, value: money(-Math.round(quote.subtotal * quote.discount / 100)), bold: false, color: C_ACCENT });
   }
-  totalRows.push({ label: 'IVA estimado (19%)', value: money(Math.round(quote.subtotal * 0.19)), bold: false, color: C_GRAY });
   totalRows.push({ label: 'TOTAL', value: money(quote.total), bold: true, color: C_PRIMARY });
 
   doc.setFillColor(...C_LIGHT);
@@ -159,7 +176,7 @@ export function generateQuotePDF(quote) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.setTextColor(...C_DARK);
-  doc.text('Condiciones y notas', 16, y);
+  doc.text('Condiciones y notas', ML, y);
   y += 7;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
@@ -171,8 +188,8 @@ export function generateQuotePDF(quote) {
     quote.notes ? `• Nota adicional: ${quote.notes}` : null,
   ].filter(Boolean);
   condLines.forEach(l => {
-    const wrapped = doc.splitTextToSize(l, W - 32);
-    doc.text(wrapped, 16, y);
+    const wrapped = doc.splitTextToSize(l, IW);
+    doc.text(wrapped, ML, y);
     y += wrapped.length * 4.6 + 1.5;
   });
 
@@ -187,20 +204,34 @@ export function generateQuotePDF(quote) {
   doc.text('¿Te gusta la cotización? Escríbenos al +56 9 5416 9052 (WhatsApp)', W / 2, y + 8.5, { align: 'center' });
   y += 24;
 
-  // ---------- Pie de página ----------
+  // ---------- Firma y datos completos de Estampados DLV ----------
   doc.setDrawColor(...C_LINE);
   doc.setLineWidth(0.5);
-  doc.line(16, y, W - 16, y);
+  doc.line(ML, y, MR + IW, y);
   y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...C_DARK);
+  doc.text('Saludos cordiales,', ML, y);
+  y += 5.5;
+  doc.setFontSize(11);
+  doc.setTextColor(...C_PRIMARY);
+  doc.text('Sandra Vásquez', ML, y);
+  y += 5.5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  doc.setTextColor(...C_TEXT);
+  doc.text('Estampados DLV', ML, y);
+  y += 4.5;
+  doc.setFontSize(8.5);
   doc.setTextColor(...C_GRAY);
-  doc.text('Saludos cordiales,  Sandra Vásquez  ·  Estampados DLV', 16, y);
-  y += 5;
-  doc.setFontSize(8);
+  doc.text('Quilpué, Quinta Región · Galleguillos 1870, Casa 1', ML, y);
+  y += 4.8;
+  doc.text('+56 9 5416 9052  ·  estampadosdlv@gmail.com  ·  estampadosdlv.com', ML, y);
+  y += 7;
+  doc.setFontSize(7.5);
   doc.setTextColor(130, 144, 138);
-  doc.text('Quilpué, Valparaíso · Despacho a todo Chile · estampadosdlv.com', 16, y);
-  doc.text('Esta cotización es válida hasta la fecha indicada. Precios sujetos a confirmación al momento del pedido.', 16, MH - 8);
+  doc.text('Esta cotización es válida hasta la fecha indicada. Precios sujetos a confirmación al momento del pedido.', ML, y);
 
   return doc.output('blob');
 }
