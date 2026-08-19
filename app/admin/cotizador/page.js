@@ -339,23 +339,23 @@ export default function CotizadorPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Label className="mb-1 block">Nombre del cliente *</Label>
+                <div className="mb-1 text-sm font-medium text-slate-700">Nombre del cliente *</div>
                 <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Ej: Juan Pérez / Restaurante El Rincón" />
               </div>
               <div>
-                <Label className="mb-1 block">Empresa (opcional)</Label>
+                <div className="mb-1 text-sm font-medium text-slate-700">Empresa (opcional)</div>
                 <Input value={clientCompany} onChange={e => setClientCompany(e.target.value)} placeholder="Empresa" />
               </div>
               <div>
-                <Label className="mb-1 block">Teléfono</Label>
+                <div className="mb-1 text-sm font-medium text-slate-700">Teléfono</div>
                 <Input value={clientPhone} onChange={e => setClientPhone(e.target.value)} placeholder="+56912345678" />
               </div>
               <div className="sm:col-span-2">
-                <Label className="mb-1 block">Correo electrónico</Label>
+                <div className="mb-1 text-sm font-medium text-slate-700">Correo electrónico</div>
                 <Input value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="cliente@empresa.cl" type="email" />
               </div>
               <div className="sm:col-span-2">
-                <Label className="mb-1 block">Notas (opcional)</Label>
+                <div className="mb-1 text-sm font-medium text-slate-700">Notas (opcional)</div>
                 <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Detalles adicionales para el cliente..." rows={2} />
               </div>
             </CardContent>
@@ -429,7 +429,7 @@ export default function CotizadorPage() {
                   <span className="font-medium">{formatCLP(subtotal)}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-slate-600">Descuento %</Label>
+                  <span className="text-xs text-slate-600">Descuento %</span>
                   <Input
                     type="number"
                     min={0}
