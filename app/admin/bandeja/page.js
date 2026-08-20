@@ -108,6 +108,12 @@ export default function BandejaPage() {
           body: JSON.stringify({ channel: selected.channel, conversationId: selected.id, text: replyText.trim() }),
         });
         const data = await r.json();
+        if (data.window24h) {
+          toast.error(data.error || 'Meta no permite responder fuera de la ventana de 24 horas.');
+          // No limpiar el texto: Sandra puede reenviar cuando el cliente escriba
+          setSending(false);
+          return;
+        }
         if (!r.ok) throw new Error(data.error || 'error');
         toast.success(`Enviado por ${selected.channel === 'messenger' ? 'Messenger' : 'Instagram Direct'} ✅`);
       } else {
