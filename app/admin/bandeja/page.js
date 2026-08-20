@@ -9,12 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
   MessageSquare, ArrowLeft, RefreshCw, Send, Bot, User, AlertTriangle,
-  Globe, MessageCircle, Sparkles, Loader2, Wrench,
+  Globe, MessageCircle, Sparkles, Loader2, Wrench, Facebook, Camera,
 } from 'lucide-react';
 
 const SOURCE_LABEL = {
   web: { label: 'Web', icon: Globe, color: 'bg-blue-500' },
   whatsapp: { label: 'WhatsApp', icon: MessageCircle, color: 'bg-emerald-500' },
+  messenger: { label: 'Messenger', icon: Facebook, color: 'bg-blue-600' },
+  instagram: { label: 'Instagram', icon: Camera, color: 'bg-fuchsia-600' },
 };
 
 const STAGE_LABEL = {
@@ -39,6 +41,14 @@ export default function BandejaPage() {
 
   const loadConversations = useCallback(async () => {
     try {
+      if (filterSource === 'messenger' || filterSource === 'instagram') {
+        const url = new URL('/api/agent/meta/threads', window.location.origin);
+        url.searchParams.set('channel', filterSource);
+        const r = await fetch(url).then((x) => x.json());
+        setConversations(Array.isArray(r?.conversations) ? r.conversations : []);
+        setMetaUnavailable(r?.available === false);
+        return;
+      }
       const url = new URL('/api/agent/conversations', window.location.origin);
       if (filterSource) url.searchParams.set('source', filterSource);
       url.searchParams.set('limit', '100');
@@ -46,6 +56,7 @@ export default function BandejaPage() {
       setConversations(Array.isArray(r) ? r : []);
     } catch { /* ignore */ }
   }, [filterSource]);
+  const [metaUnavailable, setMetaUnavailable] = useState(false);
 
   const loadConversation = useCallback(async (id) => {
     setLoading(true);
@@ -89,18 +100,30 @@ export default function BandejaPage() {
     if (!replyText.trim() || !selected) return;
     setSending(true);
     try {
-      const r = await fetch(`/api/agent/conversations/${selected.id}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: replyText.trim() }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'error');
-      if (data.waResult) {
-        if (data.waResult.sent) toast.success('Enviado por WhatsApp ✅');
-        else toast.warning('Guardado, pero WA falló: ' + data.waResult.error);
+      // Canales Meta (Messenger/Instagram) se envían por su propio endpoint
+      if (selected.channel === 'messenger' || selected.channel === 'instagram') {
+        const r = await fetch('/api/agent/meta/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: selected.channel, conversationId: selected.id, text: replyText.trim() }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'error');
+        toast.success(`Enviado por ${selected.channel === 'messenger' ? 'Messenger' : 'Instagram Direct'} ✅`);
       } else {
-        toast.success('Enviado ✅');
+        const r = await fetch(`/api/agent/conversations/${selected.id}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: replyText.trim() }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'error');
+        if (data.waResult) {
+          if (data.waResult.sent) toast.success('Enviado por WhatsApp ✅');
+          else toast.warning('Guardado, pero WA falló: ' + data.waResult.error);
+        } else {
+          toast.success('Enviado ✅');
+        }
       }
       setReplyText('');
       loadConversation(selected.id);
@@ -125,7 +148,7 @@ export default function BandejaPage() {
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Bandeja</h1>
             <p className="text-slate-500 mt-1 text-sm">
-              Conversaciones activas Web + WhatsApp · toma control cuando quieras
+              Conversaciones activas Web + WhatsApp + Facebook + Instagram · toma control cuando quieras
             </p>
           </div>
           <Button asChild variant="outline" className="gap-1.5">
@@ -153,9 +176,20 @@ export default function BandejaPage() {
             <Button size="sm" variant={filterSource === 'whatsapp' ? 'default' : 'ghost'} className="h-7 text-xs" onClick={() => setFilterSource('whatsapp')}>
               <MessageCircle className="h-3 w-3 mr-1" /> WA
             </Button>
+            <Button size="sm" variant={filterSource === 'messenger' ? 'default' : 'ghost'} className="h-7 text-xs" onClick={() => setFilterSource('messenger')}>
+              <Facebook className="h-3 w-3 mr-1" /> FB
+            </Button>
+            <Button size="sm" variant={filterSource === 'instagram' ? 'default' : 'ghost'} className="h-7 text-xs" onClick={() => setFilterSource('instagram')}>
+              <Camera className="h-3 w-3 mr-1" /> IG
+            </Button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 && (
+            {metaUnavailable && (
+              <div className="text-center text-xs text-slate-400 py-6 px-4">
+                Este canal no está disponible todavía. Para activarlo, genera un nuevo token en developers.facebook.com con los permisos de mensajes y avísame para configurarlo.
+              </div>
+            )}
+            {conversations.length === 0 && !metaUnavailable && (
               <div className="text-center text-sm text-slate-400 py-10 px-4">
                 No hay conversaciones aún. Prueba el widget desde /tienda o envía un WhatsApp al número vinculado.
               </div>
