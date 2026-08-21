@@ -35,6 +35,9 @@ export default async function sitemap() {
       { url: `${base}/blog`,          priority: 0.9, changeFrequency: "weekly",  lastModified: new Date() },
       ...require("../lib/blog-data").articles.map(a => ({ url: `${base}/blog/${a.slug}`, lastModified: a.date, priority: 0.85, changeFrequency: "monthly" })),
       { url: `${base}/contacto`,       priority: 0.8, changeFrequency: 'monthly', lastModified: new Date() },
+      { url: `${base}/politicas/envios-devoluciones`, priority: 0.45, changeFrequency: 'yearly', lastModified: new Date() },
+      { url: `${base}/politicas/privacidad`, priority: 0.4, changeFrequency: 'yearly', lastModified: new Date() },
+      { url: `${base}/politicas/terminos`, priority: 0.4, changeFrequency: 'yearly', lastModified: new Date() },
       
       // Productos — alta prioridad para indexación
       ...products.map(p => ({

@@ -89,12 +89,12 @@ export default async function ProductPage({ params }) {
       validFrom: new Date().toISOString().split('T')[0],
       shippingDetails: {
         '@type': 'OfferShippingDetails',
-        shippingRate: { '@type': 'MonetaryAmount', value: '3490', currency: 'CLP' },
+        shippingRate: { '@type': 'MonetaryAmount', value: '3990', currency: 'CLP' },
         shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CL' },
         deliveryTime: {
           '@type': 'ShippingDeliveryTime',
-          handlingTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
-          transitTime: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 3, unitCode: 'DAY' },
+          handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 1, unitCode: 'DAY' },
+          transitTime: { '@type': 'QuantitativeValue', minValue: 2, maxValue: 3, unitCode: 'DAY' },
         },
       },
       hasMerchantReturnPolicy: {
@@ -103,30 +103,9 @@ export default async function ProductPage({ params }) {
         returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
         merchantReturnDays: 10,
         returnMethod: 'https://schema.org/ReturnByMail',
-        returnFees: 'https://schema.org/FreeReturn',
+        returnFees: 'https://schema.org/ReturnFeesCustomerResponsibility',
       },
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '127',
-      bestRating: '5',
-      worstRating: '1',
-    },
-    review: [
-      {
-        '@type': 'Review',
-        reviewRating: { '@type': 'Rating', ratingValue: '5', bestRating: '5' },
-        author: { '@type': 'Person', name: 'Carlos M.' },
-        reviewBody: 'Excelente calidad de impresión, los colores quedaron perfectos.',
-      },
-      {
-        '@type': 'Review',
-        reviewRating: { '@type': 'Rating', ratingValue: '5', bestRating: '5' },
-        author: { '@type': 'Person', name: 'Ana P.' },
-        reviewBody: 'Muy rápido el despacho, llegó en 2 días a Santiago.',
-      },
-    ],
   } : null;
 
   return (

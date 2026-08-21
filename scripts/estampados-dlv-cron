@@ -11,3 +11,6 @@
 
 # Refresh prices Treck — diariamente 00:45 hrs Chile (03:45 UTC)
 45 3 * * * root /app/scripts/refresh-treck-prices.sh
+
+# Solicitudes de reseña post-entrega — cada hora; respeta el delay configurado y deduplica
+0 * * * * root /app/scripts/dispatch-review-requests.sh

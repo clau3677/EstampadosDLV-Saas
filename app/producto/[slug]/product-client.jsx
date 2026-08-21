@@ -405,10 +405,10 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
               <Badge variant="secondary" className="bg-slate-100 text-slate-700 border border-slate-200">
                 {CATEGORY_LABELS[product.category] || product.category}
               </Badge>
-              <div className="inline-flex items-center gap-0.5 text-amber-500">
-                {[1,2,3,4,5].map(n => <Star key={n} className="h-3.5 w-3.5 fill-current" />)}
-                <span className="ml-1 text-xs font-semibold text-slate-600">4.9 · 127 reseñas</span>
-              </div>
+              {BUSINESS.reviews?.google && <a href={BUSINESS.reviews.google} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:text-amber-700" aria-label="Ver reseñas de Estampados DLV en Google">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                Ver reseñas en Google
+              </a>}
             </div>
 
             <div className="mt-3 flex items-start justify-between gap-3">

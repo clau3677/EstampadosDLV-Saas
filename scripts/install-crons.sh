@@ -4,14 +4,17 @@
 # Idempotente — safe re-run.
 
 set -e
-chmod 0755 /app/scripts/refresh-cottonext-prices.sh 2>/dev/null || true
-chmod 0755 /app/scripts/refresh-textilryu-prices.sh 2>/dev/null || true
-chmod 0755 /app/scripts/refresh-treck-prices.sh 2>/dev/null || true
+APP_ROOT="${DLV_APP_ROOT:-/app}"
+SCRIPT_DIR="$APP_ROOT/scripts"
+chmod 0755 "$SCRIPT_DIR/refresh-cottonext-prices.sh" 2>/dev/null || true
+chmod 0755 "$SCRIPT_DIR/refresh-textilryu-prices.sh" 2>/dev/null || true
+chmod 0755 "$SCRIPT_DIR/refresh-treck-prices.sh" 2>/dev/null || true
+chmod 0755 "$SCRIPT_DIR/dispatch-review-requests.sh" 2>/dev/null || true
 touch /var/log/dlv-cron.log
 chmod 0666 /var/log/dlv-cron.log
 
 # Copiar cron a /etc/cron.d (persistente por sesión)
-cp /app/scripts/estampados-dlv-cron /etc/cron.d/estampados-dlv-cron
+sed "s#/app/scripts#${SCRIPT_DIR}#g" "$SCRIPT_DIR/estampados-dlv-cron" > /etc/cron.d/estampados-dlv-cron
 chmod 0644 /etc/cron.d/estampados-dlv-cron
 
 # Refresh cron daemon

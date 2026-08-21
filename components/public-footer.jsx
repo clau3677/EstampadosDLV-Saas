@@ -78,6 +78,9 @@ export function PublicFooter() {
             <li><Link href="/tienda?cat=dtf_meter" className="hover:text-orange-600">DTF por metro</Link></li>
             <li><Link href="/gang-sheet" className="hover:text-orange-600">Arma tu pliego</Link></li>
             <li><Link href="/contacto" className="hover:text-orange-600">Contacto</Link></li>
+            <li><Link href="/politicas/envios-devoluciones" className="hover:text-orange-600">Despachos y devoluciones</Link></li>
+            <li><Link href="/politicas/privacidad" className="hover:text-orange-600">Privacidad</Link></li>
+            <li><Link href="/politicas/terminos" className="hover:text-orange-600">Términos de compra</Link></li>
           </ul>
         </div>
 

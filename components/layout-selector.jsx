@@ -19,7 +19,7 @@ const BARE_PREFIXES = ['/login', '/registro', '/mockup'];
 const ADMIN_PREFIXES = ['/admin', '/gang-sheet', '/prospeccion'];
 
 // Rutas públicas con PublicNav + Footer.
-const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta', '/concurso', '/logo-creator'];
+const PUBLIC_PREFIXES = ['/', '/tienda', '/producto', '/checkout', '/servicios', '/contacto', '/mi-cuenta', '/concurso', '/logo-creator', '/politicas', '/resena'];
 
 function startsWithExactPrefix(pathname, prefixes) {
   return prefixes.some(p => {

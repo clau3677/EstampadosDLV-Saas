@@ -20,7 +20,7 @@ export const metadata = {
   description:
     'Taller profesional de impresión DTF y DTF UV en Quilpué, Valparaíso, Chile. ' +
     'Impresión textil a 300 DPI, poleras, polerones, gorras y merchandising personalizado. ' +
-    'Despacho 24-48h a todo Chile. Tres líneas de producción activas.',
+    'Despacho configurable según zona y método. Tres líneas de producción activas.',
   keywords: [
     'impresión dtf',
     'dtf chile',
