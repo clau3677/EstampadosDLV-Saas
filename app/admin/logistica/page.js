@@ -114,7 +114,7 @@ export default function LogisticaPage() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [deliveryFilter, setDeliveryFilter] = useState('all');
-  const [form, setForm] = useState({ carrier: '', trackingCode: '', trackingUrl: '', proofUrl: '', notes: '' });
+  const [form, setForm] = useState({ carrier: '', trackingCode: '', trackingUrl: '', proofUrl: '', proofType: 'photo', pickupCode: '', pickupPersonName: '', notes: '' });
 
   const selected = useMemo(() => rows.find(row => row.id === selectedId) || null, [rows, selectedId]);
 
@@ -172,6 +172,9 @@ export default function LogisticaPage() {
       trackingCode: selected.trackingCode || '',
       trackingUrl: selected.trackingUrl || '',
       proofUrl: selected.proofUrl || '',
+      proofType: selected.proofType || 'photo',
+      pickupCode: selected.pickupCode || '',
+      pickupPersonName: selected.pickupPersonName || '',
       notes: selected.notes || '',
     });
     loadEvents(selected);
@@ -228,16 +231,41 @@ export default function LogisticaPage() {
     }
   }
 
+  async function issuePickupCode() {
+    if (!selected) return;
+    setTransitioning(true);
+    try {
+      const response = await fetch('/api/fulfillment/pickup-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selected.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo generar el código');
+      toast.success('Código de retiro listo', { description: `Código: ${data.pickupCode}` });
+      await load();
+      setSelectedId(selected.id);
+    } catch (error) {
+      toast.error('No se pudo generar el código', { description: error.message });
+    } finally {
+      setTransitioning(false);
+    }
+  }
+
   async function transition() {
     if (!selected) return;
     const toStatus = nextStatusFor(selected);
     if (!toStatus) return;
     setTransitioning(true);
     try {
-      const response = await fetch('/api/fulfillment/transition', {
+      const endpoint = toStatus === 'picked_up' ? '/api/fulfillment/pickup' : '/api/fulfillment/transition';
+      const body = toStatus === 'picked_up'
+        ? { id: selected.id, pickupCode: form.pickupCode, pickupPersonName: form.pickupPersonName, proofUrl: form.proofUrl, proofType: form.proofType, notes: form.notes }
+        : { id: selected.id, toStatus, carrier: form.carrier, trackingCode: form.trackingCode, trackingUrl: form.trackingUrl, proofUrl: form.proofUrl, proofType: form.proofType, notes: form.notes };
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selected.id, toStatus, ...form }),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Transición no permitida');
@@ -437,6 +465,15 @@ export default function LogisticaPage() {
                   <label className="text-xs font-medium text-slate-700">Código de seguimiento<Input className="mt-1 h-9 text-xs font-mono" value={form.trackingCode} onChange={event => setForm({ ...form, trackingCode: event.target.value })} placeholder="Ej. 123456789" /></label>
                   <label className="text-xs font-medium text-slate-700">URL de seguimiento<Input className="mt-1 h-9 text-xs" value={form.trackingUrl} onChange={event => setForm({ ...form, trackingUrl: event.target.value })} placeholder="https://…" /></label>
                   <label className="text-xs font-medium text-slate-700">Comprobante de entrega<Input className="mt-1 h-9 text-xs" value={form.proofUrl} onChange={event => setForm({ ...form, proofUrl: event.target.value })} placeholder="URL de foto, firma o documento" /></label>
+                  {form.proofUrl && <label className="text-xs font-medium text-slate-700">Tipo de evidencia<select className="mt-1 h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-xs" value={form.proofType} onChange={event => setForm({ ...form, proofType: event.target.value })}><option value="photo">Foto</option><option value="signature">Firma</option><option value="document">Documento</option><option value="other">Otro</option></select></label>}
+                  {selected.deliveryMethod === 'pickup' && selected.status === 'ready_for_pickup' && (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2"><div><div className="text-xs font-semibold text-emerald-900">Código de retiro</div><div className="text-[11px] text-emerald-700">Se valida al entregar el pedido en taller.</div></div><Button size="sm" variant="outline" className="h-8 text-xs" onClick={issuePickupCode} disabled={transitioning}>{selected.pickupCode ? 'Regenerar no' : 'Generar código'}</Button></div>
+                      {selected.pickupCode && <div className="font-mono text-2xl tracking-[0.35em] text-emerald-900">{selected.pickupCode}</div>}
+                      <label className="text-xs font-medium text-emerald-900">Persona que retira<Input className="mt-1 h-9 text-xs bg-white" value={form.pickupPersonName} onChange={event => setForm({ ...form, pickupPersonName: event.target.value })} placeholder="Nombre y apellido" /></label>
+                    </div>
+                  )}
+                  {selected.status === 'picked_up' && selected.pickupPersonName && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700"><div className="font-semibold text-slate-800">Retiro verificado</div><div>{selected.pickupPersonName}</div><div className="text-slate-500">{dateLabel(selected.pickupVerifiedAt || selected.pickedUpAt)}</div></div>}
                   <label className="text-xs font-medium text-slate-700">Notas<Textarea className="mt-1 text-xs" rows={3} value={form.notes} onChange={event => setForm({ ...form, notes: event.target.value })} placeholder="Incidencias, horario o instrucciones…" /></label>
                 </div>
 
@@ -446,7 +483,7 @@ export default function LogisticaPage() {
                     Guardar datos
                   </Button>
                   {selectedNext && (
-                    <Button size="sm" onClick={transition} disabled={saving || transitioning}>
+                    <Button size="sm" onClick={transition} disabled={saving || transitioning || (selectedNext === 'picked_up' && (!form.pickupCode || !form.pickupPersonName))}>
                       {transitioning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
                       Marcar: {actionLabel(selectedNext)}
                     </Button>
