@@ -54,7 +54,7 @@ export default function MiCuentaLayout({ children }) {
           <div className="text-sm text-indigo-900">
             🛡️ Estás viendo el portal como <b>{user?.role}</b>. ¿Quieres ir al panel de administración?
           </div>
-          <Link href="/" className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md whitespace-nowrap">
+          <Link href="/admin" className="text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md whitespace-nowrap">
             Ir al panel
           </Link>
         </div>
