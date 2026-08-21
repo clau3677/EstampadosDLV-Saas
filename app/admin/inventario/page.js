@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   ArrowLeft, PackageSearch, Search, Plus, Minus, AlertTriangle,
+  ChevronLeft, ChevronRight,
   Droplet, Layers, ScrollText, Loader2, RefreshCw, Edit3, Trash2, MoreVertical,
   FileUp, Image as ImageIcon, Star,
 } from 'lucide-react';
@@ -221,28 +222,35 @@ export default function InventarioPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);   // {type:'supply'|'product', item}
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [stockPage, setStockPage] = useState(1);
+  const [stockMeta, setStockMeta] = useState({ page: 1, pageCount: 1, total: 0, limit: 50 });
 
-  const load = async () => {
+  const load = async (targetPage = stockPage) => {
     setLoading(true);
     try {
+      const stockParams = new URLSearchParams({ paginated: 'true', page: String(targetPage), limit: '50' });
+      if (filterSupplier) stockParams.set('supplier', filterSupplier);
+      if (query.trim()) stockParams.set('q', query.trim());
       const [sRes, cRes, pRes] = await Promise.all([
         fetch('/api/inventory/supplies'),
-        fetch('/api/inventory/commercial'),
-        fetch('/api/products'),
+        fetch(`/api/inventory/commercial?${stockParams.toString()}`),
+        fetch('/api/products?lite=true&includeVariants=true&paginated=true&page=1&limit=100'),
       ]);
       const sData = await sRes.json();
       const cData = await cRes.json();
       const pData = await pRes.json();
       setSupplies(Array.isArray(sData) ? sData : []);
-      setStock(Array.isArray(cData) ? cData : []);
-      setProducts(Array.isArray(pData) ? pData : []);
+      setStock(Array.isArray(cData) ? cData : (cData.items || []));
+      setStockMeta(Array.isArray(cData) ? { page: 1, pageCount: 1, total: cData.length, limit: 50 } : cData);
+      setProducts(Array.isArray(pData) ? pData : (pData.items || []));
     } catch (e) {
       toast.error('Error al cargar inventario');
-      setSupplies([]); setStock([]); setProducts([]);
+      setSupplies([]); setStock([]); setProducts([]); setStockMeta({ page: 1, pageCount: 1, total: 0, limit: 50 });
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { setStockPage(1); }, [query, filterSupplier, filterCategory]);
+  useEffect(() => { load(stockPage); }, [stockPage, query, filterSupplier]);
 
   const toggleFeatured = async (product) => {
     const newValue = !product.featured;
@@ -279,7 +287,17 @@ export default function InventarioPage() {
   const enrichedStock = (Array.isArray(stock) ? stock : []).map(s => {
     const p = productMap[s.productId];
     const v = p?.variants?.find(v => v.id === s.variantId);
-    return { ...s, productName: p?.name, category: p?.category, subcategory: p?.subcategory, supplier: p?.supplier, supplierBrand: p?.supplierBrand, variantName: v?.name, sku: v?.sku, productImages: p?.images };
+    return {
+      ...s,
+      productName: s.productName || p?.name,
+      category: s.category || p?.category,
+      subcategory: s.subcategory || p?.subcategory,
+      supplier: s.supplier || p?.supplier,
+      supplierBrand: s.supplierBrand || p?.supplierBrand,
+      variantName: s.variantName || v?.name,
+      sku: s.sku || v?.sku,
+      productImages: s.productImages || p?.images,
+    };
   });
 
   // Extractar proveedores únicos del stock enriquecido
@@ -507,7 +525,7 @@ export default function InventarioPage() {
                   </button>
                 )}
                 <span className="text-xs text-slate-500 ml-2">
-                  {filteredStock.length} resultado{filteredStock.length !== 1 ? 's' : ''}
+                  {filteredStock.length} en esta página · {stockMeta.total || 0} total
                 </span>
               </div>
               <Card className="border-slate-200/70">
@@ -614,6 +632,20 @@ export default function InventarioPage() {
                 </div>
               </CardContent>
             </Card>
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+              <span>Mostrando {stockMeta.total === 0 ? 0 : ((stockMeta.page - 1) * stockMeta.limit) + 1}–{Math.min(stockMeta.page * stockMeta.limit, stockMeta.total)} de {stockMeta.total || 0}</span>
+              {stockMeta.pageCount > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setStockPage(p => Math.max(1, p - 1))} disabled={stockMeta.page <= 1 || loading} aria-label="Página anterior">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span>Página {stockMeta.page} de {stockMeta.pageCount}</span>
+                  <Button variant="outline" size="sm" onClick={() => setStockPage(p => Math.min(stockMeta.pageCount, p + 1))} disabled={stockMeta.page >= stockMeta.pageCount || loading} aria-label="Página siguiente">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
             </>
           )}
         </TabsContent>

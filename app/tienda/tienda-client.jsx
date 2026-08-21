@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import {
   Search, Layers, Sparkles, ArrowRight, Loader2, X, Star, Truck, ShieldCheck,
+  ChevronLeft, ChevronRight,
   Heart, Wallet, Palette, CheckCircle2, Package,
   Shirt, Gift, HardHat, CircleUser, Image as ImageIcon, MessageCircle,
 } from 'lucide-react';
@@ -161,20 +162,29 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
   const [cat, setCat] = useState('blank_apparel');
   const [q, setQ] = useState('');
   const [subcat, setSubcat] = useState('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 24;
 
-  // SSR/ISR (auditoría jul-2026): el Server Component pasa los productos ya
-  // renderizados en HTML; SWR revalida en cliente sin flash de "0 productos".
-  const { data: prData, isLoading } = useSWR('/api/products?shop=true', fetcher, {
+  // El catálogo se filtra y pagina en servidor para no descargar todas las
+  // tarjetas en cada visita. El primer payload SSR sigue funcionando como fallback.
+  const catalogUrl = `/api/products?shop=true&page=${page}&limit=${pageSize}&cat=${encodeURIComponent(cat)}&sub=${encodeURIComponent(subcat)}&q=${encodeURIComponent(q)}`;
+  const initialPayload = Array.isArray(initialProducts)
+    ? { items: initialProducts, total: initialProducts.length, page: 1, limit: pageSize, pageCount: 1, facets: { categories: {}, subcategories: {} } }
+    : initialProducts;
+  const { data: prData, isLoading } = useSWR(catalogUrl, fetcher, {
     keepPreviousData: true,
-    fallbackData: initialProducts || undefined,
+    fallbackData: initialPayload || undefined,
   });
+  const products = useMemo(() => {
+    const rows = Array.isArray(prData) ? prData : prData?.items;
+    return Array.isArray(rows) ? rows.filter(p => p.active !== false) : [];
+  }, [prData]);
+  const totalProducts = Number(prData?.total) || products.length;
+  const pageCount = Math.max(1, Number(prData?.pageCount) || Math.ceil(totalProducts / pageSize));
+  const facets = prData?.facets || { categories: {}, subcategories: {} };
   const { data: taxData } = useSWR('/api/taxonomies?kind=product_category', fetcher, {
     fallbackData: initialCategories || undefined,
   });
-
-  const products = useMemo(() =>
-    Array.isArray(prData) ? prData.filter(p => p.active !== false) : []
-  , [prData]);
 
   useEffect(() => {
     if (Array.isArray(taxData) && taxData.length > 0) {
@@ -192,29 +202,17 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
   // Subcategorías disponibles según la categoría actual (contextuales).
   const subcatDefs = useMemo(() => {
     if (cat === 'all' || !SUBCAT_MAP[cat]) return [];
-    const list = SUBCAT_MAP[cat];
-    // Solo mostrar subcategorías que tengan al menos 1 producto
-    const withCounts = list.map(s => ({
-      ...s,
-      count: products.filter(p => p.category === cat && p.subcategory === s.code).length,
-    })).filter(s => s.count > 0);
-    return withCounts;
-  }, [products, cat]);
+    return SUBCAT_MAP[cat]
+      .map(s => ({ ...s, count: Number(facets.subcategories?.[s.code]) || 0 }))
+      .filter(s => s.count > 0);
+  }, [facets.subcategories, cat]);
 
-  // Reset subcategory cuando cambia la categoría principal
+  // Resetear página al cambiar cualquier filtro y subcategoría al cambiar categoría.
   useEffect(() => { setSubcat('all'); }, [cat]);
+  useEffect(() => { setPage(1); }, [cat, subcat, q]);
 
-  const filtered = useMemo(() => {
-    const qLow = q.trim().toLowerCase();
-    return products.filter(p => {
-      if (cat !== 'all' && p.category !== cat) return false;
-      if (subcat !== 'all' && p.subcategory !== subcat) return false;
-      if (qLow &&
-          !p.name?.toLowerCase().includes(qLow) &&
-          !p.description?.toLowerCase().includes(qLow)) return false;
-      return true;
-    });
-  }, [products, cat, subcat, q]);
+  // El backend ya aplicó categoría, subcategoría y búsqueda.
+  const filtered = products;
 
   const featured = useMemo(() =>
     products.filter(p => p.featured).slice(0, 4)
@@ -387,7 +385,7 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
           <div className="flex flex-wrap gap-2 -mx-1 px-1 py-1 md:overflow-visible overflow-x-auto scrollbar-hide">
             {cats.map((c) => {
               const active = cat === c.code;
-              const count = c.code === 'all' ? products.length : products.filter(p => p.category === c.code).length;
+              const count = c.code === 'all' ? totalProducts : (Number(facets.categories?.[c.code]) || 0);
               const style = CATEGORY_STYLE[c.code] || CATEGORY_STYLE.all;
               const Icon = style.icon;
               return (
@@ -487,8 +485,19 @@ export default function TiendaPage({ initialProducts = null, initialCategories =
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {filtered.map(p => <ProductCard key={p.id} product={p} />)}
             </div>
-            <div className="mt-6 text-center text-xs text-slate-500">
-              Mostrando {filtered.length} de {products.length} productos
+            <div className="mt-6 flex flex-col items-center gap-3 text-xs text-slate-500 sm:flex-row sm:justify-between">
+              <span>Mostrando {totalProducts === 0 ? 0 : ((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, totalProducts)} de {totalProducts} productos</span>
+              {pageCount > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1 || isLoading} aria-label="Página anterior">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="min-w-24 text-center">Página {page} de {pageCount}</span>
+                  <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={page >= pageCount || isLoading} aria-label="Página siguiente">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         )}
