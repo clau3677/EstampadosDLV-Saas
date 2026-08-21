@@ -25,6 +25,7 @@ const ADMIN_SECTIONS = [
       { href: '/admin/pos',    label: 'POS · Punto de Venta', icon: ShoppingCart, badge: 'Caja' },
       { href: '/admin/cotizador', label: 'Cotizador',        icon: FileText, badge: 'PDF' },
       { href: '/admin/pedidos',label: 'Pedidos',              icon: ClipboardList },
+      { href: '/admin/logistica', label: 'Logística y despachos', icon: Truck },
       { href: '/tienda', label: 'Ver tienda pública',          icon: Store },
     ],
   },
