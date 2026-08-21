@@ -86,7 +86,7 @@ export default function MisPedidosPage() {
                   <div className="text-xs text-slate-600">
                     <span className="font-semibold text-slate-800">Producción:</span> {o.productionStatus || 'no iniciado'}
                   </div>
-                  <Link href={`/tienda`}
+                  <Link href={`/mi-cuenta/pedidos/${encodeURIComponent(o.id)}`}
                     className="ml-auto text-xs font-semibold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1">
                     Ver seguimiento <ExternalLink className="h-3 w-3" />
                   </Link>
