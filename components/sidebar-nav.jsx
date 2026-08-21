@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare, FileText,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X, UserPlus,
-  Library, Megaphone, Box,
+  Library, Megaphone, Box, Bell,
 } from 'lucide-react';
 
 // Secciones completas para admin/operator
@@ -64,6 +64,7 @@ const ADMIN_SECTIONS = [
       { href: '/admin/bandeja',   label: 'Bandeja',     icon: MessageSquare },
       { href: '/admin/whatsapp',  label: 'WhatsApp',    icon: MessageCircle, badge: 'Zero-cost' },
       { href: '/admin/emails',    label: 'Emails SMTP', icon: Mail,          badge: 'Zero-cost' },
+      { href: '/admin/notificaciones', label: 'Notificaciones', icon: Bell,     badge: 'Queue' },
       { href: '/admin/marketing', label: 'Marketing',   icon: Megaphone,     badge: 'Meta' },
       { href: '/prospeccion', label: 'Prospección B2B', icon: UserPlus, badge: 'V5' },
     ],
