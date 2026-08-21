@@ -103,6 +103,7 @@ function StatusBadge({ status }) {
 export default function LogisticaPage() {
   const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState({ total: 0, byStatus: {}, byDeliveryMethod: {} });
+  const [metrics, setMetrics] = useState({ active: 0, completed: 0, overdueCount: 0, onTimeRate: null, averageCompletionHours: null, topOverdue: [] });
   const [events, setEvents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,16 +121,20 @@ export default function LogisticaPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [listResponse, summaryResponse] = await Promise.all([
+      const [listResponse, summaryResponse, metricsResponse] = await Promise.all([
         fetch('/api/fulfillment?status=all&deliveryMethod=all', { cache: 'no-store' }),
         fetch('/api/fulfillment/summary', { cache: 'no-store' }),
+        fetch('/api/fulfillment/metrics', { cache: 'no-store' }),
       ]);
       const listData = await listResponse.json();
       const summaryData = await summaryResponse.json();
+      const metricsData = await metricsResponse.json();
       if (!listResponse.ok) throw new Error(listData.error || 'No se pudo cargar logística');
       if (!summaryResponse.ok) throw new Error(summaryData.error || 'No se pudo cargar resumen');
+      if (!metricsResponse.ok) throw new Error(metricsData.error || 'No se pudieron cargar métricas');
       setRows(Array.isArray(listData) ? listData : []);
       setSummary(summaryData || { total: 0, byStatus: {}, byDeliveryMethod: {} });
+      setMetrics(metricsData || { active: 0, completed: 0, overdueCount: 0, onTimeRate: null, averageCompletionHours: null, topOverdue: [] });
       if (selectedId && !listData.some(row => row.id === selectedId)) setSelectedId(null);
     } catch (error) {
       toast.error('Error al cargar logística', { description: error.message });
@@ -250,6 +255,7 @@ export default function LogisticaPage() {
   const selectedNext = nextStatusFor(selected);
   const readyCount = (summary.byStatus?.ready_for_pickup || 0) + (summary.byStatus?.packed || 0);
   const exceptionCount = (summary.byStatus?.failed || 0) + (summary.byStatus?.returned || 0);
+  const formatHours = value => value == null ? '—' : value < 24 ? `${value} h` : `${(value / 24).toFixed(1)} d`;
 
   return (
     <div className="space-y-5">
@@ -278,13 +284,42 @@ export default function LogisticaPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
         <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Total fulfillment</div><div className="mt-1 text-2xl font-bold text-slate-900">{summary.total || 0}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Activos</div><div className="mt-1 text-2xl font-bold text-indigo-600">{metrics.active || 0}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Pendientes</div><div className="mt-1 text-2xl font-bold text-amber-600">{summary.byStatus?.pending || 0}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Listos / empaquetado</div><div className="mt-1 text-2xl font-bold text-indigo-600">{readyCount}</div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-xs text-slate-500">En tránsito</div><div className="mt-1 text-2xl font-bold text-orange-600">{summary.byStatus?.in_transit || 0}</div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Incidencias</div><div className="mt-1 text-2xl font-bold text-rose-600">{exceptionCount}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Atrasados SLA</div><div className="mt-1 text-2xl font-bold text-rose-600">{metrics.overdueCount || 0}</div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="text-xs text-slate-500">Cumplimiento SLA</div><div className="mt-1 text-2xl font-bold text-emerald-600">{metrics.onTimeRate == null ? '—' : `${metrics.onTimeRate}%`}</div></CardContent></Card>
       </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 flex items-center gap-2"><Clock3 className="h-4 w-4 text-indigo-500" />Productividad logística</div>
+              <div className="text-xs text-slate-500 mt-1">SLA interno: shipping 120 h · retiro 72 h · se recalcula con datos reales</div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+              <span><strong className="text-slate-900">{metrics.completed || 0}</strong> cerrados</span>
+              <span><strong className="text-slate-900">{formatHours(metrics.averageCompletionHours)}</strong> tiempo medio</span>
+              <span><strong className="text-slate-900">{formatHours(metrics.averageCompletionByMethod?.shipping)}</strong> despacho</span>
+              <span><strong className="text-slate-900">{formatHours(metrics.averageCompletionByMethod?.pickup)}</strong> retiro</span>
+            </div>
+          </div>
+          {metrics.topOverdue?.length > 0 ? (
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {metrics.topOverdue.map(item => (
+                <div key={item.id} className="rounded-lg border border-rose-100 bg-rose-50/60 px-3 py-2 text-xs flex items-center justify-between gap-3">
+                  <div><div className="font-semibold text-rose-900">{item.orderNumber || item.orderId}</div><div className="text-rose-700">{actionLabel(item.status)} · {item.deliveryMethod === 'shipping' ? 'Despacho' : 'Retiro'}</div></div>
+                  <div className="text-right text-rose-800"><div className="font-bold">{formatHours(item.ageHours)}</div><div>SLA {formatHours(item.slaHours)}</div></div>
+                </div>
+              ))}
+            </div>
+          ) : <div className="mt-3 text-xs text-emerald-700">No hay pedidos activos fuera del SLA interno en este momento.</div>}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr),390px] gap-5 items-start">
         <Card>
