@@ -32,6 +32,36 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
+async function parseApiJson(response) {
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (text.trimStart().startsWith('<')) {
+      throw new Error(response.redirected ? 'La sesión administrativa expiró. Inicia sesión nuevamente.' : `La API devolvió HTML en vez de JSON (HTTP ${response.status}).`);
+    }
+    throw new Error(`Respuesta inválida de la API (HTTP ${response.status}).`);
+  }
+}
+
+function formatSyncProgress(progress) {
+  if (!progress) return null;
+  const stats = progress.stats || {};
+  return {
+    checked: Number(stats.checked) || 0,
+    downloaded: Number(stats.downloaded) || 0,
+    skipped: Number(stats.skipped) || 0,
+    failed: Number(stats.failed) || 0,
+    stale: Number(stats.stale) || 0,
+    discovered: Number(progress.totalDiscovered) || 0,
+    currentFile: progress.currentFile || '',
+    running: Boolean(progress.running),
+    paused: Boolean(progress.paused),
+    completed: Boolean(progress.completed),
+  };
+}
+
 // ============================================================================
 export default function DesignLibraryAdminPage() {
   const search = useSearchParams();
@@ -42,8 +72,8 @@ export default function DesignLibraryAdminPage() {
   const refreshStatus = useCallback(async () => {
     try {
       const [ds, ls] = await Promise.all([
-        fetch('/api/drive/status', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
-        fetch('/api/design-library/stats', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+        fetch('/api/drive/status', { cache: 'no-store' }).then(async r => r.ok ? parseApiJson(r) : null),
+        fetch('/api/design-library/stats', { cache: 'no-store' }).then(async r => r.ok ? parseApiJson(r) : null),
       ]);
       setDriveStatus(ds);
       setLibraryStats(ls);
@@ -138,8 +168,8 @@ function DriveTab({ status, onChange }) {
       setLoading(true);
       try {
         const r = await fetch('/api/drive/folders', { cache: 'no-store' });
-        if (!r.ok) throw new Error((await r.json()).error || 'error');
-        const data = await r.json();
+        const data = await parseApiJson(r);
+        if (!r.ok) throw new Error(data.error || 'error');
         setFolders(data.folders || []);
         setImageCounts(data.imageCounts || {});
         setSelected(new Set(data.selectedFolderIds || []));
@@ -171,7 +201,8 @@ function DriveTab({ status, onChange }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderIds: Array.from(selected) }),
       });
-      if (!r.ok) throw new Error((await r.json()).error || 'error');
+      const data = await parseApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'error');
       toast.success('Selección guardada', { description: `${selected.size} carpeta${selected.size === 1 ? '' : 's'}` });
       onChange();
     } catch (e) {
@@ -179,29 +210,63 @@ function DriveTab({ status, onChange }) {
     } finally { setSaving(false); }
   };
 
+  const [syncProgress, setSyncProgress] = useState(null);
+
+  const readProgress = useCallback(async () => {
+    const r = await fetch('/api/drive/sync/progress', { cache: 'no-store' });
+    const data = await parseApiJson(r);
+    if (!r.ok) throw new Error(data.error || 'No se pudo leer el progreso');
+    const progress = formatSyncProgress(data);
+    setSyncProgress(progress);
+    return progress;
+  }, []);
+
+  useEffect(() => {
+    readProgress().catch(() => {});
+  }, [readProgress]);
+
   const runSync = async () => {
     if (selected.size === 0) {
       toast.error('Primero selecciona al menos 1 carpeta');
       return;
     }
-    // Guardar selección antes de sync (por si hay cambios pendientes)
     await saveSelection();
     setSyncing(true);
     try {
-      toast.loading('Sincronizando imágenes desde Drive…', { id: 'sync' });
-      const r = await fetch('/api/drive/sync', {
+      toast.loading('Preparando sincronización reanudable…', { id: 'sync' });
+      let startResponse = await fetch('/api/drive/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'error');
-      toast.success('Sync completo ✓', {
+      let startData = await parseApiJson(startResponse);
+      if (!startResponse.ok) throw new Error(startData.error || 'error');
+      let progress = formatSyncProgress(startData.progress || startData);
+      setSyncProgress(progress);
+
+      // Cada llamada procesa pocos archivos y guarda checkpoint en Mongo.
+      // Si el navegador se cierra, la siguiente ejecución continúa desde el último archivo.
+      let guard = 0;
+      while (progress?.running && guard < 20000) {
+        // eslint-disable-next-line no-await-in-loop
+        const batchResponse = await fetch('/api/drive/sync/continue', { method: 'POST' });
+        // eslint-disable-next-line no-await-in-loop
+        const batchData = await parseApiJson(batchResponse);
+        if (!batchResponse.ok) throw new Error(batchData.error || 'Error procesando lote');
+        progress = formatSyncProgress(batchData.progress || batchData);
+        setSyncProgress(progress);
+        toast.loading(`Sincronizando: ${progress.checked} revisadas · ${progress.downloaded} nuevas · ${progress.skipped} sin cambios${progress.currentFile ? ` · ${progress.currentFile}` : ''}`, { id: 'sync' });
+        if (progress.failed > 0) toast.warning(`${progress.failed} archivos requieren reintento`, { id: 'sync-warning' });
+        guard += 1;
+      }
+      if (guard >= 20000) throw new Error('La sincronización excedió el límite de lotes de esta sesión; puedes reanudarla sin perder lo descargado.');
+      toast.success(progress?.paused ? 'Sincronización pausada con checkpoint ✓' : 'Sincronización completa ✓', {
         id: 'sync',
-        description: `${data.stats.downloaded} nuevas · ${data.stats.skipped} sin cambios · ${data.stats.deleted} eliminadas · ${data.stats.failed} fallaron`,
+        description: `${progress?.downloaded || 0} nuevas · ${progress?.skipped || 0} sin cambios · ${progress?.failed || 0} fallaron · ${progress?.stale || 0} conservadas fuera de Drive`,
       });
       onChange();
     } catch (e) {
+      await readProgress().catch(() => {});
       toast.error('Error de sync', { id: 'sync', description: e.message });
     } finally { setSyncing(false); }
   };
@@ -210,8 +275,8 @@ function DriveTab({ status, onChange }) {
     setDisconnectOpen(false);
     try {
       const r = await fetch('/api/drive/disconnect', { method: 'POST' });
-      if (!r.ok) throw new Error((await r.json()).error || 'error');
-      const data = await r.json();
+      const data = await parseApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'error');
       toast.success('Drive desconectado', {
         description: `${data.retainedLibraryItems || 0} diseños conservados en la biblioteca local. La sincronización queda pausada.`,
       });
@@ -297,6 +362,25 @@ function DriveTab({ status, onChange }) {
           </Button>
         </CardContent>
       </Card>
+
+      {syncProgress && (syncing || syncProgress.running || syncProgress.paused || syncProgress.checked > 0) && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              {syncProgress.running ? <Loader2 className="h-4 w-4 text-blue-600 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              <b className="text-sm text-blue-900">{syncProgress.running ? 'Sincronización en progreso' : syncProgress.paused ? 'Sincronización pausada; puedes reanudarla' : 'Última sincronización'}</b>
+              <span className="ml-auto text-xs text-blue-800">{syncProgress.checked} revisadas{syncProgress.discovered ? ` de ${syncProgress.discovered} descubiertas` : ''}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded bg-white border border-blue-100 p-2"><b className="text-emerald-700">{syncProgress.downloaded}</b><br />nuevas</div>
+              <div className="rounded bg-white border border-blue-100 p-2"><b className="text-slate-700">{syncProgress.skipped}</b><br />sin cambios</div>
+              <div className="rounded bg-white border border-blue-100 p-2"><b className="text-rose-700">{syncProgress.failed}</b><br />fallidas</div>
+              <div className="rounded bg-white border border-blue-100 p-2"><b className="text-amber-700">{syncProgress.stale}</b><br />conservadas</div>
+            </div>
+            {syncProgress.currentFile && <div className="text-[11px] text-blue-800 truncate">Procesando: {syncProgress.currentFile}</div>}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Selector de carpetas */}
       <Card>
@@ -490,7 +574,8 @@ function LibraryTab({ onChange }) {
       if (folderRef.current) params.set('folder', folderRef.current);
 
       const r = await fetch(`/api/design-library?${params.toString()}`, { cache: 'no-store' });
-      const data = await r.json();
+      const data = await parseApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'No se pudo cargar la biblioteca');
       const newItems = Array.isArray(data.items) ? data.items : [];
 
       if (reset) {
@@ -592,7 +677,8 @@ function LibraryTab({ onChange }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
-      if (!r.ok) throw new Error((await r.json()).error);
+      const data = await parseApiJson(r);
+      if (!r.ok) throw new Error(data.error || 'No se pudieron eliminar las plantillas');
       toast.success(`${selectedIds.size} plantillas eliminadas`);
       setSelectedIds(new Set());
       load();
@@ -773,7 +859,7 @@ function UploadTab({ onChange }) {
         fd.append('folder', 'library');
         // eslint-disable-next-line no-await-in-loop
         const uploadRes = await fetch('/api/uploads/image', { method: 'POST', body: fd });
-        const uploadData = await uploadRes.json();
+        const uploadData = await parseApiJson(uploadRes);
         if (!uploadRes.ok) throw new Error(uploadData.error || 'upload failed');
 
         // Detectar dimensiones
@@ -809,8 +895,8 @@ function UploadTab({ onChange }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ items: uploaded }),
         });
-        const bulkData = await bulkRes.json();
-        if (!bulkRes.ok) throw new Error(bulkData.error);
+        const bulkData = await parseApiJson(bulkRes);
+        if (!bulkRes.ok) throw new Error(bulkData.error || 'No se pudieron registrar las plantillas');
         toast.success(`${bulkData.inserted} plantillas agregadas`, { description: tagArr.length ? `Tags: ${tagArr.join(', ')}` : undefined });
         setFiles([]);
         setTags('');
