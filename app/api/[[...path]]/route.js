@@ -12,6 +12,7 @@ import handleSeed         from '@/lib/api/seed';
 import handleProducts     from '@/lib/api/products';
 import handleInventory    from '@/lib/api/inventory';
 import handleOrders       from '@/lib/api/orders';
+import handleFulfillment  from '@/lib/api/fulfillment';
 import handleUploads      from '@/lib/api/uploads';
 import handleGangSheets   from '@/lib/api/gang-sheets';
 import handleProduction   from '@/lib/api/production';
@@ -55,6 +56,7 @@ const HANDLERS = [
   handleProducts,
   handleInventory,
   handleOrders,
+  handleFulfillment,  // estados de despacho/retiro y bitácora logística
   handleCustomers,
   handleProduction,
   handleGangSheets,
