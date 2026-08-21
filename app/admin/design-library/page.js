@@ -211,7 +211,10 @@ function DriveTab({ status, onChange }) {
     try {
       const r = await fetch('/api/drive/disconnect', { method: 'POST' });
       if (!r.ok) throw new Error((await r.json()).error || 'error');
-      toast.success('Drive desconectado');
+      const data = await r.json();
+      toast.success('Drive desconectado', {
+        description: `${data.retainedLibraryItems || 0} diseños conservados en la biblioteca local. La sincronización queda pausada.`,
+      });
       setFolders(null);
       setSelected(new Set());
       onChange();
@@ -223,6 +226,17 @@ function DriveTab({ status, onChange }) {
   // No conectado
   if (!status?.connected) {
     return (
+      <>
+      {status?.assetsRetained && (
+        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3 flex gap-2 text-xs text-blue-900">
+          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div>
+            <b>{status.retainedLibraryItems || status.totalAssets || 0} diseños conservados localmente.</b>{' '}
+            Google Drive está desconectado, pero las imágenes ya sincronizadas siguen disponibles en la biblioteca y en el Gang Sheet Builder.
+            Al reconectar, la sincronización actualizará solo los archivos que hayan cambiado.
+          </div>
+        </div>
+      )}
       <Card className="border-slate-200">
         <CardContent className="p-8">
           <div className="text-center max-w-md mx-auto space-y-4">
@@ -258,6 +272,7 @@ function DriveTab({ status, onChange }) {
           </div>
         </CardContent>
       </Card>
+      </>
     );
   }
 
@@ -400,8 +415,8 @@ function DriveTab({ status, onChange }) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Desconectar Google Drive?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se revocará el acceso y se eliminarán todas las imágenes sincronizadas ({status.totalAssets} imágenes)
-              de la biblioteca. Las imágenes originales en tu Drive <b>NO se tocan</b>.
+              Se revocará el acceso a Google Drive y se pausará la sincronización futura. Las {status.totalAssets || 0} imágenes ya sincronizadas
+              <b> se conservarán en la biblioteca local</b> para que tus clientes puedan seguir utilizándolas. Las imágenes originales en tu Drive <b>NO se tocan</b>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
