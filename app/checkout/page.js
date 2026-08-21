@@ -39,6 +39,9 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [paymentMethods, setPaymentMethods] = useState(BASE_PAYMENT_METHODS);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [shippingOptions, setShippingOptions] = useState(null);
+  const [shippingMethodKey, setShippingMethodKey] = useState('standard');
+  const [shippingLoading, setShippingLoading] = useState(false);
 
   // Detectar dinámicamente qué pasarelas están configuradas.
   useEffect(() => {
@@ -68,8 +71,41 @@ export default function CheckoutPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadShipping = async () => {
+      setShippingLoading(true);
+      try {
+        const params = new URLSearchParams({
+          deliveryMethod,
+          region: shippingAddress.region || '',
+          comuna: shippingAddress.comuna || '',
+        });
+        const r = await fetch(`/api/shipping/options?${params.toString()}`, { cache: 'no-store' });
+        const data = await r.json();
+        if (cancelled) return;
+        if (r.ok) {
+          setShippingOptions(data);
+          const available = Array.isArray(data.methods) ? data.methods : [];
+          setShippingMethodKey(current => available.some(item => item.key === current)
+            ? current
+            : (available[0]?.key || 'standard'));
+        } else {
+          setShippingOptions(null);
+        }
+      } catch {
+        if (!cancelled) setShippingOptions(null);
+      } finally {
+        if (!cancelled) setShippingLoading(false);
+      }
+    };
+    loadShipping();
+    return () => { cancelled = true; };
+  }, [deliveryMethod, shippingAddress.region, shippingAddress.comuna]);
+
   const subtotal = cartSubtotal(items);
-  const shipping = deliveryMethod === 'shipping' ? 3990 : 0;
+  const selectedShipping = shippingOptions?.methods?.find(item => item.key === shippingMethodKey);
+  const shipping = deliveryMethod === 'shipping' ? (selectedShipping?.cost ?? 3990) : 0;
   const total = subtotal + shipping;
 
   const rutValid = !customer.rut || validateRut(customer.rut);
@@ -92,8 +128,14 @@ export default function CheckoutPage() {
   const submit = async () => {
     if (!customer.name || !customer.email) return toast.error('Nombre y email son obligatorios');
     if (customer.rut && !rutValid) return toast.error('RUT inválido');
-    if (deliveryMethod === 'shipping' && (!shippingAddress.street || !shippingAddress.comuna)) {
-      return toast.error('Ingresa dirección de envío');
+    if (deliveryMethod === 'shipping' && (!shippingAddress.street || !shippingAddress.comuna || !shippingAddress.region)) {
+      return toast.error('Ingresa dirección, comuna y región de envío');
+    }
+    if (deliveryMethod === 'shipping' && shippingLoading) {
+      return toast.error('Espera a que se calcule la tarifa de despacho');
+    }
+    if (deliveryMethod === 'shipping' && (!shippingOptions?.coverage || !selectedShipping)) {
+      return toast.error('No hay cobertura o método de despacho disponible para esa zona');
     }
     if (paymentMethod === 'cash' && deliveryMethod !== 'pickup') {
       return toast.error('Efectivo solo disponible con retiro en local');
@@ -108,11 +150,13 @@ export default function CheckoutPage() {
       const r = await fetch('/api/orders/public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+                  body: JSON.stringify({
           customer,
           deliveryMethod,
+          shippingMethodKey: deliveryMethod === 'shipping' ? shippingMethodKey : null,
           shippingAddress: deliveryMethod === 'shipping' ? shippingAddress : null,
           paymentMethod,
+
           items: items.map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
           notes,
         }),
@@ -218,7 +262,8 @@ export default function CheckoutPage() {
                       <Package className="h-4 w-4 text-slate-500" />
                       <span className="font-semibold text-sm">Retiro en local</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">Galleguillos 1870, Quilpué · Gratis</p>
+                    <p className="text-xs text-slate-500 mt-1">{shippingOptions?.pickup?.address || 'Galleguillos 1870, Quilpué'} · Gratis</p>
+                    {shippingOptions?.pickup?.instructions && <p className="text-[11px] text-slate-500 mt-1">{shippingOptions.pickup.instructions}</p>}
                     <div className="text-xs font-mono font-semibold text-emerald-600 mt-1">GRATIS</div>
                   </div>
                 </label>
@@ -229,14 +274,29 @@ export default function CheckoutPage() {
                       <Truck className="h-4 w-4 text-slate-500" />
                       <span className="font-semibold text-sm">Envío a domicilio</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">2-4 días hábiles</p>
-                    <div className="text-xs font-mono font-semibold text-slate-700 mt-1">{formatCLP(3990)}</div>
+                    <p className="text-xs text-slate-500 mt-1">{selectedShipping ? `${selectedShipping.etaMinDays}-${selectedShipping.etaMaxDays} días hábiles` : 'Calculando cobertura…'}</p>
+                    <div className="text-xs font-mono font-semibold text-slate-700 mt-1">{selectedShipping ? formatCLP(selectedShipping.cost) : 'Calculando…'}</div>
                   </div>
                 </label>
               </RadioGroup>
 
               {deliveryMethod === 'shipping' && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <>
+                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-xs font-semibold text-slate-700 mb-2">Método de despacho</div>
+                  <RadioGroup value={shippingMethodKey} onValueChange={setShippingMethodKey} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(shippingOptions?.methods || []).map(option => (
+                      <label key={option.key} className={`flex items-start gap-2 p-2 rounded-md border cursor-pointer ${shippingMethodKey === option.key ? 'border-orange-400 bg-orange-50' : 'border-slate-200 bg-white'}`}>
+                        <RadioGroupItem value={option.key} />
+                        <span className="text-xs flex-1"><b>{option.label}</b><br /><span className="text-slate-500">{option.carrier} · {option.etaMinDays}-{option.etaMaxDays} días</span></span>
+                        <span className="text-xs font-mono font-semibold">{formatCLP(option.cost)}</span>
+                      </label>
+                    ))}
+                  </RadioGroup>
+                  {shippingOptions?.coverage === false && <p className="mt-2 text-xs text-rose-600">No hay cobertura configurada para esta región o comuna.</p>}
+                  {shippingLoading && <p className="mt-2 text-xs text-slate-500">Actualizando cobertura…</p>}
+                </div>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
                     <Label className="text-xs">Dirección *</Label>
                     <Input value={shippingAddress.street}
@@ -255,7 +315,14 @@ export default function CheckoutPage() {
                       onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
                       placeholder="Santiago" />
                   </div>
+                  <div>
+                    <Label className="text-xs">Región *</Label>
+                    <Input value={shippingAddress.region}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, region: e.target.value })}
+                      placeholder="RM" />
+                  </div>
                 </div>
+                </>
               )}
             </CardContent>
           </Card>

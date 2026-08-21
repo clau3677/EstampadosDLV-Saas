@@ -113,10 +113,16 @@ export default function ThankYouPage() {
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Entrega</div>
                   <div className="font-medium text-slate-900 mt-0.5 flex items-center gap-1.5">
-                    {order.deliveryMethod === 'pickup' ? <><Package className="h-3.5 w-3.5" />Retiro en local</> : <><Truck className="h-3.5 w-3.5" />Envío a domicilio</>}
+                    {order.deliveryMethod === 'pickup' ? <><Package className="h-3.5 w-3.5" />{order.shippingDetails?.label || 'Retiro en local'}</> : <><Truck className="h-3.5 w-3.5" />{order.shippingDetails?.label || 'Envío a domicilio'}</>}
                   </div>
                   {order.shippingAddress && (
-                    <div className="text-xs text-slate-500">{order.shippingAddress.street}, {order.shippingAddress.comuna}</div>
+                    <div className="text-xs text-slate-500">{order.shippingAddress.street}, {order.shippingAddress.comuna}, {order.shippingAddress.region || ''}</div>
+                  )}
+                  {order.deliveryMethod === 'pickup' && order.shippingDetails?.pickup?.address && (
+                    <div className="text-xs text-slate-500">{order.shippingDetails.pickup.address}</div>
+                  )}
+                  {order.deliveryMethod === 'shipping' && order.shippingDetails && (
+                    <div className="text-xs text-slate-500">{order.shippingDetails.etaMinDays}-{order.shippingDetails.etaMaxDays} días hábiles · {order.shippingDetails.carrier}</div>
                   )}
                 </div>
                 <div>
@@ -152,7 +158,7 @@ export default function ThankYouPage() {
               <div className="my-4 h-px bg-slate-200" />
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-slate-600">
-                  <span>Envío</span>
+                  <span>{order.shippingDetails?.label || 'Envío'}</span>
                   <span className="font-mono">{order.shipping ? formatCLP(order.shipping) : 'Gratis'}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-slate-200">

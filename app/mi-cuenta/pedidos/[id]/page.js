@@ -144,9 +144,10 @@ export default function PedidoSeguimientoPage() {
           <Card>
             <CardHeader><CardTitle className="text-base flex items-center gap-2">{order.deliveryMethod === 'shipping' ? <Truck className="h-4 w-4 text-indigo-500" /> : <MapPin className="h-4 w-4 text-emerald-500" />}Entrega</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div><div className="text-xs text-slate-500">Método</div><div className="font-medium text-slate-800">{order.deliveryMethod === 'shipping' ? 'Envío a domicilio' : 'Retiro en taller'}</div></div>
+              <div><div className="text-xs text-slate-500">Método</div><div className="font-medium text-slate-800">{order.shippingDetails?.label || (order.deliveryMethod === 'shipping' ? 'Envío a domicilio' : 'Retiro en taller')}</div></div>
               {order.deliveryMethod === 'shipping' && order.shippingAddress && <div><div className="text-xs text-slate-500">Dirección</div><div className="text-slate-700">{order.shippingAddress.street}</div><div className="text-slate-700">{order.shippingAddress.comuna} · {order.shippingAddress.city || '—'} · {order.shippingAddress.region || '—'}</div></div>}
-              {order.deliveryMethod === 'pickup' && <div><div className="text-xs text-slate-500">Lugar de retiro</div><div className="text-slate-700">Galleguillos 1870, Quilpué</div></div>}
+              {order.deliveryMethod === 'shipping' && order.shippingDetails && <div><div className="text-xs text-slate-500">Entrega estimada</div><div className="text-slate-700">{order.shippingDetails.etaMinDays}-{order.shippingDetails.etaMaxDays} días hábiles{order.shippingDetails.zoneLabel ? ` · ${order.shippingDetails.zoneLabel}` : ''}</div></div>}
+              {order.deliveryMethod === 'pickup' && <div><div className="text-xs text-slate-500">Lugar de retiro</div><div className="text-slate-700">{order.shippingDetails?.pickup?.address || 'Galleguillos 1870, Quilpué'}</div></div>}
               {order.total != null && <div className="pt-3 border-t border-slate-100"><div className="text-xs text-slate-500">Total</div><div className="font-mono font-bold text-slate-900">{formatCLP(order.total)}</div></div>}
             </CardContent>
           </Card>

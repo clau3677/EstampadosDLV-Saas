@@ -24,6 +24,7 @@ import {
 import { invalidateTaxonomyCache } from '@/components/taxonomy-select';
 import PrintersManager from '@/components/printers-manager';
 import CompanySettingsPanel from '@/components/company-settings-panel';
+import ShippingSettingsPanel from '@/components/shipping-settings-panel';
 import PaymentsStatusPanel from '@/components/payments-status-panel';
 import PricingPanel from '@/components/pricing-panel';
 
@@ -175,6 +176,9 @@ export default function ConfiguracionPage() {
           <TabsTrigger value="payments" className="text-xs">
             <CreditCard className="h-3.5 w-3.5 mr-1.5" />Pasarelas de Pago
           </TabsTrigger>
+          <TabsTrigger value="shipping" className="text-xs">
+            <Truck className="h-3.5 w-3.5 mr-1.5" />Despacho y Retiro
+          </TabsTrigger>
           {KINDS.map(k => (
             <TabsTrigger key={k.key} value={k.key} className="text-xs">
               <k.icon className="h-3.5 w-3.5 mr-1.5" />{k.label} ({(data[k.key] || []).length})
@@ -194,6 +198,10 @@ export default function ConfiguracionPage() {
 
         <TabsContent value="payments" className="mt-4">
           <PaymentsStatusPanel />
+        </TabsContent>
+
+        <TabsContent value="shipping" className="mt-4">
+          <ShippingSettingsPanel />
         </TabsContent>
 
         <TabsContent value="printers" className="mt-4">
