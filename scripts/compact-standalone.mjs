@@ -5,6 +5,9 @@ const root = resolve(process.cwd());
 const standalone = join(root, '.next', 'standalone');
 const standalonePublic = join(standalone, 'public');
 const publicDir = join(root, 'public');
+const standaloneNext = join(standalone, '.next');
+const standaloneNextStatic = join(standaloneNext, 'static');
+const rootNextStatic = join(root, '.next', 'static');
 const standaloneHotFolders = join(standalone, 'hot_folders');
 const rootHotFolders = join(root, 'hot_folders');
 
@@ -29,9 +32,10 @@ const linkDir = (target, link) => {
 // por lo que estos enlaces evitan duplicar uploads/assets y conservan las rutas.
 linkDir(publicDir, standalonePublic);
 if (existsSync(rootHotFolders)) linkDir(rootHotFolders, standaloneHotFolders);
+if (existsSync(rootNextStatic)) linkDir(rootNextStatic, standaloneNextStatic);
 
 const cacheDir = join(root, '.next', 'cache');
 if (existsSync(cacheDir)) rmSync(cacheDir, { recursive: true, force: true });
 
 const publicSize = readdirSync(publicDir, { withFileTypes: true }).length;
-console.log(`[compact-standalone] ok: public enlazado (${publicSize} entradas), cache limpiada`);
+console.log(`[compact-standalone] ok: public y static enlazados (${publicSize} entradas), cache limpiada`);

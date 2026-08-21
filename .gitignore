@@ -91,5 +91,6 @@ public/downloads/uploads.tar.gz
 
 # Runtime and user-generated assets (kept outside Git)
 /public/uploads/
+/public/videos/
 /hot_folders/
 /public/assets/imgly/test.json
