@@ -141,49 +141,10 @@ export default function MarketingPage() {
           <MetricsTab isConnected={isConnected} />
         </TabsContent>
         <TabsContent value="contests">
-        <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
           <ContestAdmin />
-        <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
         </TabsContent>
         <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EditorProTab />
         </TabsContent>
 
         <TabsContent value="connections">
@@ -1708,6 +1669,130 @@ Campañas orientadas a la <strong>Región de Valparaíso</strong>, en <strong>es
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Editor Pro: galería y proyecto de edición inicial
+// ---------------------------------------------------------------------------
+function EditorProTab() {
+  const [posts, setPosts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [caption, setCaption] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loadingVideos, setLoadingVideos] = useState(true);
+
+  const loadPosts = useCallback(async () => {
+    setLoadingVideos(true);
+    try {
+      const res = await fetch(`/api/marketing/posts?status=all&_t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('No se pudieron cargar las publicaciones');
+      const data = await res.json();
+      setPosts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setLoadingVideos(false);
+    }
+  }, []);
+
+  useEffect(() => { loadPosts(); }, [loadPosts]);
+
+  const videoUrl = (post) => post?.videoUrl || post?.mediaUrl || post?.video?.url || post?.assetUrl || '';
+
+  const selectPost = (post) => {
+    setSelected(post);
+    setProjectName(`Edición · ${post.title || post.productName || 'Video de producto'}`);
+    setCaption(post.caption || '');
+  };
+
+  const saveProject = async () => {
+    if (!selected) return toast.error('Selecciona un video primero');
+    setSaving(true);
+    try {
+      const project = {
+        id: `video-project-${Date.now()}`,
+        name: projectName.trim() || 'Proyecto de video',
+        postId: selected.id || selected._id,
+        caption,
+        sourceVideoUrl: videoUrl(selected),
+        preset: { aspectRatio: '9:16', voice: 'CatalinaNeural o LorenzoNeural', transitions: 'fade' },
+        updatedAt: new Date().toISOString(),
+      };
+      const existing = JSON.parse(window.localStorage.getItem('dlv-video-projects') || '[]');
+      window.localStorage.setItem('dlv-video-projects', JSON.stringify([project, ...existing.filter((item) => item.postId !== project.postId)]));
+      toast.success('Proyecto de video guardado en este navegador');
+    } catch (error) {
+      toast.error('No se pudo guardar el proyecto en este navegador');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const videoPosts = posts.filter((post) => videoUrl(post));
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">Editor de Video Pro</CardTitle>
+            <CardDescription>Selecciona un video real del catálogo para preparar una edición.</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadPosts} disabled={loadingVideos}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loadingVideos ? 'animate-spin' : ''}`} /> Actualizar
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loadingVideos ? (
+            <div className="py-8 text-center text-muted-foreground">Cargando videos…</div>
+          ) : videoPosts.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No hay videos publicados en la galería todavía. Genera un video desde el flujo de Marketing y vuelve a actualizar.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {videoPosts.map((post) => {
+                const url = videoUrl(post);
+                const active = (selected?.id || selected?._id) === (post.id || post._id);
+                return (
+                  <button key={post.id || post._id} type="button" onClick={() => selectPost(post)} className={`text-left rounded-lg border p-3 transition ${active ? 'border-orange-500 ring-2 ring-orange-200' : 'hover:border-slate-400'}`}>
+                    <video src={url} controls preload="metadata" className="w-full aspect-[9/16] max-h-72 rounded bg-black object-contain" />
+                    <div className="mt-2 font-medium text-sm line-clamp-2">{post.title || post.productName || 'Video de producto'}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{fmtDate(post.createdAt || post.updatedAt)}</div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selected && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Proyecto seleccionado</CardTitle>
+            <CardDescription>Guarda una configuración inicial para continuar la edición sin alterar el video original.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="Nombre del proyecto" />
+            <Textarea value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Texto o guion de la publicación" rows={4} />
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge>Formato vertical 9:16</Badge>
+              <Badge>Voz CatalinaNeural/LorenzoNeural</Badge>
+              <Badge>Transición fade</Badge>
+            </div>
+            <Button onClick={saveProject} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              {saving ? 'Guardando…' : 'Guardar proyecto de video'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
