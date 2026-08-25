@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Layers, Zap, KanbanSquare, FileText,
   PackageSearch, Store, Users, LineChart, Wrench, LogOut, Printer, Settings2,
   Globe, MessageCircle, Mail, Sparkles, MessageSquare, ClipboardList, Truck, HardHat, X, UserPlus,
-  Library, Megaphone, Box,
+  Video, Library, Megaphone, Box,
 } from 'lucide-react';
 
 // Secciones completas para admin/operator
