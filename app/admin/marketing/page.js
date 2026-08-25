@@ -118,14 +118,13 @@ export default function MarketingPage() {
       )}
 
       <Tabs defaultValue="posts" className="space-y-4">
-        <TabsList className="grid grid-cols-7 w-full md:w-auto">
+        <TabsList className="grid grid-cols-6 w-full md:w-auto">
           <TabsTrigger value="posts">Publicaciones</TabsTrigger>
           <TabsTrigger value="ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="google-ads">Google Ads</TabsTrigger>
           <TabsTrigger value="metrics">Métricas</TabsTrigger>
           <TabsTrigger value="connections">Conexiones</TabsTrigger>
           <TabsTrigger value="contests">Concursos</TabsTrigger>
-          <TabsTrigger value="editor">Editor Pro</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts">
@@ -141,49 +140,7 @@ export default function MarketingPage() {
           <MetricsTab isConnected={isConnected} />
         </TabsContent>
         <TabsContent value="contests">
-        <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
           <ContestAdmin />
-        <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        </TabsContent>
-        <TabsContent value="editor">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Editor de Video Pro</CardTitle>
-              <CardDescription>Edita tus videos generados por IA, ajusta textos, música y transiciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-100 rounded-lg p-8 text-center">
-                <p className="text-muted-foreground">Selecciona un video de la pestaña "Posts" para editarlo o crea un nuevo proyecto.</p>
-                <Button className="mt-4">Crear Nuevo Proyecto de Video</Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="connections">
