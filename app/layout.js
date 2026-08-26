@@ -137,12 +137,6 @@ export default function RootLayout({ children }) {
         {/* Critical CSS inline — minimal above-fold styles for instant paint */}
         <style dangerouslySetInnerHTML={{__html: `html{background-color:#f8fafc}body{margin:0;font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif)}`}} />
         
-        {/* CSS no crítico: cargar después del paint para mejorar FCP */}
-        <script dangerouslySetInnerHTML={{__html:`!function(){var s=document.createElement('link');s.rel='stylesheet';s.href='/_next/static/css/2dd2d18f512933ec.css';document.head.appendChild(s)}();`}} />
-        <noscript>
-          <link rel="stylesheet" href="/_next/static/css/2dd2d18f512933ec.css" />
-        </noscript>
-        
         {/* Error handler para performance */}
         <script dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}} />
         

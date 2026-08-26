@@ -25,7 +25,7 @@ import {
   CheckCircle2, X, XCircle, AlertTriangle, ShieldAlert, FileText, MessageCircle,
   MapPin, Star, Mail, Phone, Globe, Instagram, Building2,
   BarChart3, ListFilter, MailPlus, ClipboardList, Zap, Gauge, Download,
-  ChevronDown,
+  ChevronDown, Trash2,
 } from 'lucide-react';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -85,6 +85,7 @@ export default function ProspeccionPage() {
   const [config, setConfig] = useState(null);
   const [leadStats, setLeadStats] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [messages, setMessages] = useState({ items: [], total: 0 });
   const [leads, setLeads] = useState({ items: [], total: 0, filters: {} });
   const [suppressions, setSuppressions] = useState({ items: [], total: 0 });
@@ -94,15 +95,17 @@ export default function ProspeccionPage() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [cfg, stats, cams, msgs] = await Promise.all([
+      const [cfg, stats, cams, msgs, tpls] = await Promise.all([
         api('/config').catch(() => null),
         api('/leads/stats').catch(() => null),
         api('/campaigns').catch(() => ({ items: [] })),
         api('/messages?pageSize=10').catch(() => ({ items: [] })),
+        api('/templates').catch(() => ({ items: [] })),
       ]);
       setConfig(cfg);
       setLeadStats(stats);
       setCampaigns(cams.items || cams);
+      setTemplates(tpls.items || []);
       setMessages(msgs);
     } finally {
       setLoading(false);
@@ -154,8 +157,8 @@ export default function ProspeccionPage() {
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="dashboard">1 · Dashboard</TabsTrigger>
           <TabsTrigger value="prospectos">2 · Prospectos</TabsTrigger>
-          <TabsTrigger value="mensajes">3 · Mensajes</TabsTrigger>
-          <TabsTrigger value="campanas">4 · Campañas</TabsTrigger>
+          <TabsTrigger value="campanas">3 · Campañas</TabsTrigger>
+          <TabsTrigger value="mensajes">4 · Mensajes</TabsTrigger>
           <TabsTrigger value="bajas">5 · Bajas</TabsTrigger>
           <TabsTrigger value="auditoria">6 · Auditoría</TabsTrigger>
           <TabsTrigger value="config">7 · Configuración</TabsTrigger>
@@ -165,16 +168,16 @@ export default function ProspeccionPage() {
           <DashboardCards leadStats={leadStats} config={config} campaigns={campaigns} messages={messages} onRefresh={loadAll} />
         </TabsContent>
 
-        <TabsContent value="campanas" className="pt-4">
-          <CampaignsTab campaigns={campaigns} onRefresh={loadAll} config={config} />
-        </TabsContent>
-
         <TabsContent value="prospectos" className="pt-4">
           <LeadsTab leads={leads} config={config} onLoad={loadLeads} />
         </TabsContent>
 
+        <TabsContent value="campanas" className="pt-4">
+          <CampaignsTab campaigns={campaigns} templates={templates} onRefresh={loadAll} config={config} />
+        </TabsContent>
+
         <TabsContent value="mensajes" className="pt-4">
-          <MessagesTab messages={messages} config={config} />
+          <MessagesTab messages={messages} templates={templates} config={config} />
         </TabsContent>
 
         <TabsContent value="bajas" className="pt-4">
@@ -252,10 +255,15 @@ function DashboardCards({ leadStats, config, campaigns, messages, onRefresh }) {
 // ---------------------------------------------------------------------------
 // Campañas
 // ---------------------------------------------------------------------------
-function CampaignsTab({ campaigns, onRefresh, config }) {
+function CampaignsTab({ campaigns, templates, onRefresh, config }) {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const templateName = (id) => templates.find((item) => item.id === id)?.name || 'Automática según rubro';
 
   const createCampaign = async (data) => {
     setCreating(true);
@@ -271,13 +279,43 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
     }
   };
 
-  const toggleCampaign = async (id, action) => {
+  const updateCampaign = async (data) => {
+    if (!editTarget?.id) return;
+    setCreating(true);
     try {
-      await api(`/campaigns/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
-      toast.success(action === 'pause' ? 'Campaña pausada' : 'Campaña reanudada');
+      const campaign = await api(`/campaigns/${editTarget.id}`, { method: 'PATCH', body: JSON.stringify(data) });
+      toast.success(`Campaña "${campaign.name || editTarget.name}" actualizada`);
+      setEditTarget(null);
       await onRefresh();
     } catch (e) {
       toast.error(e.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleCampaign = async (id, action) => {
+    try {
+      await api(`/campaigns/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
+      toast.success(action === 'pause' ? 'Campaña pausada' : 'Campaña actualizada');
+      await onRefresh();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const deleteCampaign = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleting(true);
+    try {
+      await api(`/campaigns/${deleteTarget.id}`, { method: 'DELETE' });
+      toast.success(`Campaña "${deleteTarget.name}" eliminada`);
+      setDeleteTarget(null);
+      await onRefresh();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -328,6 +366,8 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
                     <span>WhatsApp máx/día: {c.maxPerDayWhatsapp ?? 50}</span>
                     <span>Ventana: {c.windowStart ?? 10}:00–{c.windowEnd ?? 19}:00h</span>
                     <span>Máx contactos: {c.maxContacts ?? '—'}</span>
+                    {(c.channels || []).includes('email') && <span>Email: {templateName(c.emailTemplateId)}</span>}
+                    {(c.channels || []).includes('whatsapp') && <span>WhatsApp: {templateName(c.whatsappTemplateId)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {c.status === 'borrador' ? (
@@ -351,6 +391,16 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
                         <Play className="h-3.5 w-3.5 mr-1" /> Reanudar
                       </Button>
                     ) : null}
+                    {['borrador', 'pausada'].includes(c.status) && (
+                      <>
+                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setEditTarget(c); }}>
+                          <FileText className="h-3.5 w-3.5 mr-1" /> Editar
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700" onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}>
+                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Borrar
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -359,8 +409,25 @@ function CampaignsTab({ campaigns, onRefresh, config }) {
         </div>
       )}
 
-      <CreateCampaignDialog open={showCreate} onClose={() => setShowCreate(false)} onCreate={createCampaign} loading={creating} />
+      <CreateCampaignDialog open={showCreate} templates={templates} onClose={() => setShowCreate(false)} onCreate={createCampaign} loading={creating} />
+      <CreateCampaignDialog open={!!editTarget} campaign={editTarget} templates={templates} onClose={() => setEditTarget(null)} onCreate={updateCampaign} loading={creating} />
       <CampaignDetailDialog campaign={detail} config={config} onClose={() => { setDetail(null); onRefresh(); }} />
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              Se eliminará la campaña "{deleteTarget?.name}", sus asignaciones y mensajes pendientes. Los prospectos globales y el historial enviado no se borran. Esta acción solo está permitida para campañas en borrador o pausadas sin envíos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancelar</Button>
+            <Button variant="destructive" onClick={deleteCampaign} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />} Eliminar campaña
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -379,7 +446,7 @@ function CampaignDetailDialog({ campaign, config, onClose }) {
 
   const previewMsg = async (leadId, channel = 'email') => {
     try {
-      setPreview(await api(`/messages?preview=1&channel=${channel}&leadId=${encodeURIComponent(leadId)}`));
+      setPreview(await api(`/messages?preview=1&channel=${channel}&campaignId=${encodeURIComponent(campaign.id)}&leadId=${encodeURIComponent(leadId)}`));
     } catch (e) {
       toast.error(e.message);
     }
@@ -463,14 +530,30 @@ function CampaignDetailDialog({ campaign, config, onClose }) {
   );
 }
 
-function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
-  const [form, setForm] = useState({
-    name: '', description: '',
-    categories: [], communes: [], minScore: 0, maxContacts: 50,
-    channels: ['email'], frequency: 'diaria',
-    maxPerDayEmail: 25, maxPerDayWhatsapp: 50,
-    windowStart: 10, windowEnd: 19,
-  });
+const EMPTY_CAMPAIGN_FORM = {
+  name: '', description: '',
+  categories: [], communes: [], minScore: 0, maxContacts: 50,
+  channels: ['email'], frequency: 'diaria',
+  maxPerDayEmail: 25, maxPerDayWhatsapp: 50,
+  windowStart: 10, windowEnd: 19,
+  emailTemplateId: 'email-general', whatsappTemplateId: 'whatsapp-general',
+};
+
+function CreateCampaignDialog({ open, campaign = null, templates, onClose, onCreate, loading }) {
+  const [form, setForm] = useState(EMPTY_CAMPAIGN_FORM);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      ...EMPTY_CAMPAIGN_FORM,
+      ...(campaign || {}),
+      categories: Array.isArray(campaign?.categories) ? campaign.categories : [],
+      communes: Array.isArray(campaign?.communes) ? campaign.communes : [],
+      channels: Array.isArray(campaign?.channels) && campaign.channels.length ? campaign.channels : ['email'],
+      emailTemplateId: campaign?.emailTemplateId || 'email-general',
+      whatsappTemplateId: campaign?.whatsappTemplateId || 'whatsapp-general',
+    });
+  }, [open, campaign]);
 
   const toggleCat = (cat) => setForm(f => ({
     ...f,
@@ -504,6 +587,8 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
       maxPerDayWhatsapp: Number(form.maxPerDayWhatsapp) || 50,
       windowStart: Number(form.windowStart) || 10,
       windowEnd: Number(form.windowEnd) || 19,
+      emailTemplateId: form.channels.includes('email') ? form.emailTemplateId : null,
+      whatsappTemplateId: form.channels.includes('whatsapp') ? form.whatsappTemplateId : null,
     });
   };
 
@@ -514,8 +599,8 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nueva campaña de prospección</DialogTitle>
-          <DialogDescription>Elige el canal (email, WhatsApp o ambos), la cadencia diaria, la frecuencia, el límite de contactos y a quién va dirigida (rubros, comunas, score mínimo).</DialogDescription>
+          <DialogTitle>{campaign ? 'Editar campaña de prospección' : 'Nueva campaña de prospección'}</DialogTitle>
+          <DialogDescription>Elige el canal, la plantilla de correo y/o WhatsApp, la cadencia, la frecuencia y los negocios objetivo.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
@@ -584,6 +669,30 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
               <Input type="number" min={0} max={10000} value={form.maxContacts} onChange={e => setForm(f => ({ ...f, maxContacts: e.target.value }))} />
             </div>
           </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {form.channels.includes('email') && (
+              <div className="space-y-2">
+                <Label>Plantilla para correo</Label>
+                <Select value={form.emailTemplateId} onValueChange={v => setForm(f => ({ ...f, emailTemplateId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Elige una plantilla de correo" /></SelectTrigger>
+                  <SelectContent>
+                    {templates.filter(t => t.channel === 'email').map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {form.channels.includes('whatsapp') && (
+              <div className="space-y-2">
+                <Label>Plantilla para WhatsApp</Label>
+                <Select value={form.whatsappTemplateId} onValueChange={v => setForm(f => ({ ...f, whatsappTemplateId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Elige una plantilla de WhatsApp" /></SelectTrigger>
+                  <SelectContent>
+                    {templates.filter(t => t.channel === 'whatsapp').map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-2">
               <Label>Email máx por día</Label>
@@ -604,7 +713,7 @@ function CreateCampaignDialog({ open, onClose, onCreate, loading }) {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Crear campaña'}</Button>
+            <Button type="submit" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : campaign ? 'Guardar cambios' : 'Crear campaña'}</Button>
           </div>
         </form>
       </DialogContent>
@@ -959,7 +1068,7 @@ function LeadDetailDialog({ lead, onClose, onChangeState }) {
 // ---------------------------------------------------------------------------
 // Mensajes
 // ---------------------------------------------------------------------------
-function MessagesTab({ messages, config }) {
+function MessagesTab({ messages, templates, config }) {
   const [runningJobs, setRunningJobs] = useState(false);
   const [openMsgId, setOpenMsgId] = useState(null);
 
@@ -994,6 +1103,23 @@ function MessagesTab({ messages, config }) {
             {runningJobs ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
             {config?.simulationMode ? 'Procesar cola (solo registrará en BD)' : 'Procesar cola de envío real'}
           </Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Plantillas disponibles</CardTitle>
+          <CardDescription>Estas son las plantillas reales que puedes elegir por separado para correo y WhatsApp al crear una campaña.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-2">
+          {templates.map(t => (
+            <div key={t.id} className="border rounded-md p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{t.name}</span>
+                <Badge variant="outline">{t.channel === 'email' ? 'Correo' : 'WhatsApp'}</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
       <div className="text-sm text-muted-foreground">{messages.total} mensajes registrados</div>
