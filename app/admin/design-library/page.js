@@ -57,6 +57,13 @@ export default function DesignLibraryAdminPage() {
     }
   }, [search, refreshStatus]);
 
+  // Actualizar los contadores sin recargar la página mientras Drive sincroniza.
+  useEffect(() => {
+    if (!driveStatus?.connected) return;
+    const timer = setInterval(refreshStatus, 5000);
+    return () => clearInterval(timer);
+  }, [driveStatus?.connected, refreshStatus]);
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -292,9 +299,6 @@ function DriveTab({ status, onChange }) {
               Carpetas de tu Drive
             </CardTitle>
             <div className="ml-auto flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1" />Recargar
-              </Button>
               <Button
                 size="sm"
                 onClick={saveSelection}
@@ -419,7 +423,7 @@ function DriveTab({ status, onChange }) {
 // ============================================================================
 // TAB 2: Biblioteca (grid con edición/toggle)
 // ============================================================================
-function thumbUrl(imageUrl, w = 200) {
+function thumbUrl(imageUrl, w = 160) {
   if (!imageUrl) return '';
   try {
     const url = new URL(imageUrl);
@@ -428,7 +432,9 @@ function thumbUrl(imageUrl, w = 200) {
 }
 
 function LibraryTab({ onChange }) {
-  const PAGE_SIZE = 96;
+  // Un primer lote pequeño evita bloquear el navegador con decenas de miniaturas.
+  // El scroll infinito mantiene el acceso al catálogo completo.
+  const PAGE_SIZE = 60;
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [folders, setFolders] = useState([]);
@@ -509,7 +515,7 @@ function LibraryTab({ onChange }) {
     doFetch(false);
   }, [doFetch]);
 
-  // Reset (botón Refrescar)
+  // Reset automático al cambiar filtros
   const load = useCallback(() => {
     if (fetchingRef.current) return;
     pageRef.current = 1;
@@ -521,10 +527,11 @@ function LibraryTab({ onChange }) {
     doFetch(true);
   }, [doFetch]);
 
-  // Load initial
+  // Carga inicial y actualización automática al cambiar búsqueda, carpeta o fuente
   useEffect(() => {
-    load();
-  }, [load]);
+    const timer = setTimeout(() => load(), q ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [load, q, filterFolder, filterSource]);
 
   // Scroll infinito
   useEffect(() => {
@@ -614,9 +621,6 @@ function LibraryTab({ onChange }) {
             <option value="drive">Solo Drive</option>
             <option value="manual">Solo manuales</option>
           </select>
-          <Button variant="outline" size="sm" onClick={load}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1" />Refrescar
-          </Button>
           {selectedIds.size > 0 && (
             <Button variant="outline" size="sm" onClick={bulkDelete} className="text-rose-600 border-rose-200 hover:bg-rose-50">
               <Trash2 className="h-3.5 w-3.5 mr-1" />Eliminar {selectedIds.size}
@@ -643,13 +647,14 @@ function LibraryTab({ onChange }) {
         ) : (
           <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {filtered.map(item => {
+            {filtered.map((item, index) => {
               const isSel = selectedIds.has(item.id);
               const isHidden = item.active === false;
               return (
-                <div
-                  key={item.id}
-                  className={`relative rounded-lg border-2 bg-white p-2 transition-all ${
+                  <div
+                    key={item.id}
+                    style={{ contentVisibility: 'auto', containIntrinsicSize: '245px' }}
+                    className={`relative rounded-lg border-2 bg-white p-2 transition-all ${
                     isSel ? 'border-orange-500 ring-2 ring-orange-200' :
                     isHidden ? 'border-slate-200 opacity-50' :
                     'border-slate-200 hover:border-slate-300'
@@ -671,7 +676,14 @@ function LibraryTab({ onChange }) {
                   </span>
 
                   <div className="aspect-square rounded bg-slate-50 flex items-center justify-center overflow-hidden mb-2">
-                    <img src={thumbUrl(item.imageUrl)} alt={item.name} loading="lazy" decoding="async" className="max-w-full max-h-full object-contain" />
+                    <img
+                      src={thumbUrl(item.imageUrl)}
+                      alt={item.name}
+                      loading="lazy"
+                      decoding="async"
+                      fetchPriority={index < 12 ? 'high' : 'low'}
+                      className="max-w-full max-h-full object-contain"
+                    />
                   </div>
                   <div className="text-xs font-semibold text-slate-900 truncate" title={item.name}>{item.name}</div>
                   {item.tags?.length > 0 && (
