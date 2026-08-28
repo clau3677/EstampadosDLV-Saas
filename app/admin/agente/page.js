@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Sparkles, ArrowLeft, RefreshCw, Save, Plus, Trash2, Pencil, MessageSquare,
-  CheckCircle2, XCircle, Activity, Zap, HelpCircle, FileText,
+  CheckCircle2, XCircle, Activity, Zap, HelpCircle, FileText, BarChart3, ListTodo,
 } from 'lucide-react';
 
 export default function AgentePage() {
@@ -151,6 +151,7 @@ export default function AgentePage() {
           <TabsTrigger value="business"><FileText className="h-3.5 w-3.5 mr-1.5" />Negocio</TabsTrigger>
           <TabsTrigger value="kb"><HelpCircle className="h-3.5 w-3.5 mr-1.5" />Base de Conocimiento ({kb.length})</TabsTrigger>
           <TabsTrigger value="llm"><Zap className="h-3.5 w-3.5 mr-1.5" />LLM</TabsTrigger>
+          <TabsTrigger value="metrics"><BarChart3 className="h-3.5 w-3.5 mr-1.5" />Métricas</TabsTrigger>
         </TabsList>
 
         {/* PERSONA & REGLAS */}
@@ -252,9 +253,82 @@ export default function AgentePage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* MÉTRICAS Y SEGUIMIENTOS */}
+        <TabsContent value="metrics" className="space-y-4">
+          <AgentMetrics />
+        </TabsContent>
       </Tabs>
     </div>
   );
+}
+
+function AgentMetrics() {
+  const [data, setData] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadMetrics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [metricsRes, tasksRes] = await Promise.all([
+        fetch('/api/agent/metrics'),
+        fetch('/api/agent/followups?status=pending&limit=50'),
+      ]);
+      if (!metricsRes.ok || !tasksRes.ok) throw new Error('No se pudieron cargar las métricas');
+      setData(await metricsRes.json());
+      setTasks(await tasksRes.json());
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadMetrics(); }, [loadMetrics]);
+
+  if (loading && !data) return <div className="text-sm text-slate-500 py-8 text-center">Cargando métricas…</div>;
+  if (!data) return null;
+  return (
+    <>
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="Conversaciones" value={data.conversations?.total ?? 0} />
+        <MetricCard label="IA activa" value={data.conversations?.aiEnabled ?? 0} />
+        <MetricCard label="Escaladas" value={data.conversations?.escalated ?? 0} />
+        <MetricCard label="Borradores" value={data.drafts ?? 0} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Embudo comercial</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(data.byStage || []).map(row => <ReadOnlyRow key={row.stage} label={row.stage} value={row.count} />)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Seguimientos pendientes</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {tasks.length === 0 && <div className="text-sm text-slate-500">No hay seguimientos pendientes.</div>}
+            {tasks.map(task => (
+              <div key={task.id} className="flex items-start gap-2 border-b last:border-0 py-2">
+                <ListTodo className="h-4 w-4 text-purple-600 mt-0.5" />
+                <div className="min-w-0"><div className="text-sm font-medium">{task.reason}</div><div className="text-xs text-slate-500">{task.dueAt ? new Date(task.dueAt).toLocaleString('es-CL') : 'Sin fecha'}</div></div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Uso de herramientas</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {(data.toolUsage || []).map(row => <ReadOnlyRow key={row.tool} label={row.tool} value={row.count} />)}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+function MetricCard({ label, value }) {
+  return <Card><CardContent className="p-4"><div className="text-xs text-slate-500">{label}</div><div className="text-2xl font-semibold text-slate-900 mt-1">{value}</div></CardContent></Card>;
 }
 
 // ---------------------------------------------------------------------------
