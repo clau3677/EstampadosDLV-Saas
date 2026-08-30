@@ -103,8 +103,6 @@ export default function VideoEditorPage() {
   );
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 // OpenReel todavía no está embebido; esta página no afirma una integración inexistente.
 // El render/export final se implementará en una fase separada y validada.
