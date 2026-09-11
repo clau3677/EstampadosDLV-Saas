@@ -12,12 +12,13 @@ import {
 } from 'lucide-react';
 import { BUSINESS } from '@/lib/constants/business';
 import ContactForm from '@/components/contact-form';
+import { absoluteUrl } from '@/lib/seo';
 
 export const metadata = {
   title: `Contacto · ${BUSINESS.name} · Quilpué, Valparaíso`,
   description: `Contáctanos para cotizar tu impresión DTF o DTF UV. Estamos en ${BUSINESS.address.full}. Teléfono: ${BUSINESS.phone.display}. Email: ${BUSINESS.email.primary}.`,
   alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/contacto`.replace(/\/+/g, '/').replace(':/', '://'),
+    canonical: absoluteUrl('/contacto'),
   },
   openGraph: {
     title: `Contacto · ${BUSINESS.name}`,
@@ -27,8 +28,8 @@ export const metadata = {
   },
 };
 
-// Google Maps embed URL (usa lat/lng aproximada de Quilpué; la dirección exacta
-// se muestra en el marker del iframe automáticamente por Google)
+// Mapa simple de Google Maps centrado en la dirección real de Estampados DLV.
+// Se mantiene deliberadamente sin buscador ni panel lateral para una presentación limpia.
 const MAPS_EMBED_URL = 'https://www.google.com/maps?q=Galleguillos+1870+Quilpue+Valparaiso+Chile&output=embed';
 
 const REASONS = [
@@ -161,17 +162,35 @@ export default function ContactoPage() {
         <div className="grid lg:grid-cols-5 gap-6">
           {/* Mapa */}
           <div className="lg:col-span-3">
-            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-md h-full min-h-[380px]">
-              <iframe
-                src={MAPS_EMBED_URL}
-                width="100%"
-                height="100%"
-                style={{ border: 0, minHeight: '380px' }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Ubicación de Estampados DLV en Quilpué"
-              />
+            <div className="h-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-[0_20px_60px_-28px_rgba(15,23,42,0.55)]">
+              <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-orange-950 px-5 py-4 text-white sm:px-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 to-rose-500 shadow-lg shadow-orange-950/30">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-[0.22em] text-orange-300">Visítanos</div>
+                    <div className="mt-0.5 text-sm font-semibold text-white sm:text-base">Encuentra Estampados DLV</div>
+                  </div>
+                </div>
+                <span className="hidden rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200 sm:inline-flex">Quilpué · Chile</span>
+              </div>
+              <div className="relative h-[380px] bg-slate-200 sm:h-[440px] lg:h-[520px]">
+                <iframe
+                  src={MAPS_EMBED_URL}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Mapa de Estampados DLV en Quilpué"
+                />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-slate-950 px-5 py-3 text-xs text-slate-300 sm:px-6">
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-orange-400" />Retiro en taller y atención personalizada</span>
+                <a href={BUSINESS.address.mapUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-orange-300 transition-colors hover:text-orange-200">Abrir indicaciones ↗</a>
+              </div>
             </div>
           </div>
 
