@@ -4,10 +4,17 @@
 # Formato: minute hour day month day_of_week user command
 
 # Refresh prices Cottonext — diariamente 00:15 hrs Chile (03:15 UTC)
-15 3 * * * root /app/scripts/refresh-cottonext-prices.sh
+15 3 * * * root /var/www/estampadosdlv/scripts/refresh-cottonext-prices.sh
 
 # Refresh prices Textil Ryu — diariamente 00:30 hrs Chile (03:30 UTC)
-30 3 * * * root /app/scripts/refresh-textilryu-prices.sh
+30 3 * * * root /var/www/estampadosdlv/scripts/refresh-textilryu-prices.sh
 
 # Refresh prices Treck — diariamente 00:45 hrs Chile (03:45 UTC)
-45 3 * * * root /app/scripts/refresh-treck-prices.sh
+45 3 * * * root /var/www/estampadosdlv/scripts/refresh-treck-prices.sh
+
+# Marketing: generar la tanda diaria antes del primer horario de publicación.
+# 03:00 UTC equivale aproximadamente a las 23:00 del día anterior en Chile.
+0 3 * * * root /var/www/estampadosdlv/scripts/marketing-cron.sh auto-schedule
+
+# Marketing: publicar posts vencidos y ejecutar reintentos/reseñas cada 10 minutos.
+*/10 * * * * root /var/www/estampadosdlv/scripts/marketing-cron.sh dispatch
