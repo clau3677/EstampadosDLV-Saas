@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ContestAdmin } from '@/components/contest-admin';
+import { CreativeEditor } from '@/components/marketing/creative-editor';
 import {
   Megaphone, RefreshCw, Sparkles, Send, CalendarClock, Trash2, Pencil,
   Facebook, Instagram, Link2, Unlink, CheckCircle2, XCircle, AlertTriangle,
@@ -118,7 +119,8 @@ export default function MarketingPage() {
       )}
 
       <Tabs defaultValue="posts" className="space-y-4">
-        <TabsList className="grid grid-cols-6 w-full md:w-auto">
+        <TabsList className="grid grid-cols-7 w-full md:w-auto">
+          <TabsTrigger value="creative">Editor creativo</TabsTrigger>
           <TabsTrigger value="posts">Publicaciones</TabsTrigger>
           <TabsTrigger value="ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="google-ads">Google Ads</TabsTrigger>
@@ -127,6 +129,9 @@ export default function MarketingPage() {
           <TabsTrigger value="contests">Concursos</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="creative">
+          <CreativeEditor />
+        </TabsContent>
         <TabsContent value="posts">
           <PostsTab isConnected={isConnected} aiConfigured={status?.aiConfigured} />
         </TabsContent>
