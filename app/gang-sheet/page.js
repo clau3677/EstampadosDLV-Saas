@@ -164,6 +164,15 @@ function Uploader({ onFile }) {
 // PÁGINA PRINCIPAL
 // ============================================================================
 export default function GangSheetPage() {
+  const [authState, setAuthState] = useState('loading');
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => { if (alive) setAuthState(r.ok ? 'authenticated' : 'unauthenticated'); })
+      .catch(() => { if (alive) setAuthState('unauthenticated'); });
+    return () => { alive = false; };
+  }, []);
+
   const {
     mode, printerCode, printerData, canvasWidthMm, designs, selectedId, selectedIds, express,
     manualLengthMm,
@@ -322,8 +331,28 @@ export default function GangSheetPage() {
         toast.info('La imagen ya está optimizada', { description: `Ahorro < 1%` });
         return;
       }
-      const newImg = await loadImageFromDataUrl(result.dataUrl);
-      applyTrimResult(selectedId, result, newImg);
+      // El recorte se genera localmente como data URL, pero nunca debe
+      // quedarse en el estado ni viajar dentro del JSON del pedido: una sola
+      // imagen grande supera el límite de 10 MB del proxy de Next.js.
+      const localTrimmedImage = await loadImageFromDataUrl(result.dataUrl);
+      const trimmedCanvas = document.createElement('canvas');
+      trimmedCanvas.width = result.widthPx;
+      trimmedCanvas.height = result.heightPx;
+      trimmedCanvas.getContext('2d').drawImage(localTrimmedImage, 0, 0, result.widthPx, result.heightPx);
+      const trimmedBlob = await new Promise((resolve) => trimmedCanvas.toBlob(resolve, 'image/webp', 0.88));
+      if (!trimmedBlob) throw new Error('No se pudo preparar el recorte optimizado');
+      const trimmedForm = new FormData();
+      trimmedForm.append('file', trimmedBlob, `${src.name || 'design'}-trimmed.webp`);
+      trimmedForm.append('outputFormat', 'webp');
+      const uploadTrimmed = await fetch('/api/uploads/design', { method: 'POST', body: trimmedForm });
+      if (!uploadTrimmed.ok) {
+        const detail = await uploadTrimmed.text().catch(() => '');
+        throw new Error(detail || 'No se pudo guardar el recorte optimizado');
+      }
+      const trimmedData = await uploadTrimmed.json();
+      const trimmedUrl = trimmedData.url;
+      const newImg = await loadImageFromDataUrl(trimmedUrl);
+      applyTrimResult(selectedId, { ...result, dataUrl: trimmedUrl }, newImg);
       const savedPct = Math.round(result.savedPct * 100);
       toast.success('Bordes transparentes recortados', {
         description: `Ahorro ${savedPct}% · ${result.originalWidthPx}×${result.originalHeightPx}px → ${result.widthPx}×${result.heightPx}px`,
@@ -433,6 +462,41 @@ export default function GangSheetPage() {
       setSubmitting(false);
     }
   };
+
+  if (authState === 'loading') {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center bg-slate-50 px-4">
+        <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-8 text-center">
+          <Loader2 className="w-7 h-7 mx-auto text-orange-500 animate-spin" />
+          <p className="mt-3 text-sm text-slate-600">Verificando tu cuenta…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === 'unauthenticated') {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center bg-slate-50 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-sm p-8 text-center">
+          <div className="mx-auto h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+            <ShoppingCart className="w-6 h-6 text-orange-600" />
+          </div>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">Regístrate para usar Gang Sheet Builder</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            Para crear un pliego y enviar un pedido necesitas una cuenta registrada. Así podemos asociar el archivo, el pedido y las notificaciones a tus datos.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/login?next=%2Fgang-sheet" className="inline-flex items-center justify-center rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600">
+              Iniciar sesión
+            </Link>
+            <Link href="/registro?next=%2Fgang-sheet" className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Crear cuenta
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!mode) return <SetupModal onSelect={setMode} />;
 
