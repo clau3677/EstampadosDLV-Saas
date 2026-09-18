@@ -484,12 +484,12 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                 {supplierOutOfStock ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
                     <Clock className="h-3.5 w-3.5" />
-                    Bajo pedido · {supplierLabel || 'Proveedor'} — Agotado, pedido especial 7-10 días hábiles
+                    Bajo pedido · Agotado, pedido especial 7-10 días hábiles
                   </div>
                 ) : (
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold">
                     <Truck className="h-3.5 w-3.5" />
-                    Bajo pedido · {supplierLabel || 'Proveedor'} — Entrega 5-7 días hábiles
+                    Bajo pedido · Entrega 5-7 días hábiles
                   </div>
                 )}
               </div>
