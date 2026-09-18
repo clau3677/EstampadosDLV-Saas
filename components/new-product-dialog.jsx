@@ -31,11 +31,30 @@ const DIMENSION_CATEGORIES = ['dtftextil', 'dtfuv'];
 
 // Variantes por defecto según el tipo de producto
 const emptyVariant = (isDimension) => isDimension
-  ? { name: '', widthCm: '', lengthCm: '', price: '', initialStock: 0 }
-  : { name: '', size: '', color: '', price: '', initialStock: 0 };
+  ? { name: '', widthCm: '', lengthCm: '', price: '', compareAtPrice: '', initialStock: 0 }
+  : { name: '', size: '', color: '', price: '', compareAtPrice: '', initialStock: 0 };
 
 function isDimensionProduct(categoryCode) {
   return DIMENSION_CATEGORIES.includes(normalizeCode(categoryCode));
+}
+
+function DigitalAssetsEditor({ value = [], onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const addLink = () => onChange([...(value || []), { id: crypto.randomUUID(), kind: 'link', label: 'Enlace de descarga', url: '' }]);
+  const upload = async (file) => {
+    if (!file) return; setUploading(true);
+    try { const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/digital-assets/upload', { method: 'POST', body: fd }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Error subiendo archivo'); onChange([...(value || []), d.asset]); toast.success('Archivo cargado'); } catch (e) { toast.error(e.message); } finally { setUploading(false); }
+  };
+  return <div className="space-y-2 rounded-lg border border-violet-200 bg-violet-50/50 p-3">
+    {(value || []).map((a, i) => <div key={a.id || i} className="flex gap-2 items-center">
+      <Input className="h-9 flex-1" value={a.label || ''} placeholder="Nombre visible" onChange={e => onChange(value.map((x,j) => j === i ? { ...x, label: e.target.value } : x))} />
+      {a.kind === 'link' && <Input className="h-9 flex-[2]" value={a.url || ''} placeholder="https://..." onChange={e => onChange(value.map((x,j) => j === i ? { ...x, url: e.target.value } : x))} />}
+      {a.kind === 'file' && <span className="text-xs text-slate-600 flex-[2] truncate">{a.originalName || a.label}</span>}
+      <Button type="button" variant="ghost" size="icon" onClick={() => onChange(value.filter((_,j) => j !== i))}><Trash2 className="h-4 w-4 text-rose-500" /></Button>
+    </div>)}
+    <div className="flex gap-2"><label className="inline-flex items-center rounded-md border bg-white px-3 py-2 text-xs cursor-pointer hover:bg-slate-50"><input type="file" className="hidden" onChange={e => upload(e.target.files?.[0])} disabled={uploading} />{uploading ? 'Subiendo…' : 'Cargar archivo'}</label><Button type="button" variant="outline" size="sm" onClick={addLink}>Agregar enlace</Button></div>
+    <p className="text-[11px] text-slate-500">Los archivos quedan protegidos y se liberan sólo cuando Mercado Pago confirma el pago.</p>
+  </div>;
 }
 
 export function NewProductDialog({ onCreated, trigger }) {
@@ -43,7 +62,7 @@ export function NewProductDialog({ onCreated, trigger }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '', sku: '', category: '', subcategory: '',
-    description: '', basePrice: '', cost: '', images: [], featured: false,
+    description: '', basePrice: '', baseCompareAtPrice: '', cost: '', images: [], featured: false, productType: 'physical', digitalAssets: [],
   });
   const [variants, setVariants] = useState([emptyVariant(false)]);
 
@@ -52,7 +71,7 @@ export function NewProductDialog({ onCreated, trigger }) {
 
   useEffect(() => {
     if (open) {
-      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', cost: '', images: [], featured: false });
+      setForm({ name: '', sku: '', category: '', subcategory: '', description: '', basePrice: '', baseCompareAtPrice: '', cost: '', images: [], featured: false, productType: 'physical', digitalAssets: [] });
       setVariants([emptyVariant(false)]);
     }
   }, [open]);
@@ -76,6 +95,7 @@ export function NewProductDialog({ onCreated, trigger }) {
   const submit = async () => {
     if (!form.name || !form.category) return toast.error('Nombre y categoría son obligatorios');
     if (!form.images || form.images.length === 0) return toast.error('Debes subir al menos 1 foto del producto para que se vea bien al compartir');
+    if (form.productType === 'digital' && !(form.digitalAssets || []).some(a => a && ((a.kind === 'link' && a.url) || (a.kind !== 'link' && a.storageKey)))) return toast.error('Agrega al menos un archivo o enlace de descarga para el producto digital');
     setSaving(true);
     try {
       const preparedVariants = variants
@@ -95,6 +115,7 @@ export function NewProductDialog({ onCreated, trigger }) {
           return {
             name: label,
             price: Number(v.price) || Number(form.basePrice) || 0,
+            compareAtPrice: Number(v.compareAtPrice) || Number(form.baseCompareAtPrice) || 0,
             attributes: attrs,
             initialStock: Number(v.initialStock) || 0,
           };
@@ -105,8 +126,8 @@ export function NewProductDialog({ onCreated, trigger }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name, sku: form.sku, category: form.category, subcategory: form.subcategory,
-          description: form.description, basePrice: Number(form.basePrice) || 0, cost: Number(form.cost) || 0,
-          images: form.images, variants: preparedVariants, featured: !!form.featured,
+          description: form.description, basePrice: Number(form.basePrice) || 0, baseCompareAtPrice: Number(form.baseCompareAtPrice) || 0, cost: Number(form.cost) || 0,
+          images: form.images, variants: preparedVariants, featured: !!form.featured, productType: form.productType, digitalAssets: form.digitalAssets,
         }),
       });
       const data = await r.json();
@@ -174,6 +195,16 @@ export function NewProductDialog({ onCreated, trigger }) {
                 </div>
               </div>
               <div>
+                <Label className="text-xs">Precio anterior (opcional)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <Input type="number" min="0" className="pl-6 font-mono" placeholder="Precio tachado"
+                    value={form.baseCompareAtPrice}
+                    onChange={(e) => setForm(f => ({ ...f, baseCompareAtPrice: e.target.value }))} />
+                </div>
+                {Number(form.baseCompareAtPrice) > Number(form.basePrice) && <p className="mt-1 text-[11px] font-semibold text-rose-600">{Math.round((1 - Number(form.basePrice) / Number(form.baseCompareAtPrice)) * 100)}% de descuento</p>}
+              </div>
+              <div>
                 <Label className="text-xs">Costo (CLP)</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
@@ -186,6 +217,13 @@ export function NewProductDialog({ onCreated, trigger }) {
                 <Textarea rows={2} placeholder="Detalles del producto para la tienda web…" value={form.description}
                   onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
               </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Tipo de producto</Label>
+                <select className="mt-1 flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" value={form.productType} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))}>
+                  <option value="physical">Producto físico</option><option value="digital">Producto digital descargable</option>
+                </select>
+              </div>
+              {form.productType === 'digital' && <div className="sm:col-span-2"><Label className="text-xs">Archivos o enlaces de entrega</Label><DigitalAssetsEditor value={form.digitalAssets} onChange={digitalAssets => setForm(f => ({ ...f, digitalAssets }))} /></div>}
               <div className="sm:col-span-2">
                 <label
                   className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
@@ -289,6 +327,12 @@ export function NewProductDialog({ onCreated, trigger }) {
                           onChange={(e) => updateVariant(i, { price: e.target.value })}
                         />
                       </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio anterior</Label>
+                        <Input type="number" min="0" className="h-9 font-mono" placeholder="Opcional"
+                          value={v.compareAtPrice} onChange={(e) => updateVariant(i, { compareAtPrice: e.target.value })} />
+                        {Number(v.compareAtPrice) > Number(v.price || form.basePrice) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{Math.round((1 - Number(v.price || form.basePrice) / Number(v.compareAtPrice)) * 100)}% OFF</p>}
+                      </div>
                       {/* Stock inicial */}
                       <div className="col-span-2">
                         <Label className="text-[10px]">Stock</Label>
@@ -326,6 +370,12 @@ export function NewProductDialog({ onCreated, trigger }) {
                         <Label className="text-[10px]">Precio (CLP)</Label>
                         <Input type="number" className="h-9 font-mono" min="0" placeholder={form.basePrice || '0'}
                           value={v.price} onChange={(e) => updateVariant(i, { price: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio anterior</Label>
+                        <Input type="number" min="0" className="h-9 font-mono" placeholder="Opcional"
+                          value={v.compareAtPrice} onChange={(e) => updateVariant(i, { compareAtPrice: e.target.value })} />
+                        {Number(v.compareAtPrice) > Number(v.price || form.basePrice) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{Math.round((1 - Number(v.price || form.basePrice) / Number(v.compareAtPrice)) * 100)}% OFF</p>}
                       </div>
                       {/* Stock inicial */}
                       <div className="col-span-2">

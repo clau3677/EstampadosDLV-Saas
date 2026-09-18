@@ -29,11 +29,18 @@ function isDimensionProduct(categoryCode) {
   return DIMENSION_CATEGORIES.includes(normalizeCode(categoryCode));
 }
 
+function DigitalAssetsEditor({ value = [], onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const addLink = () => onChange([...(value || []), { id: crypto.randomUUID(), kind: 'link', label: 'Enlace de descarga', url: '' }]);
+  const upload = async (file) => { if (!file) return; setUploading(true); try { const fd = new FormData(); fd.append('file', file); const r = await fetch('/api/digital-assets/upload', { method: 'POST', body: fd }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Error subiendo archivo'); onChange([...(value || []), d.asset]); toast.success('Archivo cargado'); } catch (e) { toast.error(e.message); } finally { setUploading(false); } };
+  return <div className="space-y-2 rounded-lg border border-violet-200 bg-violet-50/50 p-3">{(value || []).map((a,i) => <div key={a.id || i} className="flex gap-2 items-center"><Input className="h-9 flex-1" value={a.label || ''} placeholder="Nombre visible" onChange={e => onChange(value.map((x,j) => j===i ? { ...x, label: e.target.value } : x))} />{a.kind === 'link' ? <Input className="h-9 flex-[2]" value={a.url || ''} placeholder="https://..." onChange={e => onChange(value.map((x,j) => j===i ? { ...x, url: e.target.value } : x))} /> : <span className="text-xs text-slate-600 flex-[2] truncate">{a.originalName || a.label}</span>}<Button type="button" variant="ghost" size="icon" onClick={() => onChange(value.filter((_,j) => j!==i))}><Trash2 className="h-4 w-4 text-rose-500" /></Button></div>)}<div className="flex gap-2"><label className="inline-flex items-center rounded-md border bg-white px-3 py-2 text-xs cursor-pointer"><input type="file" className="hidden" onChange={e => upload(e.target.files?.[0])} disabled={uploading} />{uploading ? 'Subiendo…' : 'Cargar archivo'}</label><Button type="button" variant="outline" size="sm" onClick={addLink}>Agregar enlace</Button></div><p className="text-[11px] text-slate-500">Se entrega sólo después de confirmar el pago.</p></div>;
+}
+
 // Variante vacía según tipo
 function emptyVariant(isDimension) {
   return isDimension
-    ? { id: undefined, name: '', widthCm: '', lengthCm: '', price: '', _initialStock: 0, _existing: false }
-    : { id: undefined, name: '', size: '', color: '', price: '', _initialStock: 0, _existing: false };
+    ? { id: undefined, name: '', widthCm: '', lengthCm: '', price: '', compareAtPrice: '', _initialStock: 0, _existing: false }
+    : { id: undefined, name: '', size: '', color: '', price: '', compareAtPrice: '', _initialStock: 0, _existing: false };
 }
 
 // Convertir variante existente al formato de edición
@@ -45,6 +52,7 @@ function variantToEditForm(v, productBasePrice, isDimension) {
       widthCm: v.attributes?.widthCm || '',
       lengthCm: v.attributes?.lengthCm || '',
       price: v.price || productBasePrice || 0,
+      compareAtPrice: v.compareAtPrice || 0,
       sku: v.sku || '',
       _existing: true,
     };
@@ -55,6 +63,7 @@ function variantToEditForm(v, productBasePrice, isDimension) {
     size: v.attributes?.size || '',
     color: v.attributes?.color || '',
     price: v.price || productBasePrice || 0,
+    compareAtPrice: v.compareAtPrice || 0,
     sku: v.sku || '',
     _existing: true,
   };
@@ -75,9 +84,11 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
         name: product.name || '', sku: product.sku || '',
         category: product.category || '', subcategory: product.subcategory || '',
         description: product.description || '',
-        basePrice: product.basePrice || 0, cost: product.cost || 0,
+        basePrice: product.basePrice || 0, baseCompareAtPrice: product.baseCompareAtPrice || 0, cost: product.cost || 0,
         images: product.images || [],
         featured: !!product.featured,
+        productType: product.productType || 'physical',
+        digitalAssets: product.digitalAssets || [],
       });
       setVariants((product.variants || []).map(v => variantToEditForm(v, product.basePrice, dim)));
     }
@@ -151,6 +162,7 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
           name: label,
           sku: v.sku || undefined,
           price: Number(v.price) || Number(form.basePrice) || 0,
+          compareAtPrice: Number(v.compareAtPrice) || Number(form.baseCompareAtPrice) || 0,
           attributes: attrs,
           ...(v._existing ? {} : { _initialStock: Number(v._initialStock) || 0 }),
         };
@@ -163,9 +175,10 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
           id: product.id,
           name: form.name, sku: form.sku, category: form.category, subcategory: form.subcategory,
           description: form.description,
-          basePrice: Number(form.basePrice) || 0, cost: Number(form.cost) || 0,
+          basePrice: Number(form.basePrice) || 0, baseCompareAtPrice: Number(form.baseCompareAtPrice) || 0, cost: Number(form.cost) || 0,
           images: form.images,
           featured: !!form.featured,
+          productType: form.productType, digitalAssets: form.digitalAssets,
           variants: preparedVariants,
         }),
       });
@@ -212,6 +225,15 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
                 </div>
               </div>
               <div>
+                <Label className="text-xs">Precio anterior (opcional)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                  <Input type="number" min="0" className="pl-6 font-mono" placeholder="Precio tachado" value={form.baseCompareAtPrice || ''}
+                    onChange={(e) => setForm(f => ({ ...f, baseCompareAtPrice: e.target.value }))} />
+                </div>
+                {Number(form.baseCompareAtPrice) > Number(form.basePrice) && <p className="mt-1 text-[11px] font-semibold text-rose-600">{Math.round((1 - Number(form.basePrice) / Number(form.baseCompareAtPrice)) * 100)}% de descuento</p>}
+              </div>
+              <div>
                 <Label className="text-xs">Costo (CLP)</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
@@ -224,6 +246,11 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
                 <Textarea rows={2} value={form.description || ''}
                   onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
               </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Tipo de producto</Label>
+                <select className="mt-1 flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" value={form.productType || 'physical'} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))}><option value="physical">Producto físico</option><option value="digital">Producto digital descargable</option></select>
+              </div>
+              {form.productType === 'digital' && <div className="sm:col-span-2"><Label className="text-xs">Archivos o enlaces de entrega</Label><DigitalAssetsEditor value={form.digitalAssets} onChange={digitalAssets => setForm(f => ({ ...f, digitalAssets }))} /></div>}
               <div className="sm:col-span-2">
                 <label
                   className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
@@ -307,6 +334,12 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
                         <Input type="number" className="h-9 font-mono" min="0" value={v.price || 0}
                           onChange={(e) => updateVariant(i, { price: e.target.value })} />
                       </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio anterior</Label>
+                        <Input type="number" min="0" className="h-9 font-mono" placeholder="Opcional" value={v.compareAtPrice || ''}
+                          onChange={(e) => updateVariant(i, { compareAtPrice: e.target.value })} />
+                        {Number(v.compareAtPrice) > Number(v.price || form.basePrice) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{Math.round((1 - Number(v.price || form.basePrice) / Number(v.compareAtPrice)) * 100)}% OFF</p>}
+                      </div>
                       {/* Stock */}
                       {!v._existing ? (
                         <div className="col-span-2">
@@ -343,6 +376,12 @@ export function EditProductDialog({ product, open, onOpenChange, onSaved }) {
                         <Label className="text-[10px]">Precio (CLP)</Label>
                         <Input type="number" className="h-9 font-mono" min="0" value={v.price || 0}
                           onChange={(e) => updateVariant(i, { price: e.target.value })} />
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px]">Precio anterior</Label>
+                        <Input type="number" min="0" className="h-9 font-mono" placeholder="Opcional" value={v.compareAtPrice || ''}
+                          onChange={(e) => updateVariant(i, { compareAtPrice: e.target.value })} />
+                        {Number(v.compareAtPrice) > Number(v.price || form.basePrice) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{Math.round((1 - Number(v.price || form.basePrice) / Number(v.compareAtPrice)) * 100)}% OFF</p>}
                       </div>
                       {/* Stock */}
                       {!v._existing ? (

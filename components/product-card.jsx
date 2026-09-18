@@ -90,6 +90,8 @@ export function ProductCard({ product }) {
   const variantCount = product.variantCount ?? product.variants?.length ?? 0;
   const minPrice = product.minPrice ?? product.variants?.[0]?.price ?? product.basePrice;
   const priceRange = variantCount > 1 ? minPrice : product.basePrice;
+  const compareAtPrice = product.minCompareAtPrice ?? product.variants?.[0]?.compareAtPrice ?? product.baseCompareAtPrice ?? 0;
+  const discountPercent = compareAtPrice > priceRange ? Math.round((1 - priceRange / compareAtPrice) * 100) : 0;
 
   return (
     <Link href={`/producto/${product.slug}`} className="group">
@@ -125,7 +127,11 @@ export function ProductCard({ product }) {
           )}
           <div className="mt-3 flex items-end justify-between">
             <div>
-              <div className="text-lg font-bold text-slate-900 font-mono">{formatCLP(priceRange || product.basePrice)}</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {discountPercent > 0 && <span className="text-xs font-mono text-slate-400 line-through">{formatCLP(compareAtPrice)}</span>}
+                <div className="text-lg font-bold text-slate-900 font-mono">{formatCLP(priceRange || product.basePrice)}</div>
+                {discountPercent > 0 && <span className="rounded-md bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{discountPercent}% OFF</span>}
+              </div>
               {variantCount > 1 && (
                 <div className="text-[10px] text-slate-500">{variantCount} variantes</div>
               )}

@@ -221,12 +221,15 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
   );
 
   const selectedVariant = product.variants?.find(v => v.id === selectedVariantId) || product.variants?.[0];
+  const isDigitalProduct = product?.productType === 'digital';
   // Mientras el stock no ha cargado, no mostrar "Sin stock" (evita flash de agotado).
   // Red de seguridad: si el inventario confirma stock para el producto, la variante
   // sin fila propia no puede quedar marcada como agotada.
-  const stockAvailable = stockLoaded ? (stockMap[selectedVariant?.id] ?? (inventoryHasStock ? 1 : 0)) : 1; // 1 = no agotado durante carga
-  const outOfStock = stockLoaded && stockAvailable <= 0 && !inventoryHasStock;
+  const stockAvailable = isDigitalProduct ? Infinity : (stockLoaded ? (stockMap[selectedVariant?.id] ?? (inventoryHasStock ? 1 : 0)) : 1); // productos digitales no consumen stock
+  const outOfStock = !isDigitalProduct && stockLoaded && stockAvailable <= 0 && !inventoryHasStock;
   const price = selectedVariant?.price || product.basePrice;
+  const compareAtPrice = selectedVariant?.compareAtPrice || product.baseCompareAtPrice || 0;
+  const discountPercent = compareAtPrice > price ? Math.round((1 - price / compareAtPrice) * 100) : 0;
 
   // Indicadores de proveedor (bajo pedido)
   const currentStockInfo = stockInfo || (stockMap ? {} : null);
@@ -269,7 +272,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
 
   const handleAdd = (openAfter = false) => {
     if (outOfStock) return toast.error('Sin stock disponible');
-    if (qty > stockAvailable) return toast.error(`Sólo hay ${stockAvailable} unidades disponibles`);
+    if (!isDigitalProduct && qty > stockAvailable) return toast.error(`Sólo hay ${stockAvailable} unidades disponibles`);
     add({
       productId: product.id,
       variantId: selectedVariant.id,
@@ -277,6 +280,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
       variantName: selectedVariant.name,
       price,
       image: product.images?.[0] || null,
+      productType: isDigitalProduct ? 'digital' : 'physical',
     }, qty);
     // Meta Pixel - AddToCart event for catalog matching
     if (typeof window.fbq === 'function') {
@@ -467,8 +471,10 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
               </div>
             </div>
 
-            <div className="mt-4 flex items-baseline gap-2">
+            <div className="mt-4 flex items-baseline gap-2 flex-wrap">
+              {discountPercent > 0 && <div className="text-lg font-mono text-slate-400 line-through">{formatCLP(compareAtPrice)}</div>}
               <div className="text-4xl font-mono font-bold text-slate-900">{formatCLP(price)}</div>
+              {discountPercent > 0 && <span className="rounded-md bg-rose-500 px-2 py-1 text-xs font-bold text-white">{discountPercent}% OFF</span>}
               <div className="text-xs text-slate-500 font-medium">IVA incluido</div>
             </div>
 
@@ -638,7 +644,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                         ? 'Sin stock disponible'
                         : stockAvailable < 5
                         ? `¡Últimas ${stockAvailable} unidades!`
-                        : `${stockAvailable} unidades disponibles · listo para despacho`}
+                        : (isDigitalProduct ? 'Disponible para descarga inmediata después del pago' : `${stockAvailable} unidades disponibles · listo para despacho`)}
                     </span>
                   </>
                 )}
@@ -653,7 +659,7 @@ export default function ProductDetailPage({ initialProduct = null, initialProduc
                   className="w-full h-13 text-base bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 disabled:opacity-50 font-bold shadow-lg shadow-orange-500/20"
                 >
                   <ShoppingBag className="h-5 w-5 mr-2" />
-                  {outOfStock ? 'Sin stock' : `Agregar al carrito · ${formatCLP(price * qty)}`}
+                  {outOfStock ? 'Sin stock' : (isDigitalProduct ? `Comprar y descargar · ${formatCLP(price * qty)}` : `Agregar al carrito · ${formatCLP(price * qty)}`)}
                 </Button>
                 <Button
                   onClick={() => handleAdd(true)}
