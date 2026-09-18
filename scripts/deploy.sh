@@ -1,23 +1,22 @@
 #!/bin/bash
 # ============================================================================
-# Auto-deploy script — Estampados DLV
+# Auto-deploy script — Estampados DLV (Next.js standalone mode)
 # ============================================================================
 # Se dispara vía webhook desde webhook-server.js cuando GitHub notifica un push
 # al branch `main`. Corre como usuario `dlv`.
 #
-# Path esperado (una vez copiado al VPS):
-#   /home/dlv/deploy.sh
+# Path esperado: /home/dlv/deploy.sh
+# Log:           /home/dlv/deploy.log
 #
-# Log de cada ejecución:
-#   /home/dlv/deploy.log
+# 2026-07-28: Actualizado para soportar next.config.js output:'standalone'.
+# 2026-09-17: public/ se enlaza en vez de copiarse para evitar duplicar ~22 GB.
 # ============================================================================
 
-set -e   # aborta el script ante cualquier error
+set -e   # aborta ante cualquier error
 
 LOG=/home/dlv/deploy.log
 APP_DIR=/var/www/estampadosdlv
 
-# Timestamps y separadores en el log
 {
   echo ""
   echo "════════════════════════════════════════════════════════════"
@@ -40,7 +39,15 @@ echo "[$(date -Iseconds)] → rm -rf .next && yarn build" >> "$LOG"
 rm -rf .next
 yarn build >> "$LOG" 2>&1
 
-# 4️⃣ Reiniciar el proceso Node bajo PM2 (recarga env vars)
+# 4️⃣ POST-BUILD: copiar static y .env; enlazar public sin duplicar los medios.
+echo "[$(date -Iseconds)] → copy static + link public + copy .env to .next/standalone/" >> "$LOG"
+cp -r .next/static .next/standalone/.next/static >> "$LOG" 2>&1
+rm -rf .next/standalone/public
+ln -s ../../public .next/standalone/public
+[ "$(readlink -f .next/standalone/public)" = "$APP_DIR/public" ]
+cp .env .next/standalone/.env >> "$LOG" 2>&1
+
+# 5️⃣ Reiniciar el proceso Node bajo PM2 (recarga env vars)
 echo "[$(date -Iseconds)] → pm2 restart dlv-nextjs --update-env" >> "$LOG"
 pm2 restart dlv-nextjs --update-env >> "$LOG" 2>&1
 
